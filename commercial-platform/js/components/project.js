@@ -1408,6 +1408,7 @@ const ProjectComponent = {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const projectName = document.querySelector('h2').innerText || 'Proyecto';
+        const companyName = document.getElementById('nav-company-name')?.textContent.trim() || 'Nexus Flow';
         const brandColor = [37, 99, 235]; // #2563EB
 
         // -- Header --
@@ -1415,15 +1416,15 @@ const ProjectComponent = {
         doc.rect(0, 0, 210, 40, 'F');
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(22);
+        doc.setFontSize(18);
         doc.setTextColor(255, 255, 255);
         doc.text("Nexus Flow", 14, 18);
 
         doc.setFontSize(14);
         doc.setFont('helvetica', 'normal');
-        doc.text("Reporte de Proyecto", 14, 28);
+        doc.text(`Reporte de Proyecto | ${projectName}`, 14, 28);
 
-        // Project Title Box
+        // Company Title Box
         doc.setFillColor(255, 255, 255);
         doc.roundedRect(14, 45, 182, 25, 3, 3, 'F');
         doc.setDrawColor(230, 230, 230);
@@ -1432,7 +1433,7 @@ const ProjectComponent = {
         doc.setFontSize(16);
         doc.setTextColor(30, 41, 59); // Slate-800
         doc.setFont('helvetica', 'bold');
-        doc.text(projectName, 20, 58);
+        doc.text(companyName, 20, 58);
 
         doc.setFontSize(10);
         doc.setTextColor(100, 116, 139); // Slate-500
@@ -1492,30 +1493,56 @@ const ProjectComponent = {
 
                 // Wrap Title
                 const titleLines = doc.splitTextToSize(item.requerimiento, 120);
-                if (yPos + (titleLines.length * 5) > 275) { doc.addPage(); yPos = 20; }
+                let currentY = yPos + 2.5;
 
-                doc.text(titleLines, 24, yPos + 2.5);
+                // Check page break for full item
+                // Estimated height: Title + Description + Meta ~ 20-30 units
+                if (yPos + 35 > 275) { doc.addPage(); yPos = 20; currentY = yPos + 2.5; }
 
-                // Meta Info (Right side)
+                doc.text(titleLines, 24, currentY);
+                currentY += (titleLines.length * 5); // Spacing after title
+
+                // Description (if exists)
+                if (item.description) {
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    doc.setTextColor(71, 85, 105); // Slate-600
+                    const descLines = doc.splitTextToSize(item.description, 160);
+
+                    // Check break for description
+                    if (currentY + (descLines.length * 4) > 280) { doc.addPage(); yPos = 20; currentY = yPos + 5; }
+
+                    doc.text(descLines, 24, currentY);
+                    currentY += (descLines.length * 4.5);
+                }
+
+                // Details Line (Priority | Cost | Deadline | Resp)
+                const priority = item.priority || 'Normal';
+                const cost = item.costo ? `$${item.costo}` : '$0';
+                const deadline = item.deadline ? new Date(item.deadline).toLocaleDateString() : 'Sin fecha';
+                const resp = item.responsable || 'Sin asignar';
+
                 doc.setFont('helvetica', 'normal');
-                doc.setFontSize(9);
-                doc.setTextColor(100, 116, 139);
+                doc.setFontSize(8);
+                doc.setTextColor(100, 116, 139); // Slate-500
 
-                const metaText = `Resp: ${item.responsable || 'N/A'}`;
-                const metaWidth = doc.getTextWidth(metaText);
-                doc.text(metaText, 190 - metaWidth, yPos + 2.5);
+                const metaInfo = `Prioridad: ${priority}  |  Presupuesto: ${cost}  |  Vence: ${deadline}  |  Resp: ${resp}`;
+                doc.text(metaInfo, 24, currentY + 2);
 
-                // Status Text
+                currentY += 8; // Spacing after meta
+
+                // Draw Status Label
                 doc.setFontSize(8);
                 doc.setTextColor(...statusColor);
                 if (isLate) {
                     doc.setTextColor(239, 68, 68); // Red
-                    doc.text("! VENCIDA", 24, yPos + 3 + (titleLines.length * 4));
+                    doc.text("! VENCIDA", 170, yPos + 4, { align: 'right' });
                 } else {
-                    doc.text(item.estado, 24, yPos + 3 + (titleLines.length * 4));
+                    doc.text(item.estado.toUpperCase(), 190, yPos + 4, { align: 'right' });
                 }
 
-                yPos += (titleLines.length * 5) + 8;
+                // Update yPos for next item based on actual height used
+                yPos = currentY + 4;
 
                 // Separator Line
                 doc.setDrawColor(241, 245, 249);

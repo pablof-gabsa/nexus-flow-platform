@@ -181,8 +181,13 @@ const ProjectComponent = {
                             </div>
                             <span id="project-progress-text" class="font-bold text-brand-600">0%</span>
                         </div>
-                        <div class="h-48 relative">
-                            <canvas id="statusChart"></canvas>
+                        <div class="grid grid-cols-2 gap-4 h-48">
+                            <div class="relative">
+                                <canvas id="activityChart"></canvas>
+                            </div>
+                            <div class="relative">
+                                <canvas id="deadlineChart"></canvas>
+                            </div>
                         </div>
                     </div>
                     <div class="glass-card p-6 rounded-xl">
@@ -452,6 +457,7 @@ const ProjectComponent = {
             const deadlineDate = new Date(y, m - 1, d_);
             return deadlineDate < today;
         }).length;
+        const pending = tasks.filter(t => t.estado === 'Pendiente').length;
 
         const total = tasks.length;
 
@@ -462,9 +468,9 @@ const ProjectComponent = {
                     <span class="text-gray-600 dark:text-gray-300">En Proceso</span>
                     <span class="font-bold text-gray-800 dark:text-white">${inProgress}</span>
                 </div>
-                <div class="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <span class="text-green-600 dark:text-green-400">Completadas</span>
-                    <span class="font-bold text-green-700 dark:text-green-300">${done}</span>
+                <div class="flex justify-between items-center p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                    <span class="text-amber-600 dark:text-amber-400">Pendientes</span>
+                    <span class="font-bold text-amber-700 dark:text-amber-300">${pending}</span>
                 </div>
                 <div class="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                     <span class="text-red-600 dark:text-red-400">Vencidas</span>

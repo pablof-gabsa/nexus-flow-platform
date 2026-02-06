@@ -165,7 +165,7 @@ const ProjectComponent = {
                                 </div>
                             </div>
                         </div>
-                        <button onclick="ProjectComponent.exportPDF()" class="btn-secondary text-sm px-4 pointer-events-auto">
+                        <button onclick="ProjectComponent.openPDFModal()" class="btn-secondary text-sm px-4 pointer-events-auto">
                             <i class="fas fa-file-pdf"></i> <span class="hidden sm:inline">PDF</span>
                         </button>
                     </div>
@@ -1332,62 +1332,176 @@ const ProjectComponent = {
         modal.classList.add('hidden');
     },
 
-    exportPDF: () => {
+    openPDFModal: () => {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-fade-in';
+
+        const options = ['Todo el Proyecto', ...ProjectComponent.rubros].map(r =>
+            `<option value="${r === 'Todo el Proyecto' ? 'all' : r}">${r}</option>`
+        ).join('');
+
+        modal.innerHTML = `
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-sm w-full p-6 animate-slide-up border dark:border-slate-700">
+                <div class="flex items-center gap-3 mb-4 text-brand-600 dark:text-brand-400">
+                    <i class="fas fa-file-pdf text-2xl"></i>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Exportar PDF</h3>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Seleccionar Área</label>
+                    <select id="pdf-area-select" class="w-full rounded-lg border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-brand-500 focus:border-brand-500">
+                        ${options}
+                    </select>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button id="modal-cancel" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700 transition font-medium text-sm">Cancelar</button>
+                    <button id="modal-confirm" class="px-4 py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition font-medium text-sm shadow-md shadow-brand-500/30">
+                        <i class="fas fa-download mr-1"></i> Generar
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const close = () => {
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.remove(), 200);
+        };
+
+        modal.querySelector('#modal-cancel').onclick = close;
+        modal.querySelector('#modal-confirm').onclick = () => {
+            const selected = document.getElementById('pdf-area-select').value;
+            ProjectComponent.generatePDF(selected);
+            close();
+        };
+        modal.onclick = (e) => { if (e.target === modal) close(); };
+    },
+
+    generatePDF: (filter = 'all') => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-
-        // Header
-        doc.setFontSize(18);
-        doc.text("Reporte de Proyecto", 14, 20);
-
-        doc.setFontSize(12);
-        doc.setTextColor(100);
         const projectName = document.querySelector('h2').innerText || 'Proyecto';
-        doc.text(projectName, 14, 30);
-        doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 14, 36);
+        const brandColor = [37, 99, 235]; // #2563EB
 
-        // Stats
-        let statsY = 45;
-        const tasks = ProjectComponent.getFilteredData();
-        const done = tasks.filter(t => t.estado === 'Realizado').length;
+        // -- Header --
+        doc.setFillColor(...brandColor);
+        doc.rect(0, 0, 210, 40, 'F');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(22);
+        doc.setTextColor(255, 255, 255);
+        doc.text("Nexus Flow", 14, 18);
+
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'normal');
+        doc.text("Reporte de Proyecto", 14, 28);
+
+        // Project Title Box
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(14, 45, 182, 25, 3, 3, 'F');
+        doc.setDrawColor(230, 230, 230);
+        doc.roundedRect(14, 45, 182, 25, 3, 3, 'S');
+
+        doc.setFontSize(16);
+        doc.setTextColor(30, 41, 59); // Slate-800
+        doc.setFont('helvetica', 'bold');
+        doc.text(projectName, 20, 58);
+
         doc.setFontSize(10);
-        doc.text(`Total: ${tasks.length} | Realizadas: ${done} | Pendientes: ${tasks.length - done}`, 14, statsY);
+        doc.setTextColor(100, 116, 139); // Slate-500
+        doc.setFont('helvetica', 'normal');
+        const dateStr = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        doc.text(`Generado el ${dateStr}`, 20, 65);
 
-        // Table
-        let yPos = statsY + 10;
+        // -- Content --
+        let yPos = 85;
+        const tasks = ProjectComponent.getFilteredData();
+        const rubrosToExport = filter === 'all' ? ProjectComponent.rubros : [filter];
 
-        // Simple manual table implementation for now (autoTable is external plugin, if not loaded, fallback)
-        // Since we didn't explicitly load autotable plugin in index, we'll do a simple list output
-
-        ProjectComponent.rubros.forEach(rubro => {
+        rubrosToExport.forEach(rubro => {
             const items = tasks.filter(t => t.rubro === rubro);
             if (items.length === 0) return;
 
-            if (yPos > 270) { doc.addPage(); yPos = 20; }
+            // Page Break Check
+            if (yPos > 260) { doc.addPage(); yPos = 20; }
 
-            doc.setFont(undefined, 'bold');
-            doc.setFillColor(240, 240, 240);
-            doc.rect(14, yPos, 180, 8, 'F');
-            doc.setTextColor(0);
-            doc.text(rubro, 16, yPos + 5);
-            yPos += 12;
+            // Rubro Header
+            doc.setFillColor(241, 245, 249); // Slate-100
+            doc.roundedRect(14, yPos, 182, 10, 2, 2, 'F');
 
-            doc.setFont(undefined, 'normal');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(51, 65, 85); // Slate-700
+            doc.text(rubro.toUpperCase(), 18, yPos + 7);
+
+            yPos += 16;
+
             items.forEach(item => {
-                const check = item.estado === 'Realizado' ? '[X]' : '[ ]';
-                const text = `${check} ${item.requerimiento} (${item.responsable})`;
+                // Task Row
+                const isLate = item.deadline && new Date(item.deadline) < new Date() && item.estado !== 'Realizado';
+                const statusColor = {
+                    'Realizado': [16, 185, 129], // Emerald
+                    'Pendiente': [245, 158, 11], // Amber
+                    'En Proceso': [59, 130, 246], // Blue
+                    'Suspendido': [100, 116, 139] // Slate
+                }[item.estado] || [200, 200, 200];
 
-                // Text wrap
-                const splitText = doc.splitTextToSize(text, 170);
-                if (yPos + (splitText.length * 5) > 280) { doc.addPage(); yPos = 20; }
+                // Status Indicator (Pill)
+                doc.setFillColor(...statusColor);
+                doc.roundedRect(16, yPos, 3, 3, 1, 1, 'F');
 
-                doc.text(splitText, 16, yPos);
-                yPos += (splitText.length * 5) + 2;
+                // Title
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(30, 41, 59);
+
+                // Wrap Title
+                const titleLines = doc.splitTextToSize(item.requerimiento, 120);
+                if (yPos + (titleLines.length * 5) > 275) { doc.addPage(); yPos = 20; }
+
+                doc.text(titleLines, 24, yPos + 2.5);
+
+                // Meta Info (Right side)
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(100, 116, 139);
+
+                const metaText = `Resp: ${item.responsable || 'N/A'}`;
+                const metaWidth = doc.getTextWidth(metaText);
+                doc.text(metaText, 190 - metaWidth, yPos + 2.5);
+
+                // Status Text
+                doc.setFontSize(8);
+                doc.setTextColor(...statusColor);
+                if (isLate) {
+                    doc.setTextColor(239, 68, 68); // Red
+                    doc.text("! VENCIDA", 24, yPos + 3 + (titleLines.length * 4));
+                } else {
+                    doc.text(item.estado, 24, yPos + 3 + (titleLines.length * 4));
+                }
+
+                yPos += (titleLines.length * 5) + 8;
+
+                // Separator Line
+                doc.setDrawColor(241, 245, 249);
+                doc.line(14, yPos - 3, 196, yPos - 3);
             });
-            yPos += 4;
+
+            yPos += 10;
         });
 
-        doc.save(`${projectName.replace(/\s+/g, '_')}_Report.pdf`);
+        // Footer Page Numbers
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(`Página ${i} de ${pageCount}`, 105, 290, { align: 'center' });
+        }
+
+        doc.save(`${projectName.replace(/\s+/g, '_')}_Reporte.pdf`);
     },
 
     // --- Export Selection Logic ---

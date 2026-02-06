@@ -434,7 +434,9 @@ const ProjectComponent = {
         const tasks = ProjectComponent.getFilteredData();
         const done = tasks.filter(t => t.estado === 'Realizado').length;
         const total = tasks.length;
-        const totalCost = tasks.reduce((sum, t) => sum + (t.costo || 0), 0);
+        // Calc Cost only for Pendiente/En Proceso
+        const activeTasks = tasks.filter(t => t.estado !== 'Realizado' && t.estado !== 'Suspendido');
+        const totalCost = activeTasks.reduce((sum, t) => sum + (t.costo || 0), 0);
 
         // Calculate Overdue
         const today = new Date();
@@ -471,9 +473,9 @@ const ProjectComponent = {
                 </div>
             `;
 
-            // HH Stats
-            const totalEst = tasks.reduce((sum, t) => sum + (parseFloat(t.hh_estimated) || 0), 0);
-            const totalExe = tasks.reduce((sum, t) => sum + (parseFloat(t.hh_executed) || 0), 0);
+            // HH Stats (Active only)
+            const totalEst = activeTasks.reduce((sum, t) => sum + (parseFloat(t.hh_estimated) || 0), 0);
+            const totalExe = activeTasks.reduce((sum, t) => sum + (parseFloat(t.hh_executed) || 0), 0);
 
             container.innerHTML += `
                <div class="flex justify-between items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg mt-2">

@@ -41,9 +41,11 @@ const NavbarComponent = {
                                 <i class="fas fa-question-circle"></i>
                             </button>
 
+                            ${!window.location.hash.includes('project') ? `
                             <button onclick="DashboardComponent.showIntegrations()" class="p-2 rounded-lg text-brand-500 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-slate-700/50 transition-colors" title="Integraciones">
                                 <i class="fas fa-plug"></i>
                             </button>
+                            ` : ''}
 
                             <!-- User Profile -->
                             <div class="flex items-center gap-3 border-l pl-4 border-gray-200 dark:border-gray-700">

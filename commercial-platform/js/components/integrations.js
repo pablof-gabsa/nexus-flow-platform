@@ -65,7 +65,7 @@ const IntegrationsComponent = {
                         </p>
 
                         <div class="text-xs text-gray-400">
-                            Incluye: Título, Descripción, Prioridad (30) y Presupuesto.
+                            Incluye: Título, Descripción, Prioridad y Presupuesto.
                         </div>
                     </div>
                 </div>

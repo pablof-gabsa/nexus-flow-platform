@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es" class="light"> <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Club Privado Loma Verde - Reportes</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-auth-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class', 
+            theme: {
+                extend: {
+                    colors: {
+                        institutional: '#2563EB', 
+                        fozcaDark: '#1a1a1a', 
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://rsms.me/inter/inter.css');
+        html { font-family: 'Inter', sans-serif; }
+        body { background-color: #f8fafc; transition: background-color 0.3s, color 0.3s; }
+        .dark body { background-color: #0f172a; color: #f1f5f9; }
+
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out; }
+        .accordion-content.open { max-height: 5000px; transition: max-height 1s ease-in-out; }
+        .form-overlay { display: none; }
+        .form-overlay.visible { display: flex; }
+        .filter-btn.active { background-color: #2563EB; color: white; border-color: #2563EB; }
+        
+        #login-screen { position: fixed; inset: 0; background-color: #f1f5f9; z-index: 100; display: flex; justify-content: center; align-items: center; }
+        .dark #login-screen { background-color: #0f172a; }
+
+        #app-content { display: none; } 
+
+        .subtask-item.done span { text-decoration: line-through; color: #9ca3af; }
+        
+        .logo-login { mix-blend-mode: multiply; }
+        .dark .logo-login { mix-blend-mode: normal; border-radius: 12px; }
+        .logo-nav { border-radius: 6px; }
+
+        /* Estilos de etiquetas de solo lectura */
+        .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-align: center; }
+
+        @media print {
+            body { background-color: white !important; color: black !important; }
+            .dark body { background-color: white !important; color: black !important; }
+            #form-overlay, #controls, #summary, footer, .no-print, #filter-overlay, #user-bar { display: none !important; }
+            main, .container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+            .accordion-content { max-height: none !important; display: block !important; }
+            .bg-white { box-shadow: none !important; background-color: white !important; }
+            * { text-shadow: none !important; box-shadow: none !important; }
+            @page { size: landscape; }
+        }
+    </style>
+</head>
+<body class="antialiased text-slate-800 dark:text-slate-200">
+
+    <div id="login-screen">
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-2xl text-center max-w-md w-full mx-4 border border-gray-100 dark:border-slate-700">
+            <div class="mb-8">
+                <div class="mx-auto mb-4 flex justify-center">
+                    <img src="logo.jpg" alt="Logo Club" class="h-24 w-auto object-contain logo-login">
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Club Privado Loma Verde</h1>
+                <p class="text-gray-500 dark:text-gray-400 mt-1">Portal de Reportes (Solo Lectura)</p>
+            </div>
+            
+            <button id="login-btn" class="w-full flex items-center justify-center gap-3 bg-institutional hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-sm group">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <span>Ver Reportes</span>
+            </button>
+            <p id="login-status" class="mt-4 text-xs text-gray-400 min-h-[20px]"></p>
+        </div>
+    </div>
+
+    <div id="app-content">
+        
+        <div id="user-bar" class="bg-white dark:bg-slate-800 shadow-sm border-b dark:border-slate-700 px-4 py-2 flex justify-between items-center sticky top-0 z-40 transition-colors">
+            <div class="flex items-center gap-3">
+                <img src="logo.jpg" alt="Club" class="h-9 w-auto object-contain logo-nav">
+                <div class="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+                    <span class="text-xl font-extrabold tracking-tight text-slate-800 dark:text-white leading-none">Reportes</span>
+                    <span class="text-[10px] sm:text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 py-0.5 px-2 rounded-full font-medium self-start sm:self-auto">Solo Lectura</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button id="theme-toggle" class="p-2 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors" title="Cambiar Tema">
+                    <svg id="icon-sun" class="w-5 h-5 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    <svg id="icon-moon" class="w-5 h-5 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                </button>
+                <div class="text-right hidden sm:block leading-tight">
+                    <p id="user-name" class="text-sm font-bold text-gray-700 dark:text-gray-200">Invitado</p>
+                </div>
+                <img id="user-photo" src="https://ui-avatars.com/api/?name=Invitado&background=gray" alt="Perfil" class="w-9 h-9 rounded-full border border-gray-200 dark:border-gray-600">
+                <button id="logout-btn" class="ml-2 text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 font-medium px-3 py-1.5 rounded-md transition-colors">Salir</button>
+            </div>
+        </div>
+
+        <div id="filter-overlay" class="form-overlay fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50 overflow-y-auto py-10"><div class="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-2xl w-full max-w-3xl relative"><button id="close-filter-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white text-3xl">&times;</button><h2 class="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Filtros de Reporte</h2><div class="space-y-6"><div><h3 class="text-md font-bold text-gray-700 dark:text-gray-300 mb-2">Estado</h3><div id="status-filters" class="flex flex-wrap items-center gap-2"><button class="filter-btn active py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="status" data-filter="Todos">Todos</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="status" data-filter="Pendiente">Pendiente</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="status" data-filter="En Proceso">En Proceso</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="status" data-filter="Realizado">Realizado</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="status" data-filter="Suspendido">Suspendido</button></div></div><div><h3 class="text-md font-bold text-gray-700 dark:text-gray-300 mb-2">Prioridad</h3><div id="priority-filters" class="flex flex-wrap items-center gap-2"><button class="filter-btn active py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="priority" data-filter="Todos">Todas</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="priority" data-filter="Baja">Baja</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="priority" data-filter="Media">Media</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="priority" data-filter="Alta">Alta</button></div></div><div><h3 class="text-md font-bold text-gray-700 dark:text-gray-300 mb-2">Vencimiento</h3><div id="date-filters" class="flex flex-wrap items-center gap-2"><button class="filter-btn active py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="date" data-filter="Todas">Todas</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="date" data-filter="Vencidas">Vencidas</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="date" data-filter="Hoy">Vencen Hoy</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="date" data-filter="Este Mes">Vencen este mes</button><button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200" data-filter-type="date" data-filter="Proximas">Próximas (7d)</button></div></div><div><h3 class="text-md font-bold text-gray-700 dark:text-gray-300 mb-2">Responsable</h3><div id="responsible-filters" class="flex flex-wrap items-center gap-2 max-h-40 overflow-y-auto"></div></div></div><div class="flex justify-end pt-6 border-t dark:border-slate-700 mt-6"><button id="close-filter-btn-bottom" class="bg-gray-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-700 transition-colors">Cerrar</button></div></div></div>
+
+        <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+            <div id="controls" class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md mb-8 space-y-4 transition-colors flex justify-between items-center">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button id="manage-filters-btn" class="bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-600 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                        Filtros
+                    </button>
+                    <button id="export-pdf-btn" class="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        Exportar a PDF
+                    </button>
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
+                    Modo Vista: <span class="font-bold text-gray-700 dark:text-white">Activado</span>
+                </div>
+            </div>
+
+            <div id="summary" class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md mb-8 transition-colors">
+                <h2 class="text-xl font-bold text-gray-700 dark:text-white mb-4">Progreso General <span id="filter-label" class="text-base font-normal text-gray-500 dark:text-gray-400"></span></h2>
+                <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-4 mb-4">
+                    <div id="progressBar" class="bg-institutional h-4 rounded-full transition-all duration-500 ease-out" style="width: 0%;"></div>
+                </div>
+                <div class="flex flex-col lg:flex-row items-center gap-8 mt-6">
+                    <div id="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center flex-1 order-2 lg:order-1"></div>
+                    <div class="w-full lg:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-8 order-1 lg:order-2">
+                        <div class="h-64 relative"><canvas id="statusChart"></canvas></div>
+                        <div class="h-64 relative"><canvas id="responsibleChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <main id="checklist-container" class="space-y-6"></main>
+
+            <footer class="text-center mt-12 text-sm text-gray-500">
+                <p>Club Privado Loma Verde - Datos cifrados - Reporte Generado</p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // --- MODO OSCURO LOGIC ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const htmlElement = document.documentElement;
+
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlElement.classList.add('dark');
+        } else {
+            htmlElement.classList.remove('dark');
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            if (htmlElement.classList.contains('dark')) {
+                htmlElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                htmlElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+            if(statusChart || responsibleChart) updateSummary();
+        });
+
+
+        // --- CONFIGURACIÓN DE FIREBASE (MISMA URL DE DB) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDAL7Qp9LN7f8S5Sq0QPwGb5R2wQOvn5nI",
+            authDomain: "club-privado-loma-verde.firebaseapp.com",
+            databaseURL: "https://club-privado-loma-verde-default-rtdb.firebaseio.com", 
+            projectId: "club-privado-loma-verde",
+            storageBucket: "club-privado-loma-verde.firebasestorage.app",
+            messagingSenderId: "913952836624",
+            appId: "1:913952836624:web:971dead9e43437c1c78e95"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth();
+        
+        // --- AUTH ---
+        const loginScreen = document.getElementById('login-screen');
+        const appContent = document.getElementById('app-content');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const loginStatus = document.getElementById('login-status');
+        const userNameDisplay = document.getElementById('user-name');
+        
+        loginBtn.addEventListener('click', () => {
+            loginStatus.textContent = "Conectando como invitado...";
+            auth.signInAnonymously().catch((error) => { 
+                loginStatus.textContent = "Error: " + error.message; 
+                console.error(error); 
+            });
+        });
+
+        logoutBtn.addEventListener('click', () => auth.signOut());
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                loginScreen.style.display = 'none'; 
+                appContent.style.display = 'block';
+                userNameDisplay.textContent = "Acceso de Invitado"; 
+                loadInitialData(); 
+            } else { 
+                loginScreen.style.display = 'flex'; 
+                appContent.style.display = 'none'; 
+                loginStatus.textContent = ""; 
+            }
+        });
+
+        // --- VARS ---
+        let checklistData = [];
+        let rubros = [];
+        let responsables = []; 
+        let statusChart = null;
+        let responsibleChart = null; 
+        let currentStatusFilter = 'Todos';
+        let currentPriorityFilter = 'Todos';
+        let currentDateFilter = 'Todas';
+        let currentResponsibleFilter = 'Todos'; 
+        let openRubros = new Set();
+
+        const statusColors = { 'Pendiente': '#FBBF24', 'Realizado': '#2563EB', 'En Proceso': '#60A5FA', 'Suspendido': '#9CA3AF' };
+        
+        const statusStyles = { 
+            'Pendiente': 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700', 
+            'Realizado': 'bg-institutional/20 text-institutional border-institutional/40 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700', 
+            'En Proceso': 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-700', 
+            'Suspendido': 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600' 
+        };
+
+        const priorityStyles = { 
+            'Alta': 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700', 
+            'Media': 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700', 
+            'Baja': 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600' 
+        };
+        
+        const rubroIcons = { 'default': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>` };
+
+        function loadInitialData() {
+            // Carga de solo lectura
+            const rubrosPromise = database.ref('rubros').once('value');
+            const responsablesPromise = database.ref('responsables').once('value');
+            Promise.all([rubrosPromise, responsablesPromise]).then(([rubrosSnapshot, responsablesSnapshot]) => {
+                rubros = rubrosSnapshot.val() || [];
+                responsables = responsablesSnapshot.val() || [];
+                renderFilterModal(); 
+                loadTasks(); 
+            });
+        }
+
+        function loadTasks() {
+            // Listener para actualizaciones en tiempo real (si el admin cambia algo, el invitado lo ve al instante)
+            database.ref('tasks').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) { 
+                    checklistData = Object.keys(data).map(key => { 
+                        return { ...data[key], id: key, prioridad: data[key].prioridad || 'Baja', costo: data[key].costo || 0, recurrence: data[key].recurrence || { type: 'none' }, subtasks: data[key].subtasks || [] }; 
+                    }); 
+                } else { checklistData = []; }
+                renderChecklist(); 
+            });
+        }
+        
+        function renderFilterModal() { const container = document.getElementById('responsible-filters'); container.innerHTML = ''; const allBtn = document.createElement('button'); allBtn.className = `filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200 ${currentResponsibleFilter === 'Todos' ? 'active' : ''}`; allBtn.dataset.filterType = 'responsible'; allBtn.dataset.filter = 'Todos'; allBtn.textContent = 'Todos'; container.appendChild(allBtn); responsables.forEach(resp => { const respBtn = document.createElement('button'); respBtn.className = `filter-btn py-1 px-3 rounded-full text-sm transition-colors border dark:border-slate-600 dark:text-gray-200 ${currentResponsibleFilter === resp ? 'active' : ''}`; respBtn.dataset.filterType = 'responsible'; respBtn.dataset.filter = resp; respBtn.textContent = resp; container.appendChild(respBtn); }); }
+        
+        function getFilteredData() { const today = new Date(); today.setHours(0, 0, 0, 0); const currentMonth = today.getMonth(); const currentYear = today.getFullYear(); let filtered = checklistData.filter(item => (currentStatusFilter === 'Todos' || item.estado === currentStatusFilter) && (currentPriorityFilter === 'Todos' || item.prioridad === currentPriorityFilter) && (currentResponsibleFilter === 'Todos' || item.responsable === currentResponsibleFilter)); if (currentDateFilter !== 'Todas') { filtered = filtered.filter(item => { if (!item.deadline) return false; const taskDate = new Date(item.deadline + 'T00:00:00'); if (!taskDate || isNaN(taskDate)) return false; switch (currentDateFilter) { case 'Vencidas': return taskDate.getTime() < today.getTime() && item.estado !== 'Realizado' && item.estado !== 'Suspendido'; case 'Hoy': return taskDate.getTime() === today.getTime(); case 'Este Mes': return taskDate.getMonth() === currentMonth && taskDate.getFullYear() === currentYear; case 'Proximas': const sevenDaysFromNow = new Date(today); sevenDaysFromNow.setDate(today.getDate() + 7); return taskDate.getTime() >= today.getTime() && taskDate.getTime() <= sevenDaysFromNow.getTime(); default: return true; } }); } return filtered; }
+        const formatMoney = (amount) => { return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(amount).replace('ARS', '$').trim(); };
+
+        function renderChecklist() {
+            const container = document.getElementById('checklist-container'); const currentOpenRubros = new Set(openRubros); container.innerHTML = ''; const fragment = document.createDocumentFragment(); const today = new Date(); today.setHours(0, 0, 0, 0); const groupedData = getFilteredData().reduce((acc, item) => { (acc[item.rubro] = acc[item.rubro] || []).push(item); return acc; }, {});
+            
+            rubros.forEach(rubro => {
+                // Ocultar rubro 'Eliminado' en reportes para limpieza
+                if(rubro === 'Eliminado') return;
+
+                const itemsInRubro = checklistData.filter(i => i.rubro === rubro); const itemsToShow = groupedData[rubro] || [];
+                const accordionItem = document.createElement('div'); accordionItem.className = 'bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden transition-colors';
+                const okCount = itemsInRubro.filter(i => i.estado === 'Realizado').length; const totalInRubro = itemsInRubro.length;
+                const header = document.createElement('div'); header.className = 'p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors'; header.onclick = (event) => { if (!event.target.closest('.no-toggle')) { toggleAccordion(header); } }; header.dataset.rubro = rubro; 
+                let overdueIndicator = ''; const hasOverdue = itemsInRubro.some(item => { if (!item.deadline || item.estado === 'Realizado' || item.estado === 'Suspendido') return false; return new Date(item.deadline + 'T00:00:00') < today; }); if (hasOverdue) { overdueIndicator = '<span class="w-2.5 h-2.5 bg-red-500 rounded-full ml-2 animate-pulse"></span>'; }
+                header.innerHTML = `<div class="flex items-center">${rubroIcons['default']}<h3 class="text-lg font-bold text-gray-700 dark:text-gray-200">${rubro}</h3>${overdueIndicator}</div><div class="flex items-center space-x-2"><span class="text-sm font-semibold text-gray-600 dark:text-gray-400">${okCount}/${totalInRubro}</span><svg class="w-6 h-6 text-gray-500 dark:text-gray-400 transition-transform transform ${currentOpenRubros.has(rubro) ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></div>`;
+                const content = document.createElement('div'); content.className = 'accordion-content border-t border-gray-200 dark:border-slate-700';
+                if (currentOpenRubros.has(rubro)) {
+                    content.classList.add('open'); 
+                    if (itemsToShow.length === 0) { content.innerHTML = `<p class="text-center text-gray-500 dark:text-gray-400 p-4">No hay tareas para mostrar.</p>`; } else {
+                        itemsToShow.sort((a, b) => { const aHasDate = a.deadline; const bHasDate = b.deadline; if (aHasDate && !bHasDate) return -1; if (!aHasDate && bHasDate) return 1; if (!aHasDate && !bHasDate) return a.requerimiento.localeCompare(b.requerimiento); return new Date(a.deadline) - new Date(b.deadline); });
+                        // Columnas ajustadas: Se quitó "Acciones"
+                        const headerRow = document.createElement('div'); headerRow.className = 'hidden md:grid grid-cols-[1fr_90px_120px_140px_130px_140px] items-center gap-x-4 px-4 pt-2 text-xs text-gray-500 dark:text-gray-400 font-bold uppercase'; headerRow.innerHTML = `<span>Descripción</span><span class="text-center">Prioridad</span><span class="text-center">Costo</span><span>Responsable</span><span>Vencimiento</span><span class="text-center">Estado</span>`; content.appendChild(headerRow);
+                        const list = document.createElement('ul'); list.className = 'divide-y divide-gray-200 dark:divide-slate-700';
+                        itemsToShow.forEach(item => {
+                            const listItem = document.createElement('li'); listItem.className = 'px-4 py-3';
+                            const taskRow = document.createElement('div'); taskRow.className = 'grid grid-cols-1 md:grid-cols-[1fr_90px_120px_140px_130px_140px] items-start gap-x-4 gap-y-2';
+                            
+                            const requerimientoDiv = document.createElement('div');
+                            requerimientoDiv.className = 'col-span-full md:col-span-1';
+                            const requerimientoP = document.createElement('p'); requerimientoP.className = 'text-gray-800 dark:text-gray-200 font-medium break-words'; requerimientoP.textContent = item.requerimiento;
+                            requerimientoDiv.appendChild(requerimientoP);
+                            
+                            // Subtareas (Solo lectura)
+                            if(item.subtasks && item.subtasks.length > 0) {
+                                const subtasksDiv = document.createElement('div');
+                                subtasksDiv.className = 'mt-2 pl-4 border-l-2 border-gray-200 dark:border-slate-600'; 
+                                item.subtasks.forEach(st => {
+                                    const stDiv = document.createElement('div'); stDiv.className = 'flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1';
+                                    stDiv.innerHTML = `<input type="checkbox" ${st.done ? 'checked' : ''} disabled class="opacity-60"> <span class="${st.done ? 'line-through text-gray-400 dark:text-gray-600' : ''}">${st.text}</span>`;
+                                    subtasksDiv.appendChild(stDiv);
+                                });
+                                requerimientoDiv.appendChild(subtasksDiv);
+                            }
+                            taskRow.appendChild(requerimientoDiv);
+
+                            // Prioridad (Badge estático)
+                            const prioritySpan = document.createElement('div'); prioritySpan.className = 'text-center'; 
+                            prioritySpan.innerHTML = `<span class="badge ${priorityStyles[item.prioridad]}">${item.prioridad}</span>`;
+                            taskRow.appendChild(prioritySpan);
+
+                            const costDiv = document.createElement('div'); costDiv.className = 'text-center truncate'; const costVal = item.costo ? parseFloat(item.costo) : 0; costDiv.innerHTML = `<span class="text-sm text-gray-600 dark:text-gray-300 font-medium">${formatMoney(costVal)}</span>`; taskRow.appendChild(costDiv);
+                            
+                            const responsibleDiv = document.createElement('div'); responsibleDiv.className = 'text-sm text-gray-800 dark:text-gray-200 truncate'; responsibleDiv.textContent = item.responsable; taskRow.appendChild(responsibleDiv);
+                            
+                            const deadlineDiv = document.createElement('div'); deadlineDiv.className = 'flex items-center text-sm text-gray-600 dark:text-gray-300'; if (item.deadline && new Date(item.deadline + 'T00:00:00') < today && item.estado !== 'Realizado' && item.estado !== 'Suspendido') { deadlineDiv.classList.add('text-red-600', 'dark:text-red-400', 'font-bold'); } let repeatIcon = ''; if (item.recurrence && item.recurrence.type !== 'none') { repeatIcon = `<svg class="h-4 w-4 ml-1 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m-15.357-2a8.001 8.001 0 0015.357 2m0 0H15" /></svg>`; } deadlineDiv.innerHTML = `<svg class="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span class="flex-1 truncate">${item.deadline || '-'}</span> ${repeatIcon}`; taskRow.appendChild(deadlineDiv);
+                            
+                            // Estado (Badge estático)
+                            const statusSpan = document.createElement('div'); statusSpan.className = 'text-center'; 
+                            statusSpan.innerHTML = `<span class="badge ${statusStyles[item.estado]}">${item.estado}</span>`;
+                            taskRow.appendChild(statusSpan);
+
+                            // Acciones ELIMINADAS
+
+                            listItem.appendChild(taskRow); list.appendChild(listItem);
+                        });
+                        content.appendChild(list);
+                    }
+                }
+                accordionItem.appendChild(header); accordionItem.appendChild(content); fragment.appendChild(accordionItem); 
+            });
+            container.appendChild(fragment); 
+            
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const dataToSummarize = getFilteredData(); const total = dataToSummarize.length; const stats = dataToSummarize.reduce((acc, item) => { (acc[item.estado] = (acc[item.estado] || 0) + 1); return acc; }, {}); const okCount = stats['Realizado'] || 0; const progress = total > 0 ? (okCount / total) * 100 : 0; document.getElementById('progressBar').style.width = `${progress}%`;
+            let filterText = []; if (currentStatusFilter !== 'Todos') filterText.push(`Estado: ${currentStatusFilter}`); if (currentPriorityFilter !== 'Todos') filterText.push(`Prioridad: ${currentPriorityFilter}`); if (currentDateFilter !== 'Todas') filterText.push(`Vence: ${currentDateFilter}`); if (currentResponsibleFilter !== 'Todos') filterText.push(`Resp: ${currentResponsibleFilter}`); document.getElementById('filter-label').textContent = filterText.length > 0 ? `(${filterText.join(', ')})` : '';
+            renderPieChart(stats); renderResponsibleChart(dataToSummarize);
+            const statsContainer = document.getElementById('stats'); statsContainer.innerHTML = ''; const fullStats = {'Total': total, 'Realizado': okCount, ...stats}; const statOrder = ['Total', 'Realizado', 'Pendiente', 'En Proceso', 'Suspendido']; statOrder.forEach(key => { const value = fullStats[key]; if (value !== undefined) { const statElement = document.createElement('div'); statElement.className = 'p-2 rounded-lg'; statElement.innerHTML = `<p class="text-2xl font-bold text-gray-800 dark:text-gray-100">${value}</p><p class="text-sm text-gray-600 dark:text-gray-400">${key}</p>`; statsContainer.appendChild(statElement); } });
+        }
+        function renderPieChart(stats) { 
+            const ctx = document.getElementById('statusChart').getContext('2d'); if (!ctx) return; 
+            const filteredLabels = Object.keys(stats).filter(key => stats[key] > 0); 
+            const filteredData = filteredLabels.map(key => stats[key]); 
+            const filteredColors = filteredLabels.map(key => statusColors[key] || '#E5E7EB'); 
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#e2e8f0' : '#374151';
+
+            if (statusChart) statusChart.destroy(); 
+            statusChart = new Chart(ctx, { 
+                type: 'doughnut', 
+                data: { labels: filteredLabels, datasets: [{ data: filteredData, backgroundColor: filteredColors, borderColor: isDark ? '#1e293b' : '#fff', borderWidth: 2 }] }, 
+                options: { 
+                    responsive: true, maintainAspectRatio: false, cutout: '60%', 
+                    plugins: { 
+                        legend: { position: 'right', labels: { color: textColor, boxWidth: 12, padding: 15 } }, 
+                        title: { display: true, text: 'Tareas por Estado', color: textColor } 
+                    } 
+                } 
+            }); 
+        }
+        function renderResponsibleChart(data) { 
+            const ctx = document.getElementById('responsibleChart').getContext('2d'); if (!ctx) return; 
+            const responsibleStats = data.reduce((acc, item) => { const responsible = item.responsable.trim() || 'No asignado'; acc[responsible] = (acc[responsible] || 0) + 1; return acc; }, {}); 
+            const labels = Object.keys(responsibleStats); const chartData = Object.values(responsibleStats); 
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#e2e8f0' : '#374151';
+            const gridColor = isDark ? '#334155' : '#e5e7eb';
+
+            if (responsibleChart) responsibleChart.destroy(); 
+            responsibleChart = new Chart(ctx, { 
+                type: 'bar', 
+                data: { labels: labels, datasets: [{ label: 'Tareas Asignadas', data: chartData, backgroundColor: 'rgba(37, 99, 235, 0.6)', borderColor: 'rgba(37, 99, 235, 1)', borderWidth: 1 }] }, 
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    scales: { 
+                        y: { beginAtZero: true, ticks: { stepSize: 1, color: textColor }, grid: { color: gridColor } },
+                        x: { ticks: { color: textColor }, grid: { display: false } }
+                    }, 
+                    plugins: { 
+                        legend: { display: false }, 
+                        title: { display: true, text: 'Tareas por Responsable', color: textColor } 
+                    } 
+                } 
+            }); 
+        }
+
+        function handleFilterClick(event) { const target = event.target.closest('.filter-btn'); if (!target) return; const filterType = target.dataset.filterType; const filterValue = target.dataset.filter; if (filterType) { if (filterType === 'status') currentStatusFilter = filterValue; else if (filterType === 'priority') currentPriorityFilter = filterValue; else if (filterType === 'date') currentDateFilter = filterValue; else if (filterType === 'responsible') currentResponsibleFilter = filterValue; const filterGroup = target.closest('.flex-wrap'); if (filterGroup) { filterGroup.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active')); target.classList.add('active'); } renderChecklist(); } }
+        function toggleAccordion(headerElement) { const rubroName = headerElement.dataset.rubro; if (!rubroName) return; if (openRubros.has(rubroName)) { openRubros.delete(rubroName); } else { openRubros.add(rubroName); } renderChecklist(); }
+        function exportToPDF() { openRubros = new Set(rubros); renderChecklist(); setTimeout(() => { window.print(); }, 500); }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterOverlay = document.getElementById('filter-overlay'); const manageFiltersBtn = document.getElementById('manage-filters-btn'); const closeFilterBtn = document.getElementById('close-filter-btn'); const closeFilterBtnBottom = document.getElementById('close-filter-btn-bottom'); const statusFilters = document.getElementById('status-filters'); const priorityFilters = document.getElementById('priority-filters'); const dateFilters = document.getElementById('date-filters'); const responsibleFilters = document.getElementById('responsible-filters');
+            
+            document.getElementById('export-pdf-btn').addEventListener('click', exportToPDF);
+            
+            manageFiltersBtn.addEventListener('click', () => { renderFilterModal(); filterOverlay.classList.add('visible'); }); 
+            closeFilterBtn.addEventListener('click', () => filterOverlay.classList.remove('visible')); 
+            closeFilterBtnBottom.addEventListener('click', () => filterOverlay.classList.remove('visible'));
+            statusFilters.addEventListener('click', handleFilterClick); 
+            priorityFilters.addEventListener('click', handleFilterClick); 
+            dateFilters.addEventListener('click', handleFilterClick); 
+            responsibleFilters.addEventListener('click', handleFilterClick);
+        });
+    </script>
+</body>
+</html>

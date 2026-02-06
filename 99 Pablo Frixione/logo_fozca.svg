@@ -1,0 +1,11 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#0f172a"/>
+  
+  <circle cx="100" cy="100" r="60" stroke="#2563EB" stroke-width="12" fill="none" stroke-dasharray="280" stroke-dashoffset="60" stroke-linecap="round"/>
+  
+  <circle cx="100" cy="100" r="25" fill="#2563EB"/>
+  
+  <circle cx="155" cy="100" r="8" fill="#f1f5f9"/>
+
+  <text x="100" y="190" font-family="'Inter', sans-serif" font-weight="700" font-size="24" text-anchor="middle" fill="#f1f5f9" letter-spacing="2">FOCZA</text>
+</svg>

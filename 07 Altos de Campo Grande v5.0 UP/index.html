@@ -1,0 +1,1394 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan de trabajo ALTOS DE CAMPO GRANDE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-auth-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        institutional: '#009999',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://rsms.me/inter/inter.css');
+        html { font-family: 'Inter', sans-serif; }
+        body { background-color: #f3f4f6; }
+        .status-select, .responsible-select, .priority-select {
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1.5em 1.5em;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out; }
+        .accordion-content.open { max-height: 2000px; transition: max-height 1s ease-in-out; }
+        .form-overlay { display: none; }
+        .form-overlay.visible { display: flex; }
+        .filter-btn.active { background-color: #009999; color: white; border-color: #009999; }
+        
+        #recurrence-options-weekly,
+        #recurrence-options-monthly,
+        #recurrence-options-periodically {
+            display: none;
+        }
+
+        @media print {
+            body { background-color: white; }
+            #form-overlay, #controls, #summary, footer, .no-print, #manage-responsables-overlay, #manage-rubros-overlay, #filter-overlay, #import-overlay { display: none !important; }
+            main, .container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+            .accordion-content { max-height: none !important; display: block !important; }
+            .bg-white { box-shadow: none !important; }
+            @page { size: landscape; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="form-overlay" class="form-overlay fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50 overflow-y-auto py-10">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl relative">
+            <button id="close-form-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            
+            <div class="flex justify-between items-baseline mb-6">
+                <h2 id="form-title" class="text-2xl font-bold text-gray-800">Añadir Nueva Tarea</h2>
+                <button type="button" id="show-import-modal-btn" class="text-sm text-institutional hover:underline focus:outline-none no-print">
+                    o Importar desde CSV
+                </button>
+            </div>
+            
+            <form id="add-task-form" class="space-y-4">
+                <input type="hidden" id="edit-task-id" name="edit-task-id">
+                <div>
+                    <label for="requerimiento" class="block text-sm font-medium text-gray-700">Requerimiento</label>
+                    <textarea id="requerimiento" name="requerimiento" rows="3" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional"></textarea>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="rubro" class="block text-sm font-medium text-gray-700">Rubro</label>
+                        <select id="rubro" name="rubro" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional">
+                        </select>
+                    </div>
+                     <div>
+                        <label for="responsable" class="block text-sm font-medium text-gray-700">Responsable</label>
+                        <select id="responsable" name="responsable" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional">
+                        </select>
+                    </div>
+                    <div>
+                        <label for="prioridad" class="block text-sm font-medium text-gray-700">Prioridad</label>
+                        <select id="prioridad" name="prioridad" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional">
+                            <option>Baja</option>
+                            <option>Media</option>
+                            <option>Alta</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="border-t pt-4 space-y-4">
+                    <h3 class="text-lg font-medium text-gray-700">Fecha y Repetición</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="deadline" class="block text-sm font-medium text-gray-700">Deadline</label>
+                            <input type="date" id="deadline" name="deadline" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional">
+                        </div>
+                        <div>
+                            <label for="recurrence-type" class="block text-sm font-medium text-gray-700">Repetir</label>
+                            <select id="recurrence-type" name="recurrence-type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional">
+                                <option value="none">No repetir</option>
+                                <option value="daily">Diariamente</option>
+                                <option value="weekly">Semanalmente</option>
+                                <option value="monthly">Mensualmente</option>
+                                <option value="annually">Anualmente</option>
+                                <option value="periodically">Periódicamente (cada X días)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="recurrence-options-weekly" class="hidden mt-4">
+                        <label for="recurrence-weekly-on" class="block text-sm font-medium text-gray-700">Repetir el día</label>
+                        <select id="recurrence-weekly-on" name="recurrence-weekly-on" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional">
+                            <option value="1">Lunes</option>
+                            <option value="2">Martes</option>
+                            <option value="3">Miércoles</option>
+                            <option value="4">Jueves</option>
+                            <option value="5">Viernes</option>
+                            <option value="6">Sábado</option>
+                            <option value="0">Domingo</option>
+                        </select>
+                    </div>
+
+                    <div id="recurrence-options-monthly" class="hidden mt-4 space-y-2">
+                        <div class="flex items-center">
+                            <input id="monthly-type-day" type="radio" name="monthlyType" value="dayOfMonth" class="focus:ring-institutional h-4 w-4 text-institutional border-gray-300">
+                            <label for="monthly-type-day" class="ml-3 block text-sm font-medium text-gray-700">El día</label>
+                            <input type="number" id="recurrence-monthly-day" name="recurrence-monthly-day" min="1" max="31" class="ml-2 block w-20 rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional">
+                        </div>
+                        <div class="flex items-center">
+                            <input id="monthly-type-weekday" type="radio" name="monthlyType" value="dayOfWeek" class="focus:ring-institutional h-4 w-4 text-institutional border-gray-300">
+                            <label for="monthly-type-weekday" class="ml-3 block text-sm font-medium text-gray-700">El</label>
+                            <select id="recurrence-monthly-ordinal" name="recurrence-monthly-ordinal" class="ml-2 block rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional">
+                                <option value="1">1er</option>
+                                <option value="2">2do</option>
+                                <option value="3">3er</option>
+                                <option value="4">4to</option>
+                                <option value="5">Último</option>
+                            </select>
+                            <select id="recurrence-monthly-dayofweek" name="recurrence-monthly-dayofweek" class="ml-2 block rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional">
+                                <option value="1">Lunes</option>
+                                <option value="2">Martes</option>
+                                <option value="3">Miércoles</option>
+                                <option value="4">Jueves</option>
+                                <option value="5">Viernes</option>
+                                <option value="6">Sábado</option>
+                                <option value="0">Domingo</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="recurrence-options-periodically" class="hidden mt-4">
+                        <label for="recurrence-periodically-days" class="block text-sm font-medium text-gray-700">Repetir cada</label>
+                        <div class="flex items-center">
+                            <input type="number" id="recurrence-periodically-days" name="recurrence-periodically-days" min="1" class="mt-1 block w-24 rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional">
+                            <span class="ml-2 text-sm text-gray-700">días</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="flex justify-end pt-4">
+                    <button type="submit" class="bg-institutional text-white font-bold py-2 px-6 rounded-lg hover:bg-opacity-90 transition-colors">Guardar Tarea</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="manage-responsables-overlay" class="form-overlay fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50 overflow-y-auto py-10">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-lg relative">
+            <button id="close-manage-responsables-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Gestionar Responsables</h2>
+            <form id="add-responsable-form" class="flex gap-2 mb-4">
+                <input type="text" id="new-responsable-name" placeholder="Nombre del nuevo responsable" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional" required>
+                <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex-shrink-0">Añadir</button>
+            </form>
+            <div id="responsables-list-container" class="space-y-2 max-h-80 overflow-y-auto">
+            </div>
+        </div>
+    </div>
+
+    <div id="manage-rubros-overlay" class="form-overlay fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50 overflow-y-auto py-10">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-lg relative">
+            <button id="close-manage-rubros-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Gestionar Rubros</h2>
+            <form id="add-rubro-form" class="flex gap-2 mb-4">
+                <input type="text" id="new-rubro-name" placeholder="Nombre del nuevo rubro" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-institutional focus:ring-institutional" required>
+                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0">Añadir</button>
+            </form>
+            <div id="rubros-list-container" class="space-y-2 max-h-80 overflow-y-auto">
+            </div>
+        </div>
+    </div>
+    
+    <div id="filter-overlay" class="form-overlay fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50 overflow-y-auto py-10">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-3xl relative">
+            <button id="close-filter-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Filtros</h2>
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-md font-bold text-gray-700 mb-2">Estado</h3>
+                    <div id="status-filters" class="flex flex-wrap items-center gap-2">
+                        <button class="filter-btn active py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="status" data-filter="Todos">Todos</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="status" data-filter="Pendiente">Pendiente</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="status" data-filter="En Proceso">En Proceso</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="status" data-filter="Realizado">Realizado</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="status" data-filter="Suspendido">Suspendido</button>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-md font-bold text-gray-700 mb-2">Prioridad</h3>
+                    <div id="priority-filters" class="flex flex-wrap items-center gap-2">
+                        <button class="filter-btn active py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="priority" data-filter="Todos">Todas</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="priority" data-filter="Baja">Baja</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="priority" data-filter="Media">Media</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="priority" data-filter="Alta">Alta</button>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-md font-bold text-gray-700 mb-2">Vencimiento</h3>
+                    <div id="date-filters" class="flex flex-wrap items-center gap-2">
+                        <button class="filter-btn active py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="date" data-filter="Todas">Todas</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="date" data-filter="Vencidas">Vencidas</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="date" data-filter="Hoy">Vencen Hoy</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="date" data-filter="Este Mes">Vencen este mes</button>
+                        <button class="filter-btn py-1 px-3 rounded-full text-sm transition-colors border" data-filter-type="date" data-filter="Proximas">Próximas (7d)</button>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-md font-bold text-gray-700 mb-2">Responsable</h3>
+                    <div id="responsible-filters" class="flex flex-wrap items-center gap-2 max-h-40 overflow-y-auto">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end pt-6 border-t mt-6">
+                <button id="close-filter-btn-bottom" class="bg-gray-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-700 transition-colors">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="import-overlay" class="form-overlay fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50 overflow-y-auto py-10">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-lg relative">
+            <button id="close-import-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Importar Tareas</h2>
+            
+            <div class="space-y-6">
+                <div>
+                    <p class="text-sm text-gray-600 mb-2">Suba un archivo CSV. Puede descargar la plantilla para asegurarse de que el formato sea correcto.</p>
+                    <button id="download-template-btn" class="text-sm bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                        Descargar Plantilla CSV
+                    </button>
+                </div>
+                
+                <div class="border-t pt-4">
+                    <label for="csv-file-input" class="block text-sm font-medium text-gray-700 mb-2">Seleccionar archivo .csv</label>
+                    <input type="file" id="csv-file-input" name="csv-file-input" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-institutional/10 file:text-institutional hover:file:bg-institutional/20">
+                </div>
+                
+                <div id="import-feedback" class="text-sm text-red-600"></div>
+
+                <div class="flex justify-end pt-6 border-t mt-6 gap-4">
+                    <button id="close-import-btn-bottom" class="bg-gray-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-700 transition-colors">Cerrar</button>
+                    <button id="process-import-btn" class="bg-purple-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-700 transition-colors">Procesar Importación</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+    <!-- BOTÃ“N VOLVER AL PANEL (CONDICIONAL) -->
+    <div id="dashboard-back-btn" class="mb-4 no-print" style="display: none;">
+        <a href="../index.html" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 transform hover:scale-105">
+            <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+            </svg>
+            Volver al Panel
+        </a>
+    </div>
+    <script>
+        (function() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('source') === 'dashboard') {
+                    const btn = document.getElementById('dashboard-back-btn');
+                    if (btn) btn.style.display = 'block';
+                }
+            } catch(e) { console.log('Error checking source param', e); }
+        })();
+    </script>
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-institutional">Plan de trabajo ALTOS DE CAMPO GRANDE</h1>
+            <p class="text-xs text-gray-400 font-semibold mt-1">V 5.0</p>
+            <p class="text-md text-gray-600 mt-2">Seguimiento interactivo del estado del plan de trabajo</p>
+        </header>
+
+        <div id="controls" class="bg-white p-4 rounded-lg shadow-md mb-8 space-y-4">
+            <div class="flex flex-wrap items-center gap-2">
+                <button id="add-task-btn" class="bg-institutional text-white font-bold py-2 px-4 rounded-lg hover:bg-opacity-90 transition-colors">+ Añadir Tarea</button>
+                <button id="manage-rubros-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Gestionar Rubros</button>
+                <button id="manage-responsables-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">Gestionar Responsables</button>
+                <button id="manage-filters-btn" class="bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-600 transition-colors">Filtros</button>
+                <button id="export-pdf-btn" class="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors">Exportar a PDF</button>
+            </div>
+        </div>
+
+        <div id="summary" class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-bold text-gray-700 mb-4">Progreso General <span id="filter-label" class="text-base font-normal text-gray-500"></span></h2>
+            <div class="w-full bg-gray-200 rounded-full h-4 mb-4">
+                <div id="progressBar" class="bg-institutional h-4 rounded-full transition-all duration-500 ease-out" style="width: 0%;"></div>
+            </div>
+            <div class="flex flex-col lg:flex-row items-center gap-8 mt-6">
+                <div id="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center flex-1 order-2 lg:order-1"></div>
+                <div class="w-full lg:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-8 order-1 lg:order-2">
+                    <div class="h-64 relative">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                    <div class="h-64 relative">
+                        <canvas id="responsibleChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <main id="checklist-container" class="space-y-6"></main>
+
+        <footer class="text-center mt-12 text-sm text-gray-500">
+            <p>El estado se guarda automáticamente en la nube.</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- INICIO DE LA CONFIGURACIÓN DE FIREBASE (ALTOS DE CAMPO GRANDE) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyD89p0rP1DfnPWzTi-kh4_sRVLpVJ3oA1w",
+            authDomain: "checklist-altos-campo-grande.firebaseapp.com",
+            databaseURL: "https://checklist-altos-campo-grande-default-rtdb.firebaseio.com",
+            projectId: "checklist-altos-campo-grande",
+            storageBucket: "checklist-altos-campo-grande.firebasestorage.app",
+            messagingSenderId: "349252859357",
+            appId: "1:349252859357:web:a1b8709b9d5eb6f732b234"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth(); // Inicializar Auth
+        // --- FIN DE LA CONFIGURACIÓN DE FIREBASE ---
+
+        let checklistData = [];
+        let rubros = [];
+        let responsables = []; 
+        let statusChart = null;
+        let responsibleChart = null; 
+        let currentStatusFilter = 'Todos';
+        let currentPriorityFilter = 'Todos';
+        let currentDateFilter = 'Todas';
+        let currentResponsibleFilter = 'Todos';
+        let openRubros = new Set(); 
+
+        // CONSTANTES GLOBALES
+        const statusOrder = ['Pendiente', 'En Proceso', 'Realizado', 'Suspendido'];
+        const statusOptions = { 
+            'Pendiente': 'bg-yellow-100 text-yellow-800 border-yellow-300', 
+            'Realizado': 'bg-institutional/20 text-institutional border-institutional/40', 
+            'En Proceso': 'bg-blue-100 text-blue-800 border-blue-300',
+            'Suspendido': 'bg-gray-100 text-gray-800 border-gray-300'
+        };
+        const statusColors = { 
+            'Pendiente': '#FBBF24', 
+            'Realizado': '#009999', 
+            'En Proceso': '#60A5FA',
+            'Suspendido': '#9CA3AF'
+        };
+        const priorityOptions = ['Baja', 'Media', 'Alta'];
+        const priorityStyles = {
+            'Alta': 'bg-red-100 text-red-800 border-red-300',
+            'Media': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+            'Baja': 'bg-gray-100 text-gray-800 border-gray-300',
+        };
+        const rubroIcons = {
+            'Operativos': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>`,
+            'Obras de infraestructura': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>`,
+            'Administrativos': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>`,
+            'Tramite de subdivision': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 00-4-4H3m14 6v-2a4 4 0 00-4-4h-2m-4 4H7m6 4v2m0-10V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2m6 0h2m-6 0H9" /></svg>`,
+            'Eliminado': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>`,
+            'default': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>`
+        };
+        const protectedRubros = ['Operativos', 'Obras de infraestructura', 'Administrativos', 'Tramite de subdivision', 'Eliminado'];
+        const protectedResponsables = ['Administrador', 'Otros']; 
+
+        
+        function loadInitialData() {
+            // MODIFICADO: Rubros default incluyendo 'Tramite de subdivision'
+            const defaultRubros = ['Operativos', 'Obras de infraestructura', 'Administrativos', 'Tramite de subdivision', 'Eliminado'];
+            const defaultResponsables = ['Administrador', 'Intendente', 'Proveedor', 'Operadora', 'RRHH', 'Compras', 'Otros'];
+            
+            const rubrosPromise = database.ref('rubros').once('value');
+            const responsablesPromise = database.ref('responsables').once('value');
+
+            Promise.all([rubrosPromise, responsablesPromise]).then(([rubrosSnapshot, responsablesSnapshot]) => {
+                const rubrosData = rubrosSnapshot.val();
+                if (rubrosData && Array.isArray(rubrosData)) {
+                    rubros = rubrosData;
+                    if (!rubros.includes('Eliminado')) {
+                        rubros.push('Eliminado');
+                        database.ref('rubros').set(rubros);
+                    }
+                } else {
+                    rubros = defaultRubros; 
+                    database.ref('rubros').set(rubros); 
+                }
+                
+                const responsablesData = responsablesSnapshot.val();
+                if (responsablesData && Array.isArray(responsablesData)) {
+                    responsables = responsablesData;
+                } else {
+                    responsables = defaultResponsables;
+                    database.ref('responsables').set(responsables);
+                }
+                
+                loadTasks();
+                listenForTaskChanges(); 
+                
+                updateRubroDropdown();
+                updateResponsableDropdown();
+                renderFilterModal(); 
+            });
+        }
+
+        function loadTasks() {
+            database.ref('tasks').once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    checklistData = Object.keys(data).map(key => ({
+                        ...data[key],
+                        id: key, 
+                        prioridad: data[key].prioridad || 'Baja',
+                        recurrence: data[key].recurrence || { type: 'none' } 
+                    }));
+                } else { 
+                    checklistData = []; 
+                }
+                renderChecklist(); 
+            });
+        }
+        
+        function listenForTaskChanges() {
+            database.ref('tasks').on('child_added', (snapshot) => {
+                const newTask = { ...snapshot.val(), id: snapshot.key };
+                if (!checklistData.find(task => task.id === newTask.id)) {
+                    checklistData.push(newTask);
+                    renderChecklist();
+                }
+            });
+
+            database.ref('tasks').on('child_changed', (snapshot) => {
+                const changedTask = { ...snapshot.val(), id: snapshot.key };
+                const index = checklistData.findIndex(task => task.id === changedTask.id);
+                if (index > -1) {
+                    checklistData[index] = changedTask;
+                    renderChecklist();
+                }
+            });
+
+            database.ref('tasks').on('child_removed', (snapshot) => {
+                const deletedTaskId = snapshot.key;
+                checklistData = checklistData.filter(task => task.id !== deletedTaskId);
+                renderChecklist();
+            });
+        }
+
+
+        function updateRubroDropdown() {
+            const rubroSelect = document.getElementById('rubro');
+            if (rubroSelect) {
+                rubroSelect.innerHTML = '';
+                rubros.forEach(rubro => {
+                    if (rubro !== 'Eliminado') { 
+                        const option = document.createElement('option');
+                        option.value = rubro;
+                        option.textContent = rubro;
+                        rubroSelect.appendChild(option);
+                    }
+                });
+            }
+        }
+        
+        function updateResponsableDropdown() {
+            const responsableSelect = document.getElementById('responsable');
+            if (responsableSelect) {
+                responsableSelect.innerHTML = '';
+                responsables.forEach(resp => {
+                    const option = document.createElement('option');
+                    option.value = resp;
+                    option.textContent = resp;
+                    responsableSelect.appendChild(option);
+                });
+            }
+        }
+
+        function renderFilterModal() {
+            const container = document.getElementById('responsible-filters');
+            container.innerHTML = ''; 
+            
+            const allBtn = document.createElement('button');
+            allBtn.className = `filter-btn py-1 px-3 rounded-full text-sm transition-colors border ${currentResponsibleFilter === 'Todos' ? 'active' : ''}`;
+            allBtn.dataset.filterType = 'responsible';
+            allBtn.dataset.filter = 'Todos';
+            allBtn.textContent = 'Todos';
+            container.appendChild(allBtn);
+
+            responsables.forEach(resp => {
+                const respBtn = document.createElement('button');
+                respBtn.className = `filter-btn py-1 px-3 rounded-full text-sm transition-colors border ${currentResponsibleFilter === resp ? 'active' : ''}`;
+                respBtn.dataset.filterType = 'responsible';
+                respBtn.dataset.filter = resp;
+                respBtn.textContent = resp;
+                container.appendChild(respBtn);
+            });
+        }
+
+
+        function getFilteredData() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const currentMonth = today.getMonth();
+            const currentYear = today.getFullYear();
+
+            let filtered = checklistData.filter(item => 
+                (currentStatusFilter === 'Todos' || item.estado === currentStatusFilter) &&
+                (currentPriorityFilter === 'Todos' || item.prioridad === currentPriorityFilter) &&
+                (currentResponsibleFilter === 'Todos' || item.responsable === currentResponsibleFilter)
+            );
+            if (currentDateFilter !== 'Todas') {
+                filtered = filtered.filter(item => {
+                    if (!item.deadline) return false;
+                    const taskDate = new Date(item.deadline + 'T00:00:00');
+                    if (!taskDate || isNaN(taskDate)) return false; 
+
+                    switch (currentDateFilter) {
+                        case 'Vencidas':
+                            return taskDate.getTime() < today.getTime() && item.estado !== 'Realizado' && item.estado !== 'Suspendido';
+                        case 'Hoy':
+                            return taskDate.getTime() === today.getTime();
+                        case 'Este Mes':
+                            return taskDate.getMonth() === currentMonth && taskDate.getFullYear() === currentYear;
+                        case 'Proximas':
+                            const sevenDaysFromNow = new Date(today);
+                            sevenDaysFromNow.setDate(today.getDate() + 7);
+                            return taskDate.getTime() >= today.getTime() && taskDate.getTime() <= sevenDaysFromNow.getTime(); 
+                        default:
+                            return true;
+                    }
+                });
+            }
+            return filtered;
+        }
+
+        function renderChecklist() {
+            const container = document.getElementById('checklist-container');
+            const currentOpenRubros = new Set(openRubros); 
+            
+            container.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const filteredData = getFilteredData();
+            const groupedData = filteredData.reduce((acc, item) => { (acc[item.rubro] = acc[item.rubro] || []).push(item); return acc; }, {});
+
+            rubros.forEach(rubro => {
+                const itemsInRubro = checklistData.filter(i => i.rubro === rubro);
+                const itemsToShow = groupedData[rubro] || [];
+                
+                const accordionItem = document.createElement('div');
+                accordionItem.className = 'bg-white rounded-lg shadow-md overflow-hidden';
+                const okCount = itemsInRubro.filter(i => i.estado === 'Realizado').length;
+                const totalInRubro = itemsInRubro.length;
+                
+                const header = document.createElement('div');
+                header.className = 'p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50';
+                header.onclick = (event) => { if (!event.target.closest('.no-toggle')) { toggleAccordion(header); } };
+                header.dataset.rubro = rubro; 
+
+                let overdueIndicator = '';
+                const hasOverdue = itemsInRubro.some(item => {
+                    if (!item.deadline || item.estado === 'Realizado' || item.estado === 'Suspendido') return false;
+                    return new Date(item.deadline + 'T00:00:00') < today;
+                });
+                if (hasOverdue) {
+                    overdueIndicator = '<span class="w-2.5 h-2.5 bg-red-500 rounded-full ml-2 animate-pulse"></span>';
+                }
+
+                header.innerHTML = `<div class="flex items-center">${rubroIcons[rubro] || rubroIcons['default']}<h3 class="text-lg font-bold text-gray-700">${rubro}</h3>${overdueIndicator}</div>
+                                  <div class="flex items-center space-x-2">
+                                    <span class="text-sm font-semibold text-gray-600">${okCount}/${totalInRubro}</span>
+                                    <svg class="w-6 h-6 text-gray-500 transition-transform transform ${currentOpenRubros.has(rubro) ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                  </div>`;
+                
+                const content = document.createElement('div');
+                content.className = 'accordion-content border-t border-gray-200';
+                
+                if (currentOpenRubros.has(rubro)) {
+                    content.classList.add('open'); 
+
+                    if (itemsToShow.length === 0) {
+                         content.innerHTML = `<p class="text-center text-gray-500 p-4">No hay tareas que coincidan con los filtros actuales.</p>`;
+                    } else {
+                        itemsToShow.sort((a, b) => {
+                            const aHasDate = a.deadline && a.deadline.trim() !== '';
+                            const bHasDate = b.deadline && b.deadline.trim() !== '';
+                            if (aHasDate && !bHasDate) return -1; 
+                            if (!aHasDate && bHasDate) return 1;  
+                            if (!aHasDate && !bHasDate) {
+                                return a.requerimiento.localeCompare(b.requerimiento); 
+                            }
+                            if (aHasDate && bHasDate) {
+                                return new Date(a.deadline) - new Date(b.deadline); 
+                            }
+                            return 0;
+                        });
+
+                        const headerRow = document.createElement('div');
+                        headerRow.className = 'hidden md:grid grid-cols-[1fr_110px_150px_180px_120px_220px] items-center gap-x-4 px-4 pt-2 text-xs text-gray-500 font-bold uppercase';
+                        headerRow.innerHTML = `<span>Requerimiento</span><span class="text-center">Prioridad</span><span>Responsable</span><span>Vencimiento</span><span class="text-center">Estado</span><span class="text-center">Acciones</span>`;
+                        content.appendChild(headerRow);
+                        
+                        const list = document.createElement('ul');
+                        list.className = 'divide-y divide-gray-200';
+                        
+                        itemsToShow.forEach(item => {
+                            const listItem = document.createElement('li');
+                            listItem.className = 'px-4 py-3';
+                            const taskRow = document.createElement('div');
+                            taskRow.className = 'grid grid-cols-1 md:grid-cols-[1fr_110px_150px_180px_120px_220px] items-center gap-x-4 gap-y-2';
+                            
+                            const requerimientoP = document.createElement('p'); 
+                            requerimientoP.className = 'text-gray-800 font-medium col-span-full md:col-span-1 break-words';
+                            requerimientoP.textContent = item.requerimiento; 
+                            taskRow.appendChild(requerimientoP);
+                            
+                            const prioritySelect = document.createElement('select');
+                            prioritySelect.className = 'priority-select p-1 border rounded-md text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-institutional no-toggle w-full';
+                            priorityOptions.forEach(prio => { const option = document.createElement('option'); option.value = prio; option.textContent = prio; if (item.prioridad === prio) option.selected = true; prioritySelect.add(option); });
+                            prioritySelect.className += ` ${priorityStyles[item.prioridad] || priorityStyles['Baja']}`;
+                            prioritySelect.onchange = (e) => { handleFieldChange(e, item.id, 'prioridad'); };
+                            taskRow.appendChild(prioritySelect);
+                            
+                            const responsibleSelect = document.createElement('select');
+                            responsibleSelect.className = 'responsible-select p-1 border-b focus:border-institutional focus:outline-none w-full text-sm bg-transparent no-toggle';
+                            responsables.forEach(resp => { const option = document.createElement('option'); option.value = resp; option.textContent = resp; if (item.responsable === resp) option.selected = true; responsibleSelect.add(option); });
+                            responsibleSelect.onchange = (e) => handleFieldChange(e, item.id, 'responsable');
+                            taskRow.appendChild(responsibleSelect);
+
+                            const deadlineDiv = document.createElement('div'); 
+                            deadlineDiv.className = 'flex items-center text-sm no-toggle';
+                            if (item.deadline && new Date(item.deadline + 'T00:00:00') < today && item.estado !== 'Realizado' && item.estado !== 'Suspendido') {
+                                deadlineDiv.classList.add('text-red-600', 'font-bold');
+                            }
+                            
+                            let repeatIcon = '';
+                            if (item.recurrence && item.recurrence.type !== 'none') {
+                                repeatIcon = `<svg class="h-4 w-4 ml-1 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m-15.357-2a8.001 8.001 0 0015.357 2m0 0H15" /></svg>`;
+                            }
+                            
+                            deadlineDiv.innerHTML = `<svg class="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                   <span class="flex-1">${item.deadline || 'Sin fecha'}</span> ${repeatIcon}`;
+                            taskRow.appendChild(deadlineDiv);
+                            
+                            const statusSelect = document.createElement('select');
+                            statusSelect.className = 'status-select p-2 border rounded-md text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-institutional no-toggle w-full';
+                            statusOrder.forEach(status => { const option = document.createElement('option'); option.value = status; option.textContent = status; if (item.estado === status) option.selected = true; statusSelect.add(option); });
+                            applyStatusStyles(statusSelect, item.estado);
+                            statusSelect.addEventListener('change', (e) => handleStatusChange(e, item.id));
+                            taskRow.appendChild(statusSelect);
+                            
+                            const actionsDiv = document.createElement('div');
+                            actionsDiv.className = 'flex items-center gap-x-1 no-toggle justify-self-start md:justify-self-center';
+                            
+                            const moveSelect = document.createElement('select');
+                            moveSelect.className = 'text-xs p-1 border rounded bg-white hover:bg-gray-100';
+                            moveSelect.innerHTML = `<option disabled selected>Mover a...</option>`;
+                            rubros.filter(r => r !== item.rubro).forEach(r => { moveSelect.innerHTML += `<option value="${r}">${r}</option>`; });
+                            moveSelect.addEventListener('change', (e) => handleMoveTask(e, item.id));
+                            
+                            const editBtn = document.createElement('button');
+                            editBtn.className = 'p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors';
+                            editBtn.innerHTML = `<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>`;
+                            editBtn.onclick = () => handleShowEditModal(item);
+                            
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.className = 'p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors';
+                            deleteBtn.innerHTML = `<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;
+                            deleteBtn.onclick = () => handleDeleteTask(item.id);
+                            
+                            actionsDiv.appendChild(moveSelect); 
+                            actionsDiv.appendChild(editBtn); 
+                            actionsDiv.appendChild(deleteBtn);
+                            
+                            taskRow.appendChild(actionsDiv);
+                            listItem.appendChild(taskRow);
+                            list.appendChild(listItem);
+                        });
+                        content.appendChild(list);
+                    }
+                }
+                
+                accordionItem.appendChild(header);
+                accordionItem.appendChild(content);
+                fragment.appendChild(accordionItem); 
+            });
+            
+            container.appendChild(fragment); 
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const dataToSummarize = getFilteredData();
+            const total = dataToSummarize.length;
+            const stats = dataToSummarize.reduce((acc, item) => { (acc[item.estado] = (acc[item.estado] || 0) + 1); return acc; }, {});
+            const okCount = stats['Realizado'] || 0;
+            const progress = total > 0 ? (okCount / total) * 100 : 0;
+            document.getElementById('progressBar').style.width = `${progress}%`;
+            let filterText = [];
+            if (currentStatusFilter !== 'Todos') filterText.push(`Estado: ${currentStatusFilter}`);
+            if (currentPriorityFilter !== 'Todos') filterText.push(`Prioridad: ${currentPriorityFilter}`);
+            if (currentDateFilter !== 'Todas') filterText.push(`Vence: ${currentDateFilter}`);
+            if (currentResponsibleFilter !== 'Todos') filterText.push(`Resp: ${currentResponsibleFilter}`);
+            document.getElementById('filter-label').textContent = filterText.length > 0 ? `(${filterText.join(', ')})` : '';
+            renderPieChart(stats);
+            renderResponsibleChart(dataToSummarize);
+            const statsContainer = document.getElementById('stats');
+            statsContainer.innerHTML = '';
+            const fullStats = {'Total': total, 'Realizado': okCount, ...stats};
+            const statOrder = ['Total', 'Realizado', 'Pendiente', 'En Proceso', 'Suspendido'];
+            statOrder.forEach(key => {
+                const value = fullStats[key];
+                if (value !== undefined) {
+                    const statElement = document.createElement('div');
+                    statElement.className = 'p-2 rounded-lg';
+                    statElement.innerHTML = `<p class="text-2xl font-bold text-gray-800">${value}</p><p class="text-sm text-gray-600">${key}</p>`;
+                    statsContainer.appendChild(statElement);
+                }
+            });
+        }
+        
+        function renderPieChart(stats) {
+            const ctx = document.getElementById('statusChart').getContext('2d'); if (!ctx) return;
+            const filteredLabels = Object.keys(stats).filter(key => stats[key] > 0);
+            const filteredData = filteredLabels.map(key => stats[key]);
+            const filteredColors = filteredLabels.map(key => statusColors[key] || '#E5E7EB');
+            if (statusChart) statusChart.destroy();
+            statusChart = new Chart(ctx, { type: 'doughnut', data: { labels: filteredLabels, datasets: [{ data: filteredData, backgroundColor: filteredColors, borderColor: '#fff', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 15 } }, title: { display: true, text: 'Tareas por Estado' } } } });
+        }
+
+        function renderResponsibleChart(data) {
+            const ctx = document.getElementById('responsibleChart').getContext('2d'); if (!ctx) return;
+            const responsibleStats = data.reduce((acc, item) => { const responsible = item.responsable.trim() || 'No asignado'; acc[responsible] = (acc[responsible] || 0) + 1; return acc; }, {});
+            const labels = Object.keys(responsibleStats);
+            const chartData = Object.values(responsibleStats);
+            if (responsibleChart) responsibleChart.destroy();
+            responsibleChart = new Chart(ctx, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Tareas Asignadas', data: chartData, backgroundColor: 'rgba(0, 153, 153, 0.6)', borderColor: 'rgba(0, 153, 153, 1)', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false }, title: { display: true, text: 'Tareas por Responsable' } } } });
+        }
+
+        function handleFilterClick(event) {
+            const target = event.target.closest('.filter-btn');
+            if (!target) return; 
+            
+            const filterType = target.dataset.filterType;
+            const filterValue = target.dataset.filter;
+            
+            if (filterType) {
+                if (filterType === 'status') currentStatusFilter = filterValue;
+                else if (filterType === 'priority') currentPriorityFilter = filterValue;
+                else if (filterType === 'date') currentDateFilter = filterValue;
+                else if (filterType === 'responsible') currentResponsibleFilter = filterValue;
+                
+                const filterGroup = target.closest('.flex-wrap');
+                if (filterGroup) {
+                    filterGroup.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                    target.classList.add('active');
+                }
+                
+                renderChecklist();
+            }
+        }
+
+        function formatDate(date) { return date.toISOString().split('T')[0]; }
+
+        function getNthDayOfMonth(year, month, ordinal, dayOfWeek) {
+            const date = new Date(year, month, 1);
+            dayOfWeek = parseInt(dayOfWeek);
+            ordinal = parseInt(ordinal);
+            if (ordinal === 5) {
+                date.setMonth(date.getMonth() + 1);
+                date.setDate(0); 
+                const daysToSubtract = (date.getDay() - dayOfWeek + 7) % 7;
+                date.setDate(date.getDate() - daysToSubtract);
+            } else { 
+                let day = date.getDay();
+                let dayOffset = (dayOfWeek - day + 7) % 7;
+                date.setDate(1 + dayOffset + (ordinal - 1) * 7);
+            }
+            return date;
+        }
+        
+        function calculateNextDueDate(task) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            let baseDate = (task.deadline && task.deadline !== "") ? new Date(task.deadline + 'T00:00:00') : today;
+            if (baseDate < today) baseDate = today;
+            let nextDate = new Date(baseDate.getTime());
+            const rule = task.recurrence;
+            if (!rule || rule.type === 'none') return task.deadline;
+            switch (rule.type) {
+                case 'daily': nextDate.setDate(nextDate.getDate() + 1); break;
+                case 'weekly':
+                    const targetDay = parseInt(rule.weeklyOn);
+                    nextDate.setDate(nextDate.getDate() + 1);
+                    while (nextDate.getDay() !== targetDay) {
+                        nextDate.setDate(nextDate.getDate() + 1);
+                    }
+                    break;
+                case 'periodically': nextDate.setDate(nextDate.getDate() + parseInt(rule.periodicallyDays || 1)); break;
+                case 'annually': nextDate.setFullYear(nextDate.getFullYear() + 1); break;
+                case 'monthly':
+                    let currentMonth = nextDate.getMonth();
+                    let currentYear = nextDate.getFullYear();
+                    if (rule.monthlyType === 'dayOfMonth') {
+                        let targetDayOfMonth = parseInt(rule.monthlyDay);
+                        nextDate.setMonth(currentMonth + 1);
+                        nextDate.setDate(targetDayOfMonth);
+                        if (nextDate.getDate() !== targetDayOfMonth) nextDate.setDate(0);
+                    } else if (rule.monthlyType === 'dayOfWeek') {
+                        let nextMonth = new Date(currentYear, currentMonth + 1, 1);
+                        nextDate = getNthDayOfMonth(nextMonth.getFullYear(), nextMonth.getMonth(), rule.monthlyOrdinal, rule.monthlyDayOfWeek);
+                    }
+                    break;
+                default: return formatDate(today);
+            }
+            return formatDate(nextDate);
+        }
+
+        function handleStatusChange(event, itemId) { 
+            const itemIndex = checklistData.findIndex(d => d.id === itemId);
+            if (itemIndex === -1) return;
+            const task = checklistData[itemIndex];
+            const oldState = task.estado;
+            const newState = event.target.value;
+            
+            if (newState === 'Realizado' && oldState !== 'Realizado') {
+                if (task.recurrence && task.recurrence.type !== 'none' && task.deadline && task.deadline !== "") {
+                    const newDeadline = calculateNextDueDate(task);
+                    database.ref('tasks').child(itemId).update({ estado: 'Pendiente', deadline: newDeadline });
+                } else {
+                    database.ref('tasks').child(itemId).child('estado').set(newState);
+                }
+            } else {
+                database.ref('tasks').child(itemId).child('estado').set(newState);
+            }
+        }
+
+        function handleFieldChange(event, itemId, field) { 
+            database.ref('tasks').child(itemId).child(field).set(event.target.value);
+        }
+        
+        function handleMoveTask(event, itemId) { 
+            database.ref('tasks').child(itemId).child('rubro').set(event.target.value);
+        }
+        
+        function handleDeleteTask(itemId) { 
+            const taskToDelete = checklistData.find(d => d.id === itemId);
+            if (confirm(`¿Estás seguro de que quieres eliminar la tarea "${taskToDelete.requerimiento}"?`)) { 
+                database.ref('tasks').child(itemId).remove();
+            } 
+        }
+        
+        function handleShowEditModal(item) {
+            const form = document.getElementById('add-task-form');
+            form.reset(); 
+            updateRecurrenceUI('none'); 
+            document.getElementById('form-title').textContent = "Editar Tarea";
+            document.getElementById('edit-task-id').value = item.id;
+            document.getElementById('requerimiento').value = item.requerimiento;
+            document.getElementById('rubro').value = item.rubro;
+            document.getElementById('responsable').value = item.responsable;
+            document.getElementById('prioridad').value = item.prioridad;
+            document.getElementById('deadline').value = item.deadline || '';
+            const rule = item.recurrence || { type: 'none' };
+            document.getElementById('recurrence-type').value = rule.type;
+            updateRecurrenceUI(rule.type);
+            if (rule.type === 'weekly') {
+                document.getElementById('recurrence-weekly-on').value = rule.weeklyOn || '1';
+            } else if (rule.type === 'monthly') {
+                if (rule.monthlyType === 'dayOfWeek') {
+                    form.elements.monthlyType.value = 'dayOfWeek';
+                    document.getElementById('recurrence-monthly-ordinal').value = rule.monthlyOrdinal || '1';
+                    document.getElementById('recurrence-monthly-dayofweek').value = rule.monthlyDayOfWeek || '0';
+                    document.getElementById('monthly-type-weekday').checked = true;
+                } else {
+                    form.elements.monthlyType.value = 'dayOfMonth';
+                    document.getElementById('recurrence-monthly-day').value = rule.monthlyDay || '';
+                    document.getElementById('monthly-type-day').checked = true;
+                }
+            } else if (rule.type === 'periodically') {
+                document.getElementById('recurrence-periodically-days').value = rule.periodicallyDays || '';
+            }
+            document.getElementById('form-overlay').classList.add('visible');
+        }
+
+        // --- FUNCIONES DE GESTIÓN (RUBROS Y RESPONSABLES) ---
+
+        function handleAddRubro(event) {
+            event.preventDefault();
+            const input = document.getElementById('new-rubro-name');
+            const newRubroName = input.value;
+            
+            if (newRubroName && newRubroName.trim() !== "") {
+                const trimmedName = newRubroName.trim();
+                if (rubros.includes(trimmedName)) {
+                    alert("Ese rubro ya existe.");
+                    return;
+                }
+                const eliminadoIndex = rubros.indexOf('Eliminado');
+                if (eliminadoIndex > -1) {
+                    rubros.splice(eliminadoIndex, 0, trimmedName); 
+                } else {
+                    rubros.push(trimmedName); 
+                }
+                database.ref('rubros').set(rubros).then(() => {
+                    renderRubrosModal(); 
+                    updateRubroDropdown();
+                    renderChecklist();
+                });
+                input.value = '';
+            }
+        }
+        
+        function handleEditRubro(oldName) {
+            const newName = prompt("Editar nombre del rubro:", oldName);
+            if (!newName || newName.trim() === "" || newName === oldName) return;
+            const trimmedName = newName.trim();
+            if (rubros.includes(trimmedName)) {
+                alert("Ese nombre de rubro ya existe.");
+                return;
+            }
+
+            const index = rubros.indexOf(oldName);
+            if (index > -1) rubros[index] = trimmedName;
+
+            const tasksToUpdate = checklistData.filter(task => task.rubro === oldName);
+            const updates = {};
+            tasksToUpdate.forEach(task => { updates[`/tasks/${task.id}/rubro`] = trimmedName; });
+            updates[`/rubros`] = rubros;
+            
+            database.ref().update(updates).then(() => {
+                renderRubrosModal(); 
+                updateRubroDropdown();
+            });
+        }
+        
+        function handleDeleteRubro(rubroToDelete) {
+            if (protectedRubros.includes(rubroToDelete)) {
+                alert('Este rubro está protegido y no se puede eliminar.');
+                return;
+            }
+            
+            const tasksToMove = checklistData.filter(task => task.rubro === rubroToDelete);
+            const warningMessage = `¿Estás seguro de que quieres eliminar el rubro "${rubroToDelete}"?\n\nTodas las tareas (${tasksToMove.length}) dentro de este rubro se moverán a "Eliminado".`;
+
+            if (confirm(warningMessage)) {
+                rubros = rubros.filter(r => r !== rubroToDelete);
+                
+                const updates = {};
+                tasksToMove.forEach(task => { updates[`/tasks/${task.id}/rubro`] = 'Eliminado'; });
+                updates[`/rubros`] = rubros;
+                
+                database.ref().update(updates).then(() => {
+                    renderRubrosModal();
+                    updateRubroDropdown();
+                });
+            }
+        }
+
+        function handleAddResponsable(event) {
+            event.preventDefault();
+            const input = document.getElementById('new-responsable-name');
+            const newResponsableName = input.value;
+            
+            if (newResponsableName && newResponsableName.trim() !== "") {
+                const trimmedName = newResponsableName.trim();
+                if (responsables.includes(trimmedName)) {
+                    alert("Ese responsable ya existe.");
+                    return;
+                }
+                responsables.push(trimmedName);
+                
+                database.ref('responsables').set(responsables).then(() => {
+                    renderResponsablesModal(); 
+                    updateResponsableDropdown();
+                    renderFilterModal(); 
+                });
+                input.value = '';
+            }
+        }
+        
+        function renderResponsablesModal() {
+            const container = document.getElementById('responsables-list-container');
+            container.innerHTML = '';
+            responsables.forEach(name => {
+                const isProtected = protectedResponsables.includes(name);
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex items-center justify-between p-2 border-b';
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = name;
+                nameSpan.className = isProtected ? 'text-gray-500' : 'text-gray-800';
+                itemDiv.appendChild(nameSpan);
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.className = 'flex gap-2';
+                if (!isProtected) {
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'edit-responsable-btn text-blue-600 hover:text-blue-800 text-sm';
+                    editBtn.textContent = 'Editar';
+                    editBtn.dataset.responsableName = name;
+                    buttonsDiv.appendChild(editBtn);
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-responsable-btn text-red-600 hover:text-red-800 text-sm';
+                    deleteBtn.textContent = 'Eliminar';
+                    deleteBtn.dataset.responsableName = name;
+                    buttonsDiv.appendChild(deleteBtn);
+                }
+                itemDiv.appendChild(buttonsDiv);
+                container.appendChild(itemDiv);
+            });
+            document.getElementById('manage-responsables-overlay').classList.add('visible');
+        }
+        
+        function renderRubrosModal() {
+            const container = document.getElementById('rubros-list-container');
+            container.innerHTML = '';
+            rubros.forEach(name => {
+                const isProtected = protectedRubros.includes(name);
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex items-center justify-between p-2 border-b';
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = name;
+                nameSpan.className = isProtected ? 'text-gray-500' : 'text-gray-800';
+                itemDiv.appendChild(nameSpan);
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.className = 'flex gap-2';
+                if (!isProtected) {
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'edit-rubro-btn text-blue-600 hover:text-blue-800 text-sm';
+                    editBtn.textContent = 'Editar';
+                    editBtn.dataset.rubroName = name;
+                    buttonsDiv.appendChild(editBtn);
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-rubro-btn text-red-600 hover:text-red-800 text-sm';
+                    deleteBtn.textContent = 'Eliminar';
+                    deleteBtn.dataset.rubroName = name;
+                    buttonsDiv.appendChild(deleteBtn);
+                }
+                itemDiv.appendChild(buttonsDiv);
+                container.appendChild(itemDiv);
+            });
+            document.getElementById('manage-rubros-overlay').classList.add('visible');
+        }
+
+        function handleEditResponsable(oldName) {
+            const newName = prompt("Editar nombre del responsable:", oldName);
+            if (!newName || newName.trim() === "" || newName === oldName) return;
+            const trimmedName = newName.trim();
+            if (responsables.includes(trimmedName)) {
+                alert("Ese nombre de responsable ya existe.");
+                return;
+            }
+
+            const index = responsables.indexOf(oldName);
+            if (index > -1) responsables[index] = trimmedName;
+            
+            const tasksToUpdate = checklistData.filter(task => task.responsable === oldName);
+            const updates = {};
+            tasksToUpdate.forEach(task => { updates[`/tasks/${task.id}/responsable`] = trimmedName; });
+            updates[`/responsables`] = responsables;
+            
+            database.ref().update(updates).then(() => {
+                renderResponsablesModal(); 
+                updateResponsableDropdown();
+                renderFilterModal(); 
+            });
+        }
+        
+        function handleDeleteResponsable(name) {
+            const tasksAssigned = checklistData.filter(task => task.responsable === name);
+            if (tasksAssigned.length > 0) {
+                alert(`No se puede eliminar a "${name}" porque tiene ${tasksAssigned.length} tarea(s) asignada(s). Por favor, reasígnelas primero.`);
+                return;
+            }
+            if (confirm(`¿Estás seguro de que quieres eliminar a "${name}"?`)) {
+                responsables = responsables.filter(r => r !== name);
+                database.ref('responsables').set(responsables).then(() => {
+                    renderResponsablesModal();
+                    updateResponsableDropdown();
+                    renderFilterModal(); 
+                });
+            }
+        }
+        
+        // --- FUNCIONES DE IMPORTACIÓN ---
+        
+        function handleDownloadTemplate() {
+            const headers = "requerimiento;rubro;responsable;prioridad;deadline";
+            const example = "Reparar luminaria sector 1;Operativos;Intendente;Alta;01/12/2025";
+            const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + example;
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "plantilla_tareas.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function handleProcessImport() {
+            const fileInput = document.getElementById('csv-file-input');
+            const file = fileInput.files[0];
+            const feedback = document.getElementById('import-feedback');
+            
+            if (!file) {
+                feedback.textContent = "Por favor, selecciona un archivo .csv primero.";
+                return;
+            }
+            
+            feedback.textContent = ""; 
+            
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                delimiter: ";", 
+                complete: (results) => {
+                    processCSVData(results.data);
+                },
+                error: (err) => {
+                    feedback.textContent = "Error al leer el archivo: " + err.message;
+                }
+            });
+        }
+
+        function parseCSVDate(dateString) {
+            if (!dateString) return '';
+            const parts = dateString.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+            if (!parts) return ''; 
+
+            const day = parts[1].padStart(2, '0');
+            const month = parts[2].padStart(2, '0');
+            const year = parts[3];
+            
+            return `${year}-${month}-${day}`;
+        }
+
+        function processCSVData(data) {
+            const updates = {};
+            let addedCount = 0;
+            const validPriorities = ['Baja', 'Media', 'Alta']; 
+
+            data.forEach((row) => {
+                const req = row.requerimiento ? row.requerimiento.trim() : '';
+                if (!req) return; 
+
+                let rubro = row.rubro ? row.rubro.trim() : '';
+                if (!rubros.includes(rubro) || rubro === 'Eliminado') {
+                    rubro = 'Operativos';
+                }
+
+                let resp = row.responsable ? row.responsable.trim() : '';
+                if (!responsables.includes(resp)) {
+                    resp = 'Otros';
+                }
+
+                let prio = row.prioridad ? row.prioridad.trim() : '';
+                const prioFound = validPriorities.find(p => p.toLowerCase() === prio.toLowerCase());
+                prio = prioFound || 'Baja';
+
+                let deadline = parseCSVDate(row.deadline ? row.deadline.trim() : '');
+
+                const newId = database.ref('tasks').push().key;
+                const newTask = {
+                    requerimiento: req,
+                    rubro: rubro,
+                    responsable: resp,
+                    prioridad: prio,
+                    deadline: deadline,
+                    estado: 'Pendiente',
+                    recurrence: { type: 'none' }
+                };
+                updates[`/tasks/${newId}`] = newTask;
+                addedCount++;
+            });
+
+            if (addedCount > 0) {
+                database.ref().update(updates).then(() => {
+                    alert(`${addedCount} tarea(s) importada(s) exitosamente.`);
+                    document.getElementById('csv-file-input').value = ''; 
+                    document.getElementById('import-overlay').classList.remove('visible');
+                });
+            } else {
+                document.getElementById('import-feedback').textContent = "No se encontraron tareas válidas para importar. Asegúrate de que la columna 'requerimiento' esté completa.";
+            }
+        }
+
+        // --- FIN FUNCIONES DE IMPORTACIÓN ---
+
+        function applyStatusStyles(element, status) { element.className = element.className.split(' ').filter(c => !Object.values(statusOptions).join(' ').includes(c)).join(' '); const styles = statusOptions[status] || 'bg-gray-100 text-gray-800 border-gray-300'; element.classList.add(...styles.split(' ')); }
+        
+        function toggleAccordion(headerElement) {
+            const rubroName = headerElement.dataset.rubro;
+            if (!rubroName) return;
+
+            if (openRubros.has(rubroName)) {
+                openRubros.delete(rubroName);
+            } else {
+                openRubros.add(rubroName);
+            }
+            renderChecklist(); 
+        }
+
+        function exportToPDF() {
+            openRubros = new Set(rubros);
+            renderChecklist(); 
+
+            setTimeout(() => {
+                window.print();
+            }, 500);
+        }
+        
+        function updateRecurrenceUI(type) {
+            document.getElementById('recurrence-options-weekly').style.display = type === 'weekly' ? 'block' : 'none';
+            document.getElementById('recurrence-options-monthly').style.display = type === 'monthly' ? 'block' : 'none';
+            document.getElementById('recurrence-options-periodically').style.display = type === 'periodically' ? 'block' : 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Selectores de Elementos
+            const formOverlay = document.getElementById('form-overlay');
+            const addTaskForm = document.getElementById('add-task-form');
+            const addTaskBtn = document.getElementById('add-task-btn');
+            const closeFormBtn = document.getElementById('close-form-btn');
+            const exportBtn = document.getElementById('export-pdf-btn');
+            const recurrenceTypeSelect = document.getElementById('recurrence-type');
+            
+            const manageRubrosBtn = document.getElementById('manage-rubros-btn');
+            const closeManageRubrosBtn = document.getElementById('close-manage-rubros-btn');
+            const rubrosListContainer = document.getElementById('rubros-list-container');
+            const addRubroForm = document.getElementById('add-rubro-form');
+            
+            const manageResponsablesBtn = document.getElementById('manage-responsables-btn');
+            const closeManageResponsablesBtn = document.getElementById('close-manage-responsables-btn');
+            const responsablesListContainer = document.getElementById('responsables-list-container');
+            const addResponsableForm = document.getElementById('add-responsable-form');
+
+            const filterOverlay = document.getElementById('filter-overlay');
+            const manageFiltersBtn = document.getElementById('manage-filters-btn');
+            const closeFilterBtn = document.getElementById('close-filter-btn');
+            const closeFilterBtnBottom = document.getElementById('close-filter-btn-bottom');
+            const statusFilters = document.getElementById('status-filters');
+            const priorityFilters = document.getElementById('priority-filters');
+            const dateFilters = document.getElementById('date-filters');
+            const responsibleFilters = document.getElementById('responsible-filters');
+
+            const importOverlay = document.getElementById('import-overlay');
+            const showImportModalBtn = document.getElementById('show-import-modal-btn'); 
+            const closeImportBtn = document.getElementById('close-import-btn');
+            const closeImportBtnBottom = document.getElementById('close-import-btn-bottom');
+            const downloadTemplateBtn = document.getElementById('download-template-btn');
+            const processImportBtn = document.getElementById('process-import-btn');
+
+            // --- Listeners de Importación ---
+            showImportModalBtn.addEventListener('click', () => { 
+                formOverlay.classList.remove('visible');
+                importOverlay.classList.add('visible');
+            });
+            closeImportBtn.addEventListener('click', () => importOverlay.classList.remove('visible'));
+            closeImportBtnBottom.addEventListener('click', () => importOverlay.classList.remove('visible'));
+            downloadTemplateBtn.addEventListener('click', handleDownloadTemplate);
+            processImportBtn.addEventListener('click', handleProcessImport);
+
+
+            // --- Listeners Tareas ---
+            addTaskBtn.addEventListener('click', () => {
+                document.getElementById('form-title').textContent = "Añadir Nueva Tarea";
+                addTaskForm.reset();
+                updateRecurrenceUI('none');
+                document.getElementById('edit-task-id').value = ''; 
+                formOverlay.classList.add('visible');
+            });
+            closeFormBtn.addEventListener('click', () => formOverlay.classList.remove('visible'));
+            recurrenceTypeSelect.addEventListener('change', (e) => updateRecurrenceUI(e.target.value));
+            addTaskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(addTaskForm);
+                const editId = formData.get('edit-task-id');
+                const recurrence = {
+                    type: formData.get('recurrence-type'),
+                    weeklyOn: formData.get('recurrence-weekly-on'),
+                    monthlyType: formData.get('monthlyType'),
+                    monthlyDay: formData.get('recurrence-monthly-day'),
+                    monthlyOrdinal: formData.get('recurrence-monthly-ordinal'),
+                    monthlyDayOfWeek: formData.get('recurrence-monthly-dayofweek'),
+                    periodicallyDays: formData.get('recurrence-periodically-days'),
+                };
+                const taskData = { 
+                    rubro: formData.get('rubro'),
+                    requerimiento: formData.get('requerimiento'),
+                    responsable: formData.get('responsable'),
+                    deadline: formData.get('deadline') || '',
+                    prioridad: formData.get('prioridad'),
+                    recurrence: recurrence,
+                };
+                if (editId) {
+                    database.ref('tasks').child(editId).update(taskData);
+                } else {
+                    const newId = database.ref('tasks').push().key;
+                    database.ref('tasks').child(newId).set({ ...taskData, estado: 'Pendiente' });
+                }
+                addTaskForm.reset();
+                formOverlay.classList.remove('visible');
+            });
+
+            // --- Listeners Controles ---
+            exportBtn.addEventListener('click', exportToPDF);
+            
+            // --- Listeners Gestión Rubros ---
+            manageRubrosBtn.addEventListener('click', renderRubrosModal);
+            closeManageRubrosBtn.addEventListener('click', () => document.getElementById('manage-rubros-overlay').classList.remove('visible'));
+            addRubroForm.addEventListener('submit', handleAddRubro);
+            rubrosListContainer.addEventListener('click', (event) => {
+                const editButton = event.target.closest('.edit-rubro-btn');
+                const deleteButton = event.target.closest('.delete-rubro-btn');
+                if (editButton) handleEditRubro(editButton.dataset.rubroName);
+                if (deleteButton) handleDeleteRubro(deleteButton.dataset.rubroName);
+            });
+            
+            // --- Listeners Gestión Responsables ---
+            manageResponsablesBtn.addEventListener('click', renderResponsablesModal);
+            closeManageResponsablesBtn.addEventListener('click', () => document.getElementById('manage-responsables-overlay').classList.remove('visible'));
+            addResponsableForm.addEventListener('submit', handleAddResponsable);
+            responsablesListContainer.addEventListener('click', (event) => {
+                const editButton = event.target.closest('.edit-responsable-btn');
+                const deleteButton = event.target.closest('.delete-responsable-btn');
+                if (editButton) handleEditResponsable(editButton.dataset.responsableName);
+                if (deleteButton) handleDeleteResponsable(deleteButton.dataset.responsableName);
+            });
+
+            // --- Listeners Gestión Filtros ---
+            manageFiltersBtn.addEventListener('click', () => {
+                renderFilterModal(); 
+                filterOverlay.classList.add('visible');
+            });
+            closeFilterBtn.addEventListener('click', () => filterOverlay.classList.remove('visible'));
+            closeFilterBtnBottom.addEventListener('click', () => filterOverlay.classList.remove('visible'));
+            statusFilters.addEventListener('click', handleFilterClick);
+            priorityFilters.addEventListener('click', handleFilterClick);
+            dateFilters.addEventListener('click', handleFilterClick);
+            responsibleFilters.addEventListener('click', handleFilterClick);
+
+            // Carga Inicial
+            // MODIFICADO: Autenticación Anónima
+            auth.signInAnonymously()
+                .then(() => {
+                    console.log('Usuario autenticado anónimamente');
+                })
+                .catch((error) => {
+                    console.error('Error en autenticación anónima:', error);
+                    alert("Error de conexión segura: " + error.message);
+                });
+
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    loadInitialData();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

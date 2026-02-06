@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus Task Flow</title>
+    <meta name="description" content="Plataforma de gestión de proyectos premium">
+    <meta name="theme-color" content="#2563EB">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script>
+        // Global Error Handler to catch Script Loading Errors
+        window.onerror = function (msg, url, line, col, error) {
+            const loading = document.getElementById('loading-screen');
+            if (loading) loading.style.display = 'none';
+
+            const errDiv = document.createElement('div');
+            errDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:red;color:white;padding:20px;z-index:9999;font-family:monospace;white-space:pre-wrap;';
+            errDiv.textContent = `JS ERROR: ${msg}\nEn: ${url}:${line}:${col}\n${error ? error.stack : ''}`;
+            document.body.prepend(errDiv);
+            return false;
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb', // Institutional
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                            950: '#172554',
+                        },
+                        dark: {
+                            bg: '#0f172a',
+                            surface: '#1e293b',
+                            border: '#334155'
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'slide-up': 'slideUp 0.5s ease-out',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- External Libs -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-storage-compat.js"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body
+    class="bg-slate-50 text-slate-900 dark:bg-[#0f172a] dark:text-slate-100 h-full overflow-x-hidden antialiased selection:bg-brand-500 selection:text-white transition-colors duration-300">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen"
+        class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white dark:bg-[#0f172a] transition-opacity duration-500">
+        <div class="relative w-24 h-24 mb-4">
+            <div class="absolute inset-0 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+            <img src="assets/logo.jpg"
+                class="absolute inset-2 w-20 h-20 object-contain rounded-full opacity-80 animate-pulse-slow"
+                alt="Loading">
+        </div>
+        <h2 class="text-xl font-bold text-gray-700 dark:text-white tracking-widest animate-pulse">NEXUS</h2>
+    </div>
+
+    <!-- App Container -->
+    <div id="app" class="min-h-screen transition-opacity duration-500">
+        <!-- Toast Container -->
+        <div id="toast-container" class="fixed top-4 right-4 z-[90] flex flex-col gap-2 pointer-events-none"></div>
+
+        <!-- Dynamic Content -->
+        <div id="main-content" class="w-full h-full relative"></div>
+    </div>
+
+    <!-- Core Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/services/firebase-config.js"></script>
+    <script src="js/services/store.js"></script>
+    <script src="js/services/auth.js"></script>
+
+    <!-- Components -->
+    <script src="js/components/ui.js"></script>
+    <script src="js/components/navbar.js"></script>
+    <script src="js/components/landing.js"></script>
+    <script src="js/components/login.js"></script>
+    <script src="js/components/dashboard.js"></script>
+    <script src="js/components/project.js"></script>
+    <script src="js/components/shared.js"></script>
+    <script src="js/components/integrations.js"></script>
+    <script src="js/components/help.js"></script>
+
+    <!-- Main App Logic -->
+    <script src="js/app.js"></script>
+
+    <script>
+        // Fallback for logo if missing
+        document.addEventListener('error', function (e) {
+            if (e.target.tagName === 'IMG') {
+                e.target.style.display = 'none';
+                if (e.target.parentNode.classList.contains('w-24')) {
+                    // If it's the loader logo, show initial
+                    const initial = document.createElement('div');
+                    initial.className = 'absolute inset-0 flex items-center justify-center text-3xl font-bold text-brand-600';
+                    initial.innerText = 'N';
+                    e.target.parentNode.appendChild(initial);
+                }
+            }
+        }, true);
+    </script>
+</body>
+
+</html>

@@ -1529,7 +1529,28 @@ const ProjectComponent = {
                 const metaInfo = `Prioridad: ${priority}  |  Presupuesto: ${cost}  |  Vence: ${deadline}  |  Resp: ${resp}`;
                 doc.text(metaInfo, 24, currentY + 2);
 
-                currentY += 8; // Spacing after meta
+                currentY += 6; // Spacing after meta
+
+                // Subtasks
+                if (item.subtasks && item.subtasks.length > 0) {
+                    currentY += 2;
+                    doc.setFontSize(9);
+                    doc.setTextColor(51, 65, 85); // Slate-700
+
+                    item.subtasks.forEach(sub => {
+                        const check = sub.completed ? '[X]' : '[  ]';
+                        const subText = `${check} ${sub.text}`;
+
+                        // Check page break
+                        if (currentY + 5 > 280) { doc.addPage(); yPos = 20; currentY = yPos + 5; }
+
+                        doc.text(subText, 28, currentY);
+                        currentY += 5;
+                    });
+                    currentY += 2;
+                }
+
+                currentY += 2;
 
                 // Draw Status Label
                 doc.setFontSize(8);

@@ -88,30 +88,16 @@ const ProjectComponent = {
 
                         ${ProjectComponent.isEditable ? `
                         <div class="flex items-center shadow-lg shadow-brand-500/30 rounded-lg">
-                            <button onclick="ProjectComponent.openTaskModal()" class="btn-primary text-sm px-4 rounded-r-none border-r border-brand-400/30">
+                            <button onclick="ProjectComponent.openTaskModal()" class="btn-primary text-sm px-4 rounded-lg">
                                 <i class="fas fa-plus"></i> <span class="hidden sm:inline">Nueva Tarea</span>
                             </button>
-                            ${IntegrationsComponent.isEnabled('octavo_piso') ? `
-                            <button onclick="ProjectComponent.toggleSelectionMode()" class="btn-primary text-sm px-4 border-l border-brand-400/30 bg-indigo-600 hover:bg-indigo-700" title="Exportar a Octavo Piso">
-                                <i class="fas fa-file-export"></i> Exp. Octavo
-                            </button>
-                            ` : ''}
-                            <div class="relative group h-full">
-                                <button class="btn-primary text-sm px-2 rounded-l-none rounded-r-lg h-full">
-                                    <i class="fas fa-chevron-down text-xs"></i>
-                                </button>
-                                <div class="absolute right-0 top-full pt-2 w-48 z-50 hidden group-hover:block text-left">
-                                    <div class="glass-card p-1 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800">
-                                        <button onclick="ProjectComponent.importFromExcel()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2">
-                                            <i class="fas fa-file-excel text-emerald-600"></i> Importar Excel
-                                        </button>
-                                        <button onclick="ProjectComponent.downloadExampleTemplate()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2">
-                                            <i class="fas fa-download text-gray-500"></i> Bajar Plantilla
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
+
+                        ${IntegrationsComponent.isEnabled('octavo_piso') ? `
+                        <button onclick="ProjectComponent.toggleSelectionMode()" class="bg-white dark:bg-slate-800 text-indigo-600 border border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-2" title="Exportar a Octavo Piso">
+                            <i class="fas fa-file-export"></i> <span>Exp. Octavo</span>
+                        </button>
+                        ` : ''}
                         ` : ''}
                         
                         ${!ProjectComponent.isShared ? `
@@ -134,6 +120,10 @@ const ProjectComponent = {
                                         <span><i class="fas fa-palette mr-2 text-purple-500 w-5 text-center"></i> Tema</span>
                                         <i class="fas fa-moon dark:hidden text-gray-400 group-hover/item:text-gray-600"></i>
                                         <i class="fas fa-sun hidden dark:inline text-yellow-500"></i>
+                                    </button>
+
+                                    <button onclick="ProjectComponent.importFromExcel()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2">
+                                        <i class="fas fa-file-excel mr-2 text-emerald-600 w-5 text-center"></i> Importar Excel
                                     </button>
 
                                     <div class="my-1 border-t border-gray-100 dark:border-slate-700"></div>

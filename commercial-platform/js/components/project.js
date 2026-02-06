@@ -1336,25 +1336,31 @@ const ProjectComponent = {
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-fade-in';
 
-        const options = ['Todo el Proyecto', ...ProjectComponent.rubros].map(r =>
-            `<option value="${r === 'Todo el Proyecto' ? 'all' : r}">${r}</option>`
-        ).join('');
+        const options = ProjectComponent.rubros.map(r => `
+            <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors">
+                <input type="checkbox" value="${r}" class="w-5 h-5 text-brand-600 rounded focus:ring-brand-500 border-gray-300 dark:border-slate-600 dark:bg-slate-700" checked>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${r}</span>
+            </label>
+        `).join('');
 
         modal.innerHTML = `
-            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-sm w-full p-6 animate-slide-up border dark:border-slate-700">
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6 animate-slide-up border dark:border-slate-700 flex flex-col max-h-[85vh]">
                 <div class="flex items-center gap-3 mb-4 text-brand-600 dark:text-brand-400">
                     <i class="fas fa-file-pdf text-2xl"></i>
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white">Exportar PDF</h3>
                 </div>
                 
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Seleccionar Área</label>
-                    <select id="pdf-area-select" class="w-full rounded-lg border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-brand-500 focus:border-brand-500">
+                <div class="mb-2">
+                    <div class="flex justify-between items-center mb-2">
+                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Seleccionar Áreas</label>
+                         <button type="button" id="toggle-all" class="text-xs text-brand-600 hover:text-brand-700 dark:text-brand-400 font-medium">Deseleccionar Todas</button>
+                    </div>
+                    <div class="space-y-2 overflow-y-auto max-h-[50vh] pr-2 custom-scrollbar">
                         ${options}
-                    </select>
+                    </div>
                 </div>
 
-                <div class="flex justify-end gap-3">
+                <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-700">
                     <button id="modal-cancel" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700 transition font-medium text-sm">Cancelar</button>
                     <button id="modal-confirm" class="px-4 py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition font-medium text-sm shadow-md shadow-brand-500/30">
                         <i class="fas fa-download mr-1"></i> Generar
@@ -1370,16 +1376,35 @@ const ProjectComponent = {
             setTimeout(() => modal.remove(), 200);
         };
 
+        // Select/Deselect All Logic
+        const toggleBtn = modal.querySelector('#toggle-all');
+        const checkboxes = modal.querySelectorAll('input[type="checkbox"]');
+        let allSelected = true;
+
+        toggleBtn.onclick = () => {
+            allSelected = !allSelected;
+            checkboxes.forEach(cb => cb.checked = allSelected);
+            toggleBtn.textContent = allSelected ? 'Deseleccionar Todas' : 'Seleccionar Todas';
+        };
+
         modal.querySelector('#modal-cancel').onclick = close;
         modal.querySelector('#modal-confirm').onclick = () => {
-            const selected = document.getElementById('pdf-area-select').value;
+            const selected = Array.from(checkboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+
+            if (selected.length === 0) {
+                UI.showToast('Selecciona al menos un área', 'warning');
+                return;
+            }
+
             ProjectComponent.generatePDF(selected);
             close();
         };
         modal.onclick = (e) => { if (e.target === modal) close(); };
     },
 
-    generatePDF: (filter = 'all') => {
+    generatePDF: (selectedRubros = []) => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const projectName = document.querySelector('h2').innerText || 'Proyecto';
@@ -1418,7 +1443,15 @@ const ProjectComponent = {
         // -- Content --
         let yPos = 85;
         const tasks = ProjectComponent.getFilteredData();
-        const rubrosToExport = filter === 'all' ? ProjectComponent.rubros : [filter];
+
+        // Filter rubros based on selection (if array is passed)
+        // If string 'all' was passed (legacy), check it, but we moved to array.
+        let rubrosToExport = ProjectComponent.rubros;
+        if (Array.isArray(selectedRubros)) {
+            rubrosToExport = selectedRubros;
+        } else if (selectedRubros !== 'all' && selectedRubros) {
+            rubrosToExport = [selectedRubros];
+        }
 
         rubrosToExport.forEach(rubro => {
             const items = tasks.filter(t => t.rubro === rubro);

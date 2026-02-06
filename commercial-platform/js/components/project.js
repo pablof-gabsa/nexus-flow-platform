@@ -1886,56 +1886,124 @@ const ProjectComponent = {
     },
 
     renderCharts: () => {
-        const ctx = document.getElementById('statusChart');
-        if (!ctx) return;
+        const ctxActivity = document.getElementById('activityChart');
+        const ctxDeadline = document.getElementById('deadlineChart');
+        if (!ctxActivity || !ctxDeadline) return;
 
-        // Stats
-        const stats = {
-            'Pendiente': 0, 'En Proceso': 0, 'Realizado': 0, 'Suspendido': 0
-            // Management Actions
-        };
-        ProjectComponent.data.forEach(t => {
-            if (stats[t.estado] !== undefined) stats[t.estado]++;
+        const tasks = ProjectComponent.data;
+        const total = tasks.length;
+
+        // 1. Activity Stats
+        const inProcess = tasks.filter(t => t.estado === 'En Proceso').length;
+        const pending = tasks.filter(t => t.estado === 'Pendiente').length;
+        const done = tasks.filter(t => t.estado === 'Realizado').length;
+
+        // 2. Deadline Stats (Active Tasks only)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const nextWeek = new Date(today);
+        nextWeek.setDate(today.getDate() + 7);
+
+        let overdue = 0;
+        let dueSoon = 0;
+        let onTrack = 0;
+
+        tasks.forEach(t => {
+            if (t.estado === 'Realizado' || t.estado === 'Suspendido') return;
+            if (!t.deadline) {
+                onTrack++;
+                return;
+            }
+
+            const [y, m, d] = t.deadline.split('-').map(Number);
+            const date = new Date(y, m - 1, d);
+
+            if (date < today) overdue++;
+            else if (date >= today && date <= nextWeek) dueSoon++;
+            else onTrack++;
         });
 
-        // Progress Bar
-        const total = ProjectComponent.data.length;
-        const pcent = total > 0 ? Math.round((stats['Realizado'] / total) * 100) : 0;
-        document.getElementById('project-progress-bar').style.width = `${pcent}%`;
-        document.getElementById('project-progress-text').textContent = `${pcent}%`;
+        // Progress Bar Update
+        const pcent = total > 0 ? Math.round((done / total) * 100) : 0;
+        const barElem = document.getElementById('project-progress-bar');
+        const textElem = document.getElementById('project-progress-text');
+        if (barElem) barElem.style.width = `${pcent}%`;
+        if (textElem) textElem.textContent = `${pcent}%`;
 
-        // Chart
-        if (ProjectComponent.chartInstance) ProjectComponent.chartInstance.destroy();
+        // --- Destroy Old Charts ---
+        if (ProjectComponent.activityChart) ProjectComponent.activityChart.destroy();
+        if (ProjectComponent.deadlineChart) ProjectComponent.deadlineChart.destroy();
+        // Legacy Cleanup
+        if (ProjectComponent.chartInstance) { ProjectComponent.chartInstance.destroy(); ProjectComponent.chartInstance = null; }
 
-        ProjectComponent.chartInstance = new Chart(ctx, {
-            type: 'doughnut',
+        // --- Chart 1: Activity (In Process vs Pending) ---
+        ProjectComponent.activityChart = new Chart(ctxActivity, {
+            type: 'bar',
             data: {
-                labels: Object.keys(stats),
+                labels: ['En Proceso', 'Pendientes'],
                 datasets: [{
-                    data: Object.values(stats),
-                    backgroundColor: Object.keys(stats).map(k => ProjectComponent.statusColors[k]),
-                    borderWidth: 0
+                    label: 'Tareas',
+                    data: [inProcess, pending],
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.8)', // Blue
+                        'rgba(245, 158, 11, 0.8)'  // Amber
+                    ],
+                    borderRadius: 4,
+                    barPercentage: 0.6
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '70%',
                 plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: { boxWidth: 10, usePointStyle: true }
-                    }
+                    legend: { display: false },
+                    title: { display: true, text: 'Actividad Actual', font: { size: 12 } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } },
+                    x: { grid: { display: false } }
                 }
             }
         });
 
-        // Stats Text
+        // --- Chart 2: Deadlines (Overdue / Soon / On Track) ---
+        ProjectComponent.deadlineChart = new Chart(ctxDeadline, {
+            type: 'bar',
+            data: {
+                labels: ['Vencidas', 'Próximas', 'En Fecha'],
+                datasets: [{
+                    label: 'Vencimientos',
+                    data: [overdue, dueSoon, onTrack],
+                    backgroundColor: [
+                        'rgba(239, 68, 68, 0.8)',  // Red
+                        'rgba(249, 115, 22, 0.8)', // Orange
+                        'rgba(34, 197, 94, 0.8)'   // Green
+                    ],
+                    borderRadius: 4,
+                    barPercentage: 0.6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Venc. (Pend/Proc)', font: { size: 12 } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Stats Text (Optional: Keep or remove based on new UI, keeping for now but simplified)
         document.getElementById('project-stats').innerHTML = `
-            <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>Total</span> <span class="font-bold">${total}</span></div>
-            <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>Pendientes</span> <span class="font-bold text-yellow-600">${stats['Pendiente']}</span></div>
-            <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>En Proceso</span> <span class="font-bold text-blue-600">${stats['En Proceso']}</span></div>
-            <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>Realizado</span> <span class="font-bold text-green-600">${stats['Realizado']}</span></div>
+            <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>Total Histórico</span> <span class="font-bold">${total}</span></div>
+            <hr class="border-gray-100 dark:border-slate-700 my-1">
+            <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>En Proceso</span> <span class="font-bold text-blue-600">${inProcess}</span></div>
+            <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>Pendientes</span> <span class="font-bold text-amber-600">${pending}</span></div>
+            <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>Vencidas</span> <span class="font-bold text-red-600">${overdue}</span></div>
         `;
     },
 

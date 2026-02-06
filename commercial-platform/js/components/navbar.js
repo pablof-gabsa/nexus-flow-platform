@@ -32,10 +32,12 @@ const NavbarComponent = {
                         <!-- Right Actions -->
                         <div class="flex items-center gap-4">
                             <!-- Theme Toggle -->
+                            ${!window.location.hash.includes('project') ? `
                             <button id="theme-toggle" class="p-2 rounded-lg text-gray-500 delay-100 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700/50 transition-colors" onclick="NavbarComponent.toggleTheme()">
                                 <i class="fas fa-moon hidden dark:block"></i>
                                 <i class="fas fa-sun block dark:hidden text-yellow-500"></i>
                             </button>
+                            ` : ''}
 
                             <button onclick="window.location.hash = '#/help'" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700/50 transition-colors" title="Ayuda">
                                 <i class="fas fa-question-circle"></i>

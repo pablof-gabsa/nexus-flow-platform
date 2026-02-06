@@ -435,7 +435,25 @@ const ProjectComponent = {
         const done = tasks.filter(t => t.estado === 'Realizado').length;
         const inProgress = tasks.filter(t => t.estado === 'En Proceso').length;
 
-        // ... (existing code)
+        // Calc Cost only for Pendiente/En Proceso
+        const activeTasks = tasks.filter(t => t.estado !== 'Realizado' && t.estado !== 'Suspendido');
+        const totalCost = activeTasks.reduce((sum, t) => sum + (parseFloat(t.costo) || 0), 0);
+
+        // Calculate Overdue
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const overdue = tasks.filter(t => {
+            if (!t.deadline || t.estado === 'Realizado' || t.estado === 'Suspendido') return false;
+            const d = new Date(t.deadline);
+            d.setHours(0, 0, 0, 0); // compare dates only
+            // Fix: timezone offset issue often makes deadline look like previous day. 
+            // Assuming deadline string "YYYY-MM-DD" is local.
+            const [y, m, d_] = t.deadline.split('-').map(Number);
+            const deadlineDate = new Date(y, m - 1, d_);
+            return deadlineDate < today;
+        }).length;
+
+        const total = tasks.length;
 
         const container = document.getElementById('project-stats');
         if (container) {

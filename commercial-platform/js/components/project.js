@@ -1538,7 +1538,7 @@ const ProjectComponent = {
                     doc.setTextColor(51, 65, 85); // Slate-700
 
                     item.subtasks.forEach(sub => {
-                        const check = sub.completed ? '[X]' : '[  ]';
+                        const check = sub.done ? '[X]' : '[  ]';
                         const subText = `${check} ${sub.text}`;
 
                         // Check page break

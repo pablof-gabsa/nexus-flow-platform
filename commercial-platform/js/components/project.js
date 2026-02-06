@@ -1433,15 +1433,23 @@ const ProjectComponent = {
 
         // 2. Map Data
         // Columns: Título | Descripción | Etiquetas | Prioridad | Estado | Visibilidad | Presupuesto
-        const exportData = tasks.map(t => ({
-            "Titulo": t.requerimiento || t.text || "Tarea sin título",
-            "Descripcion": t.description || "",
-            "Etiquetas": "",
-            "Prioridad": 30, // Fixed
-            "Estado": 10,   // Fixed
-            "Visibilidad": 10, // Fixed
-            "Presupuesto": parseFloat(t.costo) || 0
-        }));
+        const exportData = tasks.map(t => {
+            // Priority Mapping
+            // Alta -> 10, Media -> 20, Baja -> 30 (Default)
+            let priorityValue = 30;
+            if (t.prioridad === 'Alta') priorityValue = 10;
+            if (t.prioridad === 'Media') priorityValue = 20;
+
+            return {
+                "Titulo": t.requerimiento || t.text || "Tarea sin título",
+                "Descripcion": t.description || "",
+                "Etiquetas": "",
+                "Prioridad": priorityValue,
+                "Estado": 10,   // Fixed
+                "Visibilidad": 20, // Updated to 20 as requested
+                "Presupuesto": parseFloat(t.costo) || 0
+            };
+        });
 
         // 3. Generate Excel
         const ws = XLSX.utils.json_to_sheet(exportData);

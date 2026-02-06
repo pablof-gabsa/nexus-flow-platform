@@ -207,21 +207,9 @@ const ProjectComponent = {
                 <div id="checklist-container" class="space-y-4"></div>
 
                 <!-- Export Bar -->
-                ${ProjectComponent.isSelectionMode ? `
-                <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white rounded-xl shadow-2xl p-4 z-50 flex items-center gap-6 animate-scale-up">
-                    <div class="flex items-center gap-2">
-                        <span class="font-bold text-lg">${ProjectComponent.selectedTasks.size}</span>
-                        <span class="text-sm text-indigo-100">tareas seleccionadas</span>
-                    </div>
-                    <div class="h-8 w-px bg-indigo-500"></div>
-                    <div class="flex gap-2">
-                        <button onclick="ProjectComponent.toggleSelectionMode()" class="px-4 py-2 text-sm hover:bg-indigo-700 rounded-lg transition-colors">Cancelar</button>
-                        <button onclick="ProjectComponent.executeOctavoExport()" class="bg-white text-indigo-600 px-6 py-2 rounded-lg font-bold hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" ${ProjectComponent.selectedTasks.size === 0 ? 'disabled' : ''}>
-                            Exportar Excel
-                        </button>
-                    </div>
-                </div>
-                ` : ''}
+                <!-- Export Bar Container -->
+                <div id="project-export-bar"></div>
+            </div>
             </div>
 
             <!-- Task Modal (Hidden) -->
@@ -423,6 +411,33 @@ const ProjectComponent = {
         ProjectComponent.renderCharts();
         ProjectComponent.renderStats();
         ProjectComponent.renderModalOptions();
+        ProjectComponent.renderExportBar();
+    },
+
+    renderExportBar: () => {
+        const container = document.getElementById('project-export-bar');
+        if (!container) return;
+
+        if (!ProjectComponent.isSelectionMode) {
+            container.innerHTML = '';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white rounded-xl shadow-2xl p-4 z-50 flex items-center gap-6 animate-scale-up">
+                <div class="flex items-center gap-2">
+                    <span class="font-bold text-lg">${ProjectComponent.selectedTasks.size}</span>
+                    <span class="text-sm text-indigo-100">tareas seleccionadas</span>
+                </div>
+                <div class="h-8 w-px bg-indigo-500"></div>
+                <div class="flex gap-2">
+                    <button onclick="ProjectComponent.toggleSelectionMode()" class="px-4 py-2 text-sm hover:bg-indigo-700 rounded-lg transition-colors">Cancelar</button>
+                    <button onclick="ProjectComponent.executeOctavoExport()" class="bg-white text-indigo-600 px-6 py-2 rounded-lg font-bold hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" ${ProjectComponent.selectedTasks.size === 0 ? 'disabled' : ''}>
+                        Exportar Excel
+                    </button>
+                </div>
+            </div>
+        `;
     },
 
     renderStats: () => {

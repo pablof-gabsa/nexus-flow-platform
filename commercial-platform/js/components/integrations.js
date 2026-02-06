@@ -30,7 +30,12 @@ const IntegrationsComponent = {
 
         return `
             <div class="space-y-6">
-                <h2 class="text-2xl font-bold dark:text-white">Integraciones</h2>
+                <div class="flex items-center gap-4">
+                    <button onclick="App.navigateTo('#/dashboard'); window.location.reload()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                        <i class="fas fa-arrow-left text-gray-500 dark:text-gray-400"></i>
+                    </button>
+                    <h2 class="text-2xl font-bold dark:text-white">Integraciones</h2>
+                </div>
                 <p class="text-gray-500 dark:text-gray-400">Conecta Nexus Flow con otras plataformas.</p>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -128,9 +128,6 @@ const DashboardComponent = {
                 <div class="p-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
                     <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Proyectos</h2>
                      <div class="flex gap-1">
-                        <button onclick="DashboardComponent.showIntegrations()" class="text-gray-400 hover:text-brand-600 p-1.5 rounded-lg transition-colors" title="Integraciones">
-                            <i class="fas fa-plug"></i>
-                        </button>
                         <button onclick="DashboardComponent.manageProjects()" class="text-gray-400 hover:text-brand-600 p-1.5 rounded-lg transition-colors" title="Configurar Proyectos">
                              <i class="fas fa-cog"></i>
                         </button>

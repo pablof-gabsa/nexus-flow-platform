@@ -258,6 +258,7 @@ const ProjectComponent = {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Prioridad</label>
+                                <select name="prioridad" id="task-prio" class="input-primary mt-1">
                                     <option>Baja</option> <option>Media</option> <option>Alta</option> <option>Crítico</option>
                                 </select>
                             </div>

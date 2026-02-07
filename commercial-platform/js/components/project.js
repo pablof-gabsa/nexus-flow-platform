@@ -1641,8 +1641,9 @@ const ProjectComponent = {
         // Columns: Título | Descripción | Etiquetas | Prioridad | Estado | Visibilidad | Presupuesto
         const exportData = tasks.map(t => {
             // Priority Mapping
-            // Alta -> 10, Media -> 20, Baja -> 30 (Default)
+            // Crítico -> 5, Alta -> 10, Media -> 20, Baja -> 30 (Default)
             let priorityValue = 30;
+            if (t.prioridad === 'Crítico') priorityValue = 5;
             if (t.prioridad === 'Alta') priorityValue = 10;
             if (t.prioridad === 'Media') priorityValue = 20;
 
@@ -2211,7 +2212,14 @@ const ProjectComponent = {
                     // Basic Fields
                     const rubro = row['Rubro'] || row['Area'] || 'General';
                     const responsable = row['Responsable'] || 'Sin Asignar';
-                    const prioridad = row['Prioridad'] || 'Media';
+
+                    // Normalize Priority
+                    let prioridad = row['Prioridad'] || 'Media';
+                    if (prioridad.toLowerCase().includes('critic') || prioridad.toLowerCase().includes('crític')) prioridad = 'Crítico';
+                    else if (prioridad.toLowerCase() === 'alta') prioridad = 'Alta';
+                    else if (prioridad.toLowerCase() === 'media') prioridad = 'Media';
+                    else if (prioridad.toLowerCase() === 'baja') prioridad = 'Baja';
+
                     const estado = row['Estado'] || 'Pendiente';
                     const hhEst = parseFloat(row['HH Estimadas'] || row['Estimadas']) || 0;
                     const hhExe = parseFloat(row['HH Ejecutadas'] || row['Ejecutadas']) || 0;

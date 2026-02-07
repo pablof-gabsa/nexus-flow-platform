@@ -125,6 +125,9 @@ const ProjectComponent = {
                                     <button onclick="ProjectComponent.importFromExcel()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2">
                                         <i class="fas fa-file-excel mr-2 text-emerald-600 w-5 text-center"></i> Importar Excel
                                     </button>
+                                    <button onclick="ProjectComponent.downloadExampleTemplate()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2">
+                                        <i class="fas fa-download mr-2 text-gray-500 w-5 text-center"></i> Descargar Plantilla
+                                    </button>
 
                                     <div class="my-1 border-t border-gray-100 dark:border-slate-700"></div>
 
@@ -2170,7 +2173,8 @@ const ProjectComponent = {
 
         const data = [
             headers,
-            ['Ejemplo: Revisar Login', 'Detalles del bug de login', 'Desarrollo', 'Juan Perez', 'Alta', 'Pendiente', '2023-12-31', 100, 5, 0, 'Diaria', 'Paso 1 | Paso 2'],
+            ['Ejemplo: Revisar Servidor', 'Servidor caído en producción', 'Sistemas', 'Juan Perez', 'Crítico', 'Pendiente', '2023-12-31', 0, 2, 0, '', ''],
+            ['Ejemplo: Revisar Login', 'Detalles del bug de login', 'Desarrollo', 'Maria Garcia', 'Alta', 'En Proceso', '2023-12-31', 100, 5, 0, 'Diaria', 'Paso 1 | Paso 2'],
             ['Ejemplo: Comprar Materiales', 'Compras', 'Ana Gomez', 'Media', 'Pendiente', '', 50.5, 2, 0, '', '']
         ];
 

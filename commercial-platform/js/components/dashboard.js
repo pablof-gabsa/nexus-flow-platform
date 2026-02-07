@@ -226,6 +226,7 @@ const DashboardComponent = {
 
                 <select onchange="DashboardComponent.setGlobalFilter('priority', this.value)" class="input-primary text-sm py-1.5 w-auto">
                     <option value="all" ${DashboardComponent.globalFilters.priority === 'all' ? 'selected' : ''}>Todas Prioridades</option>
+                    <option value="Crítico" ${DashboardComponent.globalFilters.priority === 'Crítico' ? 'selected' : ''}>Crítico</option>
                     <option value="Alta" ${DashboardComponent.globalFilters.priority === 'Alta' ? 'selected' : ''}>Alta</option>
                     <option value="Media" ${DashboardComponent.globalFilters.priority === 'Media' ? 'selected' : ''}>Media</option>
                     <option value="Baja" ${DashboardComponent.globalFilters.priority === 'Baja' ? 'selected' : ''}>Baja</option>

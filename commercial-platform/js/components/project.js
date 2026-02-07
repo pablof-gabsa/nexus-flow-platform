@@ -255,8 +255,7 @@ const ProjectComponent = {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Prioridad</label>
-                                <select name="prioridad" id="task-prio" class="input-primary mt-1">
-                                    <option>Baja</option> <option>Media</option> <option>Alta</option>
+                                    <option>Baja</option> <option>Media</option> <option>Alta</option> <option>Crítico</option>
                                 </select>
                             </div>
                             <div>
@@ -617,7 +616,7 @@ const ProjectComponent = {
                     <div>
                         <h4 class="font-bold text-sm text-gray-900 dark:text-white mb-2">Prioridad</h4>
                         <div class="flex flex-wrap gap-2">
-                            ${['Todos', 'Baja', 'Media', 'Alta'].map(val =>
+                            ${['Todos', 'Baja', 'Media', 'Alta', 'Crítico'].map(val =>
             `<button onclick="ProjectComponent.setFilter('priority', '${val}')" class="px-4 py-2 rounded-full text-sm font-medium border transition-colors ${pillClass(f.priority === val)}">${val === 'Todos' ? 'Todas' : val}</button>`
         ).join('')}
                         </div>
@@ -677,7 +676,7 @@ const ProjectComponent = {
                     else if (!a.deadline && b.deadline) res = 1;
                     else res = a.requerimiento.localeCompare(b.requerimiento);
                 } else if (ProjectComponent.sortBy === 'priority') {
-                    const map = { 'Alta': 3, 'Media': 2, 'Baja': 1, 'Normal': 0 };
+                    const map = { 'Crítico': 4, 'Alta': 3, 'Media': 2, 'Baja': 1, 'Normal': 0 };
                     const pA = map[a.prioridad] || 0;
                     const pB = map[b.prioridad] || 0;
                     res = pB - pA; // Descending by default for priority (High first)
@@ -758,6 +757,7 @@ const ProjectComponent = {
                             <p class="font-medium ${overdueText}">${item.requerimiento}</p>
                             ${item.description ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-xl truncate">${item.description}</p>` : ''}
                             ${isOverdue ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300">VENCIDA</span>' : ''}
+                            ${item.prioridad === 'Crítico' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-red-600 text-white dark:bg-red-500 font-bold shadow-sm" title="Prioridad Crítica">CRÍTICO</span>' : ''}
                             ${item.prioridad === 'Alta' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800" title="Prioridad Alta">ALTA</span>' : ''}
                             ${item.prioridad === 'Media' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800" title="Prioridad Media">Med</span>' : ''}
                             ${recurrenceIcon}

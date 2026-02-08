@@ -93,9 +93,9 @@ const ProjectComponent = {
                             </button>
                         </div>
 
-                        ${IntegrationsComponent.isEnabled('octavo_piso') ? `
-                        <button onclick="ProjectComponent.toggleSelectionMode()" class="bg-white dark:bg-slate-800 text-indigo-600 border border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-2" title="Exportar a Octavo Piso">
-                            <i class="fas fa-file-export"></i> <span>Exp. Octavo</span>
+                        ${(IntegrationsComponent.isEnabled('octavo_piso') || IntegrationsComponent.isEnabled('google_calendar')) ? `
+                        <button onclick="ProjectComponent.toggleSelectionMode()" class="bg-white dark:bg-slate-800 text-indigo-600 border border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-2" title="Integraciones">
+                            <i class="fas fa-plug"></i> <span>Integraciones</span>
                         </button>
                         ` : ''}
                         ` : ''}
@@ -435,7 +435,7 @@ const ProjectComponent = {
                     <button onclick="ProjectComponent.toggleSelectionMode()" class="px-4 py-2 text-sm hover:bg-indigo-700 rounded-lg transition-colors">Cancelar</button>
                     ${IntegrationsComponent.isEnabled('octavo_piso') ? `
                     <button onclick="ProjectComponent.executeOctavoExport()" class="bg-white text-indigo-600 px-6 py-2 rounded-lg font-bold hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" ${ProjectComponent.selectedTasks.size === 0 ? 'disabled' : ''}>
-                        Exportar Excel
+                        Exportar Octavo
                     </button>
                     ` : ''}
                      ${IntegrationsComponent.isEnabled('google_calendar') ? `
@@ -1718,6 +1718,50 @@ const ProjectComponent = {
             UI.showToast('No hay tareas para exportar', 'info');
             return;
         }
+
+        if (tasks.length === 1) {
+            // SINGLE TASK: Direct URL
+            const t = tasks[0];
+            if (!t.deadline) return UI.showToast('La tarea no tiene fecha de vencimiento', 'warning');
+
+            const [y, m, d] = t.deadline.split('-').map(Number);
+            const [hh, mm] = (t.time || '00:00').split(':').map(Number);
+
+            const startDate = new Date(y, m - 1, d, hh, mm);
+            const endDate = new Date(startDate);
+            endDate.setHours(startDate.getHours() + 1);
+
+            const formatGoogleDate = (date) => {
+                return date.getFullYear().toString() +
+                    (date.getMonth() + 1).toString().padStart(2, '0') +
+                    date.getDate().toString().padStart(2, '0') + 'T' +
+                    date.getHours().toString().padStart(2, '0') +
+                    date.getMinutes().toString().padStart(2, '0') + '00'; // Local time, let Google handle timezone based on user context or specify Z for UTC
+            };
+
+            // To ensure correct timezone handling without complex libs, standard practice for "render" links 
+            // is often using pure UTC (Z) or just local time string. 
+            // Let's use the simplest format YYYYMMDDTHHMMSS and let Google interpret as user's current calendar timezone 
+            // OR convert to UTC. 
+            // Better: use toISOString() and strip punctuation for UTC strictness.
+
+            const startUTC = startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            const endUTC = endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+            const title = encodeURIComponent(t.requerimiento || 'Tarea Nexus');
+            const details = encodeURIComponent(`${t.description || ''}\n\nPrioridad: ${t.prioridad}\nProyecto: ${ProjectComponent.projectId}`);
+            const location = encodeURIComponent('Nexus Flow');
+
+            const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${startUTC}/${endUTC}&location=${location}`;
+
+            window.open(url, '_blank');
+            UI.showToast('Abriendo Google Calendar...', 'info');
+            ProjectComponent.toggleSelectionMode();
+            return;
+        }
+
+        // MULTIPLE TASKS: Fallback to ICS
+        UI.showToast('Generando archivo para múltiples eventos...', 'info');
 
         // Generate ICS content
         let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Nexus Flow//Global//EN\n";

@@ -218,6 +218,28 @@ const HelpComponent = {
                                         <li>Elige las tareas y exporta.</li>
                                     </ol>
                                 </div>
+
+                                <div class="glass-card p-6 rounded-xl">
+                                    <h3 class="font-bold text-lg mb-3 flex items-center gap-2"><i class="fas fa-calendar-alt text-blue-600"></i> Integración Google Calendar</h3>
+                                    <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                                        Sincroniza tus tareas con tu calendario personal.
+                                    </p>
+                                    <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                                        <p><strong>Cómo funciona:</strong></p>
+                                        <ol class="list-decimal list-inside space-y-1 ml-1">
+                                            <li>Activa "Google Calendar" en Integraciones.</li>
+                                            <li>Selecciona tarea(s) en un proyecto.</li>
+                                            <li>Clic en <strong>Exp. Calendar</strong>.</li>
+                                        </ol>
+                                        <div class="mt-2 bg-blue-50 dark:bg-blue-900/20 p-2 rounded text-xs border border-blue-100 dark:border-blue-800">
+                                            <p class="font-bold text-blue-800 dark:text-blue-300 mb-1"><i class="fas fa-magic"></i> Tip Inteligente:</p>
+                                            <ul class="list-disc list-inside space-y-1">
+                                                <li><strong>1 Tarea:</strong> Se abre directo en Google Calendar Web.</li>
+                                                <li><strong>Varias Tareas:</strong> Se descarga un archivo <code>.ics</code> para importar (compatible con Outlook/Apple).</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </section>
 

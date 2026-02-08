@@ -126,6 +126,20 @@ const DashboardComponent = {
             if (DashboardComponent.currentView === 'tasks') {
                 DashboardComponent.filterGlobalManager();
             }
+            if (DashboardComponent.currentView === 'integrations') {
+                // Async render for Integrations
+                const container = document.getElementById('integrations-view-container');
+                if (container && window.IntegrationsComponent) {
+                    container.innerHTML = '<div class="flex justify-center p-20"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div></div>';
+                    // We need to wait a tick or just call it.
+                    // IntegrationsComponent.render() is async and returns HTML string.
+                    IntegrationsComponent.render().then(html => {
+                        container.innerHTML = html;
+                    }).catch(err => {
+                        container.innerHTML = `<div class="p-10 text-center text-red-500">Error cargando integraciones: ${err.message}</div>`;
+                    });
+                }
+            }
         }, 100);
 
     },
@@ -141,6 +155,7 @@ const DashboardComponent = {
             { id: 'projects', icon: 'project-diagram', label: 'Proyectos' },
             { id: 'tasks', icon: 'tasks', label: 'Tareas Globales' },
             { id: 'stats', icon: 'chart-pie', label: 'Estadísticas' },
+            { id: 'integrations', icon: 'plug', label: 'Integraciones' },
         ];
 
         // Add Admin view only if owner/admin
@@ -189,6 +204,7 @@ const DashboardComponent = {
             case 'projects': return DashboardComponent.renderActiveProjectsView();
             case 'tasks': return DashboardComponent.renderGlobalTasksView();
             case 'stats': return DashboardComponent.renderStatsView();
+            case 'integrations': return DashboardComponent.renderIntegrationsView();
             case 'users': return DashboardComponent.renderUserManagementView();
             case 'overview':
             default: return DashboardComponent.renderOverviewView();
@@ -432,6 +448,13 @@ const DashboardComponent = {
              <div class="glass-card p-6 rounded-2xl">
                  <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-4">Métricas Clave</h3>
                  <p class="text-gray-500 italic">Más métricas detalladas próximamente...</p>
+            </div>
+        `;
+    },
+    renderIntegrationsView: () => {
+        return `
+            <div id="integrations-view-container" class="min-h-[400px]">
+                <!-- Loading State injected by render() -->
             </div>
         `;
     },
@@ -1553,18 +1576,5 @@ const DashboardComponent = {
         }
     },
 
-    showIntegrations: async () => {
-        const container = document.querySelector('#dashboard-main-scroll > div');
-        container.innerHTML = `
-            <div class="flex items-center justify-center h-64">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
-            </div>
-        `;
-        try {
-            container.innerHTML = await IntegrationsComponent.render();
-        } catch (e) {
-            console.error(e);
-            container.innerHTML = '<p class="text-red-500">Error cargando integraciones</p>';
-        }
-    }
+
 };

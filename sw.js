@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v4'; // Incremented to v4 to force update
+const CACHE_NAME = 'nexus-flow-v5'; // Incremented to v5 for navbar fix
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

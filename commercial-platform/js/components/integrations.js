@@ -1,4 +1,4 @@
-const IntegrationsComponent = {
+window.IntegrationsComponent = {
     settings: {},
 
     load: async () => {

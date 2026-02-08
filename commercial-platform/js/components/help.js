@@ -225,24 +225,28 @@ const HelpComponent = {
                 </main>
             </div>
             
-            <script>
-                // Internal navigation script styling
-                window.HelpComponent.scrollToSection = (id) => {
-                    const el = document.getElementById('help-' + id);
-                    if(el) {
-                        el.scrollIntoView({ behavior: 'smooth' });
-                         // Update active state
-                        document.querySelectorAll('.help-nav-item').forEach(btn => {
-                            btn.classList.remove('bg-brand-50', 'text-brand-700', 'dark:bg-brand-900/20', 'dark:text-brand-300');
-                            btn.classList.add('text-gray-600', 'dark:text-gray-400');
-                        });
-                        // Highlight current (approximate, since we are using buttons onclick, we find the one that called this)
-                        // For simplicity in this vanilla implementation, we handle click highlight in the button onclick itself logic if needed, 
-                        // but re-rendering matches state. 
-                        // Here we just scroll.
-                    }
-                }
-            </script>
         `;
+    },
+
+    scrollToSection: (id) => {
+        const el = document.getElementById('help-' + id);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+            // Update active state
+            document.querySelectorAll('.help-nav-item').forEach(btn => {
+                // Reset all to default style
+                btn.className = 'help-nav-item w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors';
+            });
+
+            // Highlight the clicked button (we'll just use a simple heuristic matching the ID)
+            // Ideally we'd pass 'this' or the event, but for now we trust the user clicks the buttons we rendered.
+            // Since we can't easily get the specific button element without passing it, we will just rely on the scroll for now.
+            // Or better, let's find the button that calls this function with this ID.
+            const clickedBtn = document.querySelector(`button[onclick="HelpComponent.scrollToSection('${id}')"]`);
+            if (clickedBtn) {
+                clickedBtn.className = 'help-nav-item w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300';
+            }
+        }
     }
+}
 };

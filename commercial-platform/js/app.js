@@ -106,7 +106,7 @@ const App = {
                 else main.innerHTML = '<p class="p-10 text-center">Login Component Not Loaded</p>';
             }
             else if (route === '#/dashboard') {
-                if (typeof DashboardComponent !== 'undefined') await DashboardComponent.render(main);
+                if (typeof DashboardComponent !== 'undefined') await DashboardComponent.render(main, params);
                 else main.innerHTML = '<p class="p-10 text-center">Dashboard Component Not Loaded</p>';
             }
             else if (route.startsWith('#/project/')) {

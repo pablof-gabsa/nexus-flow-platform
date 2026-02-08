@@ -1,8 +1,11 @@
 const DashboardComponent = {
+    currentView: 'overview', // overview, projects, tasks, stats, users
     viewArchived: false,
     projects: [],
     allTasks: [],
+    admins: [],
     allResponsables: new Set(),
+
     chartInstances: {},
     currentEditingTask: null,
     globalFilters: {
@@ -11,8 +14,14 @@ const DashboardComponent = {
     },
     projectSettings: JSON.parse(localStorage.getItem('nexus_project_settings')) || { order: [], hidden: {} },
 
-    render: async (container) => {
+    render: async (container, params) => {
+        // Handle View Param
+        if (params && params.get('view')) {
+            DashboardComponent.currentView = params.get('view');
+        }
+
         // Show loading state
+
         container.innerHTML = `
             ${NavbarComponent.render()}
             <div class="flex h-[calc(100vh-64px)]">
@@ -22,11 +31,22 @@ const DashboardComponent = {
             </div>
         `;
 
-        // 1. Fetch Resources
+        // 1. Fetch Resources (Only if not already loaded or forced refresh needed? For now always fetch to be safe)
         try {
             DashboardComponent.projects = await Store.getProjects();
             // Fetch all active projects for global stats
             const projectsToFetch = DashboardComponent.projects.filter(p => true);
+
+            // Fetch Admins if needed for Users view
+            if (DashboardComponent.currentView === 'users' && (Store.currentContext.role === 'owner' || Store.currentContext.role === 'admin')) {
+                try {
+                    DashboardComponent.admins = await Store.getAdmins();
+                } catch (e) {
+                    console.warn("Could not fetch admins", e);
+                    DashboardComponent.admins = [];
+                }
+            }
+
 
             DashboardComponent.allTasks = [];
             DashboardComponent.allResponsables.clear();
@@ -58,7 +78,7 @@ const DashboardComponent = {
                         });
                     });
 
-                    // Update project stats for sidebar
+                    // Update project stats
                     const total = tasks.length;
                     const done = tasks.filter(t => t.estado === 'Realizado').length;
                     p.progress = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -75,19 +95,19 @@ const DashboardComponent = {
 
         // 2. Render Layout
         const navbar = NavbarComponent.render();
-        const sidebar = DashboardComponent.renderSidebar();
-        const content = DashboardComponent.renderMainContent();
 
         container.innerHTML = `
             ${navbar}
             <div class="flex h-[calc(100vh-64px)] bg-gray-50 dark:bg-slate-900 overflow-hidden">
                 <!-- Sidebar -->
-                ${sidebar}
+                <aside class="w-20 lg:w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col transition-all duration-300 z-20">
+                    ${DashboardComponent.renderSidebarContent()}
+                </aside>
 
                 <!-- Main Content -->
-                <div class="flex-1 overflow-y-auto min-w-0 p-4 lg:p-8" id="dashboard-main-scroll">
-                    <div class="max-w-7xl mx-auto space-y-8 pb-20">
-                        ${content}
+                <div class="flex-1 overflow-y-auto min-w-0 p-4 lg:p-8 relative" id="dashboard-main-scroll">
+                    <div class="max-w-7xl mx-auto space-y-6 pb-20">
+                        ${DashboardComponent.renderCurrentView()}
                     </div>
                 </div>
             </div>
@@ -96,123 +116,392 @@ const DashboardComponent = {
             ${DashboardComponent.renderQuickEditModal()}
         `;
 
-        // 3. Init Charts
+        // 3. Init Charts if in stats view or overview
         setTimeout(() => {
-            DashboardComponent.renderCharts();
-            // Init Modal Logic if needed (event listeners are inline)
+            if (DashboardComponent.currentView === 'overview' || DashboardComponent.currentView === 'stats') {
+                DashboardComponent.renderCharts();
+            }
         }, 100);
     },
 
-    renderSidebar: () => {
-        const order = DashboardComponent.projectSettings.order || [];
-        const hidden = DashboardComponent.projectSettings.hidden || {};
+    switchView: (viewName) => {
+        DashboardComponent.currentView = viewName;
+        DashboardComponent.render(document.getElementById('main-content'));
+    },
 
-        const sortProjects = (a, b) => {
-            const idxA = order.indexOf(a.id);
-            const idxB = order.indexOf(b.id);
-            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-            if (idxA !== -1) return -1;
-            if (idxB !== -1) return 1;
-            return 0;
-        };
+    renderSidebarContent: () => {
+        const views = [
+            { id: 'overview', icon: 'th-large', label: 'Resumen' },
+            { id: 'projects', icon: 'project-diagram', label: 'Proyectos' },
+            { id: 'tasks', icon: 'tasks', label: 'Tareas Globales' },
+            { id: 'stats', icon: 'chart-pie', label: 'Estadísticas' },
+        ];
 
-        const activeProjects = DashboardComponent.projects
-            .filter(p => p.status !== 'inactive' && !hidden[p.id])
-            .sort(sortProjects);
-
-        const archivedProjects = DashboardComponent.projects.filter(p => p.status === 'inactive');
-        const list = DashboardComponent.viewArchived ? archivedProjects : activeProjects;
+        // Add Admin view only if owner/admin
+        if (Store.currentContext.role === 'owner' || Store.currentContext.role === 'admin') {
+            views.push({ id: 'users', icon: 'users-cog', label: 'Usuarios' });
+        }
 
         return `
-            <aside class="w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 hidden lg:flex flex-col h-full shadow-lg z-10 transition-all duration-300">
-                <div class="p-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
-                    <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Proyectos</h2>
-                     <div class="flex gap-1">
-                        <button onclick="DashboardComponent.manageProjects()" class="text-gray-400 hover:text-brand-600 p-1.5 rounded-lg transition-colors" title="Configurar Proyectos">
-                             <i class="fas fa-cog"></i>
-                        </button>
-                        <button onclick="DashboardComponent.manageAdmins()" class="text-gray-400 hover:text-brand-600 p-1.5 rounded-lg transition-colors" title="Gestionar Administradores">
-                            <i class="fas fa-user-shield"></i>
-                        </button>
-                        <button onclick="DashboardComponent.manageTemplates()" class="text-gray-400 hover:text-brand-600 p-1.5 rounded-lg transition-colors" title="Gestionar Plantillas">
-                            <i class="fas fa-layer-group"></i>
-                        </button>
-                        <button onclick="DashboardComponent.createNewProject()" class="text-brand-600 hover:bg-brand-50 p-1.5 rounded-lg transition-colors" title="Nuevo Proyecto">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                     </div>
-                </div>
-                
-                <div class="flex-1 overflow-y-auto py-2 p-2 space-y-1">
-                    ${list.length === 0 ? `
-                        <div class="text-center py-8 px-4 text-gray-400 text-sm">
-                            No hay proyectos ${DashboardComponent.viewArchived ? 'archivados' : 'activos'}
-                        </div>
-                    ` : list.map(p => `
-                        <div class="group flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-all border border-transparent hover:border-gray-100 dark:hover:border-slate-600 relative">
-                            <div class="min-w-0 flex-1" onclick="App.navigateTo('#/project/${p.id}')">
-                                <h3 class="text-sm font-medium text-gray-700 dark:text-gray-200 truncate group-hover:text-brand-600 transition-colors">${p.name}</h3>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <div class="h-1.5 flex-1 bg-gray-200 dark:bg-slate-600 rounded-full max-w-[50px]">
-                                        <div class="h-1.5 bg-brand-500 rounded-full" style="width: ${p.progress || 0}%"></div>
-                                    </div>
-                                    <span class="text-[10px] text-gray-400">${p.progress || 0}%</span>
-                                </div>
-                            </div>
+            <div class="flex flex-col h-full py-6">
+                <nav class="space-y-2 px-2 flex-1">
+                    ${views.map(v => `
+                        <button onclick="DashboardComponent.switchView('${v.id}')" 
+                            class="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group
+                            ${DashboardComponent.currentView === v.id
+                ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-400 font-bold shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 hover:text-gray-900 dark:hover:text-white'
+            }">
+                            <i class="fas fa-${v.icon} text-xl w-6 text-center transition-colors ${DashboardComponent.currentView === v.id ? '' : 'group-hover:text-brand-500'}"></i>
+                            <span class="hidden lg:block text-sm">${v.label}</span>
                             
-                            <!-- Quick Actions (Hover) -->
-                            <div class="hidden group-hover:flex absolute right-2 top-1/2 -translate-y-1/2 bg-white dark:bg-slate-800 shadow-sm rounded-lg border border-gray-100 dark:border-slate-600">
-                                <button onclick="DashboardComponent.toggleProjectStatus('${p.id}', '${p.status}')" class="p-1.5 text-gray-400 hover:text-brand-600" title="${p.status === 'inactive' ? 'Restaurar' : 'Archivar'}">
-                                    <i class="fas fa-${p.status === 'inactive' ? 'box-open' : 'box-archive'} text-xs"></i>
-                                </button>
-                                <button onclick="DashboardComponent.deleteProject('${p.id}')" class="p-1.5 text-gray-400 hover:text-red-500" title="Eliminar">
-                                    <i class="fas fa-trash-alt text-xs"></i>
-                                </button>
-                            </div>
-                        </div>
+                            ${v.id === 'tasks' ? `
+                                <span class="hidden lg:flex ml-auto bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    ${DashboardComponent.allTasks.filter(t => t.estado === 'Pendiente').length}
+                                </span>
+                            ` : ''}
+                        </button>
                     `).join('')}
-                </div>
+                </nav>
 
-                <div class="p-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
-                    <button onclick="DashboardComponent.toggleViewArchived()" class="w-full btn-secondary text-xs py-2">
-                        <i class="fas fa-${DashboardComponent.viewArchived ? 'box-open' : 'archive'} mr-2"></i>
-                        ${DashboardComponent.viewArchived ? 'Ver Activos' : 'Ver Archivados'}
+                <div class="px-4 mt-auto space-y-2">
+                    <button onclick="DashboardComponent.createNewProject()" class="w-full flex items-center justify-center lg:justify-start gap-3 bg-brand-600 hover:bg-brand-700 text-white px-4 py-3 rounded-xl transition-all shadow-md hover:shadow-lg group">
+                        <i class="fas fa-plus text-lg"></i>
+                        <span class="hidden lg:block font-medium">Nuevo Proyecto</span>
                     </button>
+                    
+                     <div class="pt-4 border-t border-gray-100 dark:border-slate-700 hidden lg:block">
+                        <p class="text-xs text-center text-gray-400">Nexus Flow v3.2</p>
+                    </div>
                 </div>
-            </aside>
+            </div>
         `;
     },
 
-    renderMainContent: () => {
+    renderCurrentView: () => {
+        switch (DashboardComponent.currentView) {
+            case 'projects': return DashboardComponent.renderActiveProjectsView();
+            case 'tasks': return DashboardComponent.renderGlobalTasksView();
+            case 'stats': return DashboardComponent.renderStatsView();
+            case 'users': return DashboardComponent.renderUserManagementView();
+            case 'overview':
+            default: return DashboardComponent.renderOverviewView();
+        }
+    },
+
+    renderOverviewView: () => {
         const stats = DashboardComponent.calculateGlobalStats();
 
+        // Welcome Message & Context Switcher
         return `
-            <!-- Header -->
-            <div class="flex justify-between items-end">
+            <div class="flex flex-col md:flex-row justify-between items-end gap-4 mb-8">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        Panel de Control
-                        ${Store.currentContext.role === 'admin' ?
-                `<span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full border border-orange-200">Modo Admin</span>` :
-                `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full border border-gray-200">Personal</span>`
-            }
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                        <span class="bg-gradient-to-r from-brand-600 to-brand-400 text-transparent bg-clip-text">Hola, ${Store.currentContext.role === 'admin' ? 'Administrador' : 'Usuario'}</span>
                     </h1>
-                    <p class="text-gray-500 dark:text-gray-400 text-sm flex items-center gap-2">
-                        Resumen global de todos tus proyectos
-                        ${Store.currentContext.availableWorkspaces.length > 1 ?
-                `<button onclick="DashboardComponent.openWorkspaceSwitcher()" class="text-brand-600 hover:underline font-medium ml-2">
+                    <p class="text-gray-500 dark:text-gray-400 mt-1">
+                        Aquí tienes el resumen de tu actividad hoy.
+                         ${Store.currentContext.availableWorkspaces.length > 1 ?
+                `<button onclick="DashboardComponent.openWorkspaceSwitcher()" class="text-brand-600 hover:underline font-medium ml-2 text-sm">
                                 <i class="fas fa-exchange-alt"></i> Cambiar Espacio
                              </button>` : ''
             }
                     </p>
                 </div>
-                <div class="text-right hidden sm:block">
-                   <p class="text-2xl font-bold text-brand-600">${stats.totalPending}</p>
-                   <p class="text-xs text-gray-400 uppercase">Tareas Pendientes Total</p>
+                <div class="flex gap-2">
+                     <div class="text-right">
+                        <p class="text-2xl font-bold text-brand-600">${stats.totalPending}</p>
+                        <p class="text-xs text-gray-400 uppercase font-semibold">Pendientes</p>
+                    </div>
                 </div>
             </div>
 
-            <!-- Global Filter Bar -->
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Active Projects -->
+                <div class="glass-card p-5 rounded-2xl flex items-center justify-between cursor-pointer hover:shadow-md transition-all" onclick="DashboardComponent.switchView('projects')">
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Proyectos Activos</p>
+                        <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">${DashboardComponent.projects.filter(p => p.status !== 'inactive').length}</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                        <i class="fas fa-project-diagram text-xl"></i>
+                    </div>
+                </div>
+
+                <!-- Critical Tasks -->
+                <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Tareas Críticas</p>
+                        <p class="text-3xl font-bold text-red-600 mt-1">${stats.overdueCount}</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400">
+                        <i class="fas fa-exclamation-triangle text-xl"></i>
+                    </div>
+                </div>
+
+                <!-- Upcoming -->
+                <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Vencen Pronto</p>
+                        <p class="text-3xl font-bold text-amber-500 mt-1">${stats.upcomingCount}</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 dark:text-amber-400">
+                        <i class="fas fa-clock text-xl"></i>
+                    </div>
+                </div>
+
+                 <!-- Team -->
+                <div class="glass-card p-5 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Equipo</p>
+                        <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">${DashboardComponent.allResponsables.size}</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                        <i class="fas fa-users text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Charts & Lists Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Left Col: Charts -->
+                <div class="lg:col-span-2 space-y-8">
+                    <!-- Global Charts Preview -->
+                    <div class="glass-card p-6 rounded-2xl">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-lg text-gray-900 dark:text-white">Estado General</h3>
+                            <button onclick="DashboardComponent.switchView('stats')" class="text-brand-600 text-sm hover:underline">Ver reporte completo</button>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="h-48 relative"><canvas id="globalStatusChart"></canvas></div>
+                             <div class="h-48 relative"><canvas id="globalResponsibleChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <!-- Overdue Tasks List -->
+                    <div class="glass-card p-6 rounded-2xl">
+                         <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg text-red-600 flex items-center gap-2"><i class="fas fa-fire"></i> Atención Requerida</h3>
+                        </div>
+                        <div class="overflow-y-auto max-h-60">
+                             ${DashboardComponent.renderTaskList(stats.overdueTasks, '¡Excelente! No hay tareas vencidas.')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Col: Quick Actions / Recent/ Upcoming -->
+                <div class="space-y-8">
+                     <div class="glass-card p-6 rounded-2xl">
+                        <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-4">Próximos Vencimientos</h3>
+                        <div class="overflow-y-auto max-h-[400px]">
+                           ${DashboardComponent.renderTaskList(stats.upcomingTasks, 'Nada urgente para los próximos 7 días')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    renderActiveProjectsView: () => {
+        const activeProjects = DashboardComponent.projects.filter(p => p.status !== 'inactive');
+        const archivedProjects = DashboardComponent.projects.filter(p => p.status === 'inactive');
+        const list = DashboardComponent.viewArchived ? archivedProjects : activeProjects;
+
+        return `
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+                        ${DashboardComponent.viewArchived ? 'Proyectos Archivados' : 'Proyectos Activos'}
+                    </h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Gestiona tus obras y contratos en curso</p>
+                </div>
+                <div class="flex gap-2">
+                     <button onclick="DashboardComponent.toggleViewArchived()" class="btn-secondary text-sm">
+                        <i class="fas fa-${DashboardComponent.viewArchived ? 'box-open' : 'archive'} mr-2"></i>
+                        ${DashboardComponent.viewArchived ? 'Ver Activos' : 'Ver Archivados'}
+                    </button>
+                    <button onclick="DashboardComponent.createNewProject()" class="btn-primary text-sm">
+                        <i class="fas fa-plus mr-2"></i> Nuevo Proyecto
+                    </button>
+                </div>
+            </div>
+
+            ${list.length === 0 ? `
+                <div class="text-center py-20">
+                    <div class="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                        <i class="fas fa-folder-open text-3xl"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white">No hay proyectos ${DashboardComponent.viewArchived ? 'archivados' : 'activos'}</h3>
+                    <p class="text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-2">
+                        ${DashboardComponent.viewArchived ? 'Los proyectos que archives aparecerán aquí.' : 'Comienza creando tu primer proyecto para gestionar tareas.'}
+                    </p>
+                </div>
+            ` : `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    ${list.map(p => `
+                        <div class="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all group border border-transparent hover:border-brand-200 dark:hover:border-brand-900 relative">
+                             <div class="p-5 cursor-pointer" onclick="App.navigateTo('#/project/${p.id}')">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="w-10 h-10 rounded-lg bg-brand-50 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 dark:text-brand-400 text-lg font-bold">
+                                        ${p.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    
+                                     <div class="relative z-10" onclick="event.stopPropagation()">
+                                        <button onclick="DashboardComponent.toggleProjectStatus('${p.id}', '${p.status}')" class="text-gray-400 hover:text-brand-600 p-1" title="${p.status === 'inactive' ? 'Restaurar' : 'Archivar'}">
+                                            <i class="fas fa-${p.status === 'inactive' ? 'box-open' : 'box-archive'}"></i>
+                                        </button>
+                                     </div>
+                                </div>
+                                
+                                <h3 class="font-bold text-gray-900 dark:text-white text-lg mb-1 truncate">${p.name}</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">${p.description || 'Sin descripción'}</p>
+                                
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-xs text-gray-500">
+                                        <span>Progreso</span>
+                                        <span>${p.progress || 0}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-2">
+                                        <div class="bg-brand-500 h-2 rounded-full transition-all duration-500" style="width: ${p.progress || 0}%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700/50 flex justify-end">
+                                     <span class="text-xs text-gray-400">Creado: ${new Date(p.createdAt).toLocaleDateString()}</span>
+                                </div>
+                             </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `}
+        `;
+    },
+
+    renderGlobalTasksView: () => {
+        return `
+            <div class="flex flex-col md:flex-row justify-between items-end gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Gestión Global de Tareas</h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Visualiza, filtra y gestiona tareas de todos los proyectos en un solo lugar.</p>
+                </div>
+            </div>
+
+            ${DashboardComponent.renderGlobalFilters()}
+
+            ${DashboardComponent.renderCollaboratorManager()}
+        `;
+    },
+
+    renderStatsView: () => {
+        return `
+            <div class="flex justify-between items-center mb-6">
+                 <div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Estadísticas y Métricas</h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Análisis detallado del rendimiento de proyectos y equipo.</p>
+                </div>
+            </div>
+
+            ${DashboardComponent.renderGlobalFilters()}
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="glass-card p-6 rounded-2xl">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6">Distribución de Estado</h3>
+                    <div class="h-64 relative"><canvas id="globalStatusChart"></canvas></div>
+                </div>
+                 <div class="glass-card p-6 rounded-2xl">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6">Carga de Trabajo por Responsable</h3>
+                    <div class="h-64 relative"><canvas id="globalResponsibleChart"></canvas></div>
+                </div>
+            </div>
+
+             <div class="glass-card p-6 rounded-2xl">
+                 <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-4">Métricas Clave</h3>
+                 <p class="text-gray-500 italic">Más métricas detalladas próximamente...</p>
+            </div>
+        `;
+    },
+
+    renderUserManagementView: () => {
+        if (Store.currentContext.role !== 'owner' && Store.currentContext.role !== 'admin') {
+            return `<div class="p-10 text-center text-red-500">Acceso Denegado</div>`;
+        }
+
+        const admins = DashboardComponent.admins || [];
+
+        return `
+             <div class="flex justify-between items-center mb-8">
+                <div>
+                     <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <i class="fas fa-users-cog text-brand-500"></i> Gestión de Usuarios
+                    </h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Administra quién tiene acceso al panel y sus permisos.</p>
+                </div>
+                 <button onclick="DashboardComponent.manageAdmins()" class="btn-primary">
+                    <i class="fas fa-plus mr-2"></i> Nuevo Administrador
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                 <div class="lg:col-span-2 space-y-6">
+                    <div class="glass-card overflow-hidden rounded-2xl">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-50 dark:bg-slate-800/50 text-gray-500 font-semibold uppercase text-xs border-b border-gray-100 dark:border-slate-700">
+                                <tr>
+                                    <th class="p-4">Usuario</th>
+                                    <th class="p-4">Rol</th>
+                                    <th class="p-4">Fecha Agregado</th>
+                                    <th class="p-4 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                ${admins.length === 0 ? `
+                                    <tr><td colspan="4" class="p-8 text-center text-gray-400 italic">No hay administradores adicionales.</td></tr>
+                                ` : admins.map(a => `
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
+                                        <td class="p-4 font-medium text-gray-900 dark:text-white">
+                                            <div class="flex items-center gap-3">
+                                                 <div class="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 font-bold text-xs">
+                                                    ${a.email.charAt(0).toUpperCase()}
+                                                 </div>
+                                                 ${a.email}
+                                            </div>
+                                        </td>
+                                        <td class="p-4 text-gray-500">Administrador</td>
+                                        <td class="p-4 text-gray-500">${new Date(a.addedAt).toLocaleDateString()}</td>
+                                        <td class="p-4 text-right">
+                                             <button onclick="DashboardComponent.removeAdmin('${a.email}')" class="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Revocar Acceso">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="glass-card p-6 rounded-2xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30">
+                        <h3 class="font-bold text-blue-800 dark:text-blue-300 mb-2"><i class="fas fa-info-circle"></i> Roles y Permisos</h3>
+                        <ul class="space-y-3 text-sm text-blue-900 dark:text-blue-200 opacity-80">
+                            <li class="flex gap-2">
+                                <i class="fas fa-check mt-1 text-xs"></i>
+                                <span><strong>Propietario</strong>: Acceso total, facturación y eliminar proyectos.</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <i class="fas fa-check mt-1 text-xs"></i>
+                                <span><strong>Administrador</strong>: Puede ver, crear y editar todos los proyectos, pero no eliminarlos.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    renderGlobalFilters: () => {
+        return `
             <div class="glass-card p-4 rounded-xl flex flex-wrap items-center gap-4 mb-6">
                 <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
                     <i class="fas fa-filter text-brand-500"></i>
@@ -235,82 +524,12 @@ const DashboardComponent = {
                 ${(DashboardComponent.globalFilters.priority !== 'all' || DashboardComponent.globalFilters.responsible !== 'all') ?
                 `<button onclick="DashboardComponent.clearGlobalFilters()" class="text-xs text-red-500 hover:underline">Limpiar Filtros</button>` : ''}
             </div>
-
-            <!-- Top Area: Global Charts -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Status Distribution -->
-                <div class="glass-card p-5 rounded-xl">
-                    <h3 class="text-sm font-bold text-gray-700 dark:text-white mb-4">Estado de Tareas</h3>
-                    <div class="h-48 relative flex justify-center">
-                        <canvas id="globalStatusChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Responsible Workload -->
-                <div class="glass-card p-5 rounded-xl">
-                    <h3 class="text-sm font-bold text-gray-700 dark:text-white mb-4">Carga por Responsable</h3>
-                     <div class="h-48 relative">
-                        <canvas id="globalResponsibleChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Overdue vs Upcoming summary -->
-                 <div class="glass-card p-5 rounded-xl flex flex-col justify-center space-y-4">
-                    <div class="flex items-center gap-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-red-700 dark:text-red-300">
-                        <div class="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-                            <i class="fas fa-exclamation-circle text-2xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-3xl font-bold">${stats.overdueCount}</p>
-                            <p class="text-xs font-semibold uppercase opacity-75">Tareas Vencidas</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-yellow-700 dark:text-yellow-300">
-                         <div class="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-                            <i class="fas fa-clock text-2xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-3xl font-bold">${stats.upcomingCount}</p>
-                            <p class="text-xs font-semibold uppercase opacity-75">Vencen pronto (7d)</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Middle Area: Critical Tasks Lists -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Overdue Tasks -->
-                <div class="glass-card rounded-xl overflow-hidden flex flex-col h-80">
-                    <div class="p-4 border-b border-gray-100 dark:border-slate-700 bg-red-50 dark:bg-red-900/10 flex justify-between items-center">
-                        <h3 class="font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
-                            <i class="fas fa-fire"></i> Tareas Vencidas
-                        </h3>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-2">
-                        ${DashboardComponent.renderTaskList(stats.overdueTasks, 'Sin tareas vencidas 🎉')}
-                    </div>
-                </div>
-
-                <!-- Upcoming Tasks -->
-                <div class="glass-card rounded-xl overflow-hidden flex flex-col h-80">
-                    <div class="p-4 border-b border-gray-100 dark:border-slate-700 bg-yellow-50 dark:bg-yellow-900/10 flex justify-between items-center">
-                        <h3 class="font-bold text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
-                            <i class="fas fa-hourglass-half"></i> Próximas a Vencer
-                        </h3>
-                    </div>
-                     <div class="flex-1 overflow-y-auto p-2">
-                        ${DashboardComponent.renderTaskList(stats.upcomingTasks, 'Nada urgente para los próximos 7 días')}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bottom Area: Unified Task Manager -->
-            ${DashboardComponent.renderCollaboratorManager()}
-        `;
+         `;
     },
 
     renderTaskList: (tasks, emptyMsg) => {
         if (tasks.length === 0) return `<div class="h-full flex items-center justify-center text-gray-400 text-sm italic">${emptyMsg}</div>`;
+
 
         return `
             <table class="w-full text-left border-collapse">
@@ -1059,7 +1278,6 @@ const DashboardComponent = {
             return UI.showToast("Acceso restringido al Propietario.", "error");
         }
 
-        const admins = await Store.getAdmins();
         const modalId = 'manage-admins-modal';
         let modal = document.getElementById(modalId);
 
@@ -1070,50 +1288,38 @@ const DashboardComponent = {
             document.body.appendChild(modal);
         }
 
-        const renderAdminList = () => {
-            return admins.length === 0 ? '<p class="text-gray-400 italic text-center text-sm py-4">No hay administradores definidos</p>' :
-                admins.map(a => `
-                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-100 dark:border-slate-600 mb-2">
-                    <div>
-                        <div class="font-bold text-gray-800 dark:text-white text-sm">${a.email}</div>
-                        <div class="text-xs text-gray-500">Agregado: ${new Date(a.addedAt).toLocaleDateString()}</div>
-                    </div>
-                    <button onclick="DashboardComponent.removeAdmin('${a.email}')" class="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors" title="Eliminar acceso"><i class="fas fa-trash"></i></button>
-                </div>
-             `).join('');
-        };
-
         modal.innerHTML = `
             <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-scale-up">
                 <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl font-bold dark:text-white flex items-center gap-2"><i class="fas fa-user-shield text-brand-500"></i> Administradores</h3>
+                    <h3 class="text-xl font-bold dark:text-white flex items-center gap-2"><i class="fas fa-user-plus text-brand-500"></i> Agregar Administrador</h3>
                     <button onclick="document.getElementById('${modalId}').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white text-2xl">&times;</button>
                 </div>
 
                 <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-6 text-sm text-blue-800 dark:text-blue-200">
                     <p class="mb-1"><strong><i class="fas fa-info-circle"></i> Importante:</strong></p>
                     <ul class="list-disc ml-4 space-y-1 text-xs">
-                        <li>Los administradores tendrán acceso completo a tus proyectos.</li>
-                        <li>Podrán crear, editar y archivar proyectos y tareas.</li>
-                        <li><strong>No podrán eliminar</strong> proyectos.</li>
+                        <li>El administrador tendrá acceso completo a tus proyectos.</li>
+                        <li>Podrá crear, editar y archivar proyectos y tareas.</li>
                     </ul>
                 </div>
 
-                <div class="space-y-2 max-h-60 overflow-y-auto mb-6" id="admins-list-container">
-                    ${renderAdminList()}
-                </div>
-
-                <div class="border-t border-gray-100 dark:border-slate-700 pt-4">
-                    <h4 class="text-sm font-bold text-gray-700 dark:text-white mb-2">Agregar Administrador</h4>
-                    <form id="add-admin-form" class="flex gap-2">
-                        <input type="email" id="new-admin-email" placeholder="email@gmail.com" class="input-primary flex-1 text-sm" required>
-                        <button type="submit" class="btn-primary text-sm whitespace-nowrap"><i class="fas fa-plus"></i></button>
+                <div class="pt-0">
+                    <form id="add-admin-form" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correo Electrónico</label>
+                            <input type="email" id="new-admin-email" placeholder="usuario@ejemplo.com" class="input-primary w-full" required autofocus>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                             <button type="button" onclick="document.getElementById('${modalId}').classList.add('hidden')" class="btn-secondary">Cancelar</button>
+                             <button type="submit" class="btn-primary">Agregar</button>
+                        </div>
                     </form>
                 </div>
             </div>
         `;
 
         modal.classList.remove('hidden');
+        document.getElementById('new-admin-email').focus();
 
         document.getElementById('add-admin-form').onsubmit = async (e) => {
             e.preventDefault();
@@ -1124,7 +1330,7 @@ const DashboardComponent = {
                 await Store.addAdmin(email);
                 UI.showToast(`Administrador ${email} agregado`, "success");
                 document.getElementById(modalId).classList.add('hidden');
-                DashboardComponent.manageAdmins(); // Refresh
+                DashboardComponent.render(document.getElementById('main-content')); // Refresh full view
             } catch (err) {
                 UI.showToast(err.message || "Error al agregar", "error");
             }

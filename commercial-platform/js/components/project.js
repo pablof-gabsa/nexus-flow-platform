@@ -255,18 +255,18 @@ const ProjectComponent = {
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="md:col-span-1">
                                 <label class="block text-sm font-medium dark:text-gray-300">Prioridad</label>
                                 <select name="prioridad" id="task-prio" class="input-primary mt-1">
                                     <option>Baja</option> <option>Media</option> <option>Alta</option> <option>Crítico</option>
                                 </select>
                             </div>
-                            <div>
+                            <div class="md:col-span-2">
                                 <label class="block text-sm font-medium dark:text-gray-300">Vencimiento</label>
                                 <div class="flex gap-2">
                                     <input type="date" name="deadline" id="task-date" class="input-primary mt-1 flex-1">
-                                    <input type="time" name="time" id="task-time" class="input-primary mt-1 w-24" value="00:00">
+                                    <input type="time" name="time" id="task-time" class="input-primary mt-1 w-32" value="00:00">
                                 </div>
                             </div>
                         </div>

@@ -1748,8 +1748,14 @@ const ProjectComponent = {
             const startUTC = startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
             const endUTC = endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
+            // Get Project Name (it was fetched in render, let's grab it from DOM or Store if possible, or just default to ID if not found)
+            // Ideally ProjectComponent should store projectInfo globally or we fetch it.
+            // Fast way: grab from the DOM element we rendered or use stored data if available.
+            // Let's try to get it from the header element we rendered earlier.
+            const projectName = document.getElementById('project-name-display')?.innerText || ProjectComponent.projectId;
+
             const title = encodeURIComponent(t.requerimiento || 'Tarea Nexus');
-            const details = encodeURIComponent(`${t.description || ''}\n\nPrioridad: ${t.prioridad}\nProyecto: ${ProjectComponent.projectId}`);
+            const details = encodeURIComponent(`${t.description || ''}\n\nPrioridad: ${t.prioridad}\nProyecto: ${projectName}`);
             const location = encodeURIComponent('Nexus Flow');
 
             const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${startUTC}/${endUTC}&location=${location}`;

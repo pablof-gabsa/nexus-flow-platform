@@ -467,9 +467,24 @@ const DashboardComponent = {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                                ${admins.length === 0 ? `
-                                    <tr><td colspan="4" class="p-8 text-center text-gray-400 italic">No hay administradores adicionales.</td></tr>
-                                ` : admins.map(a => `
+                                <!-- Owner Row (Always First) -->
+                                <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors bg-brand-50/50 dark:bg-brand-900/10">
+                                    <td class="p-4 font-medium text-gray-900 dark:text-white">
+                                        <div class="flex items-center gap-3">
+                                             <div class="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-white font-bold text-xs ring-2 ring-white dark:ring-slate-800">
+                                                <i class="fas fa-crown text-[10px]"></i>
+                                             </div>
+                                             ${Store.currentContext.role === 'owner' ? Auth.getCurrentUser().email + ' (Tú)' : 'Propietario del Espacio'}
+                                        </div>
+                                    </td>
+                                    <td class="p-4 text-brand-600 font-bold">Propietario</td>
+                                    <td class="p-4 text-gray-400 text-xs italic">Permanente</td>
+                                    <td class="p-4 text-right">
+                                         <span class="text-gray-300 cursor-not-allowed" title="No se puede eliminar"><i class="fas fa-lock"></i></span>
+                                    </td>
+                                </tr>
+
+                                ${admins.map(a => `
                                     <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
                                         <td class="p-4 font-medium text-gray-900 dark:text-white">
                                             <div class="flex items-center gap-3">
@@ -488,6 +503,9 @@ const DashboardComponent = {
                                         </td>
                                     </tr>
                                 `).join('')}
+                                ${admins.length === 0 ? `
+                                    <tr><td colspan="4" class="p-8 text-center text-gray-400 italic text-xs">No hay administradores adicionales.</td></tr>
+                                ` : ''}
                             </tbody>
                         </table>
                     </div>

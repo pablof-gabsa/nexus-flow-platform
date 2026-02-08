@@ -121,7 +121,11 @@ const DashboardComponent = {
             if (DashboardComponent.currentView === 'overview' || DashboardComponent.currentView === 'stats') {
                 DashboardComponent.renderCharts();
             }
+            if (DashboardComponent.currentView === 'tasks') {
+                DashboardComponent.filterGlobalManager();
+            }
         }, 100);
+
     },
 
     switchView: (viewName) => {
@@ -412,6 +416,14 @@ const DashboardComponent = {
                  <div class="glass-card p-6 rounded-2xl">
                     <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6">Carga de Trabajo por Responsable</h3>
                     <div class="h-64 relative"><canvas id="globalResponsibleChart"></canvas></div>
+                </div>
+                <div class="glass-card p-6 rounded-2xl">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6">Tareas por Prioridad</h3>
+                    <div class="h-64 relative"><canvas id="globalPriorityChart"></canvas></div>
+                </div>
+                <div class="glass-card p-6 rounded-2xl">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6">Pendientes por Proyecto</h3>
+                    <div class="h-64 relative"><canvas id="globalProjectChart"></canvas></div>
                 </div>
             </div>
 
@@ -799,6 +811,79 @@ const DashboardComponent = {
                     indexAxis: 'y',
                     plugins: { legend: { display: false } },
                     scales: { x: { beginAtZero: true, grid: { display: false } }, y: { grid: { display: false } } }
+                }
+            });
+        }
+
+        // --- NEW CHARTS ---
+
+        // Priority Chart
+        const prioCtx = document.getElementById('globalPriorityChart');
+        if (prioCtx) {
+            const counts = { 'Crítico': 0, 'Alta': 0, 'Media': 0, 'Baja': 0 };
+            tasks.forEach(t => {
+                // Only count pending/process for priority urgency
+                if (t.estado !== 'Realizado' && t.estado !== 'Suspendido') {
+                    if (counts[t.prioridad] !== undefined) counts[t.prioridad]++;
+                    else counts['Media']++; // Default fallback
+                }
+            });
+
+            if (DashboardComponent.chartInstances.prio) DashboardComponent.chartInstances.prio.destroy();
+
+            DashboardComponent.chartInstances.prio = new Chart(prioCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(counts),
+                    datasets: [{
+                        data: Object.values(counts),
+                        backgroundColor: ['#EF4444', '#F97316', '#FBBF24', '#10B981'],
+                        borderWidth: 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // Project Chart (Bar)
+        const projCtx = document.getElementById('globalProjectChart');
+        if (projCtx) {
+            const counts = {};
+            tasks.forEach(t => {
+                if (t.estado !== 'Realizado' && t.estado !== 'Suspendido') {
+                    counts[t.projectName] = (counts[t.projectName] || 0) + 1;
+                }
+            });
+
+            // Sort by count
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+            if (DashboardComponent.chartInstances.proj) DashboardComponent.chartInstances.proj.destroy();
+
+            DashboardComponent.chartInstances.proj = new Chart(projCtx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(x => x[0]),
+                    datasets: [{
+                        label: 'Pendientes',
+                        data: sorted.map(x => x[1]),
+                        backgroundColor: '#8B5CF6',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 } },
+                        y: { beginAtZero: true }
+                    }
                 }
             });
         }

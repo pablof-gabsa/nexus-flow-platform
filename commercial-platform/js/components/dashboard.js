@@ -52,7 +52,9 @@ const DashboardComponent = {
             DashboardComponent.allResponsables.clear();
 
             await Promise.all(projectsToFetch.map(async (p) => {
-                if (p.status === 'inactive' && !DashboardComponent.viewArchived) return;
+                // We fetch ALL data to ensure Global Stats are accurate, 
+                // regardless of whether the project is currently 'visible' in the active list.
+
 
                 try {
                     const data = await Store.getProjectData(p.id);

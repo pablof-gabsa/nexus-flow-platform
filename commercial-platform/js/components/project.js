@@ -264,7 +264,10 @@ const ProjectComponent = {
                             </div>
                             <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Vencimiento</label>
-                                <input type="date" name="deadline" id="task-date" class="input-primary mt-1">
+                                <div class="flex gap-2">
+                                    <input type="date" name="deadline" id="task-date" class="input-primary mt-1 flex-1">
+                                    <input type="time" name="time" id="task-time" class="input-primary mt-1 w-24" value="00:00">
+                                </div>
                             </div>
                         </div>
 
@@ -430,9 +433,16 @@ const ProjectComponent = {
                 <div class="h-8 w-px bg-indigo-500"></div>
                 <div class="flex gap-2">
                     <button onclick="ProjectComponent.toggleSelectionMode()" class="px-4 py-2 text-sm hover:bg-indigo-700 rounded-lg transition-colors">Cancelar</button>
+                    ${IntegrationsComponent.isEnabled('octavo_piso') ? `
                     <button onclick="ProjectComponent.executeOctavoExport()" class="bg-white text-indigo-600 px-6 py-2 rounded-lg font-bold hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" ${ProjectComponent.selectedTasks.size === 0 ? 'disabled' : ''}>
                         Exportar Excel
                     </button>
+                    ` : ''}
+                     ${IntegrationsComponent.isEnabled('google_calendar') ? `
+                    <button onclick="ProjectComponent.executeCalendarExport()" class="bg-white text-blue-600 px-6 py-2 rounded-lg font-bold hover:bg-blue-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2" ${ProjectComponent.selectedTasks.size === 0 ? 'disabled' : ''}>
+                        <i class="fas fa-calendar-plus"></i> Exp. Calendar
+                    </button>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -817,7 +827,7 @@ const ProjectComponent = {
 
                         <div class="flex flex-wrap gap-2 mt-2 text-xs text-gray-500 overflow-x-auto">
                             <span class="flex items-center gap-1"><i class="far fa-user"></i> ${item.responsable}</span>
-                            ${item.deadline ? `<span class="flex items-center gap-1"><i class="far fa-calendar"></i> ${Utils.formatDate(item.deadline)}</span>` : ''}
+                            ${item.deadline ? `<span class="flex items-center gap-1"><i class="far fa-calendar"></i> ${Utils.formatDate(item.deadline)} ${item.time ? `<span class="opacity-75 text-[10px] ml-1">(${item.time})</span>` : ''}</span>` : ''}
                             ${item.costo > 0 ? `<span class="font-mono text-brand-600 dark:text-brand-400">${Utils.formatMoney(item.costo)}</span>` : ''}
                             ${(item.hh_estimated || item.hh_executed) ?
                 `<span class="font-bold text-purple-600 dark:text-purple-400" title="H/H Estimadas / Ejecutadas">
@@ -1047,6 +1057,7 @@ const ProjectComponent = {
         // Reset Form
         document.getElementById('task-form').reset();
         document.getElementById('task-id').value = '';
+        document.getElementById('task-time').value = '00:00'; // Default time
 
         if (taskId) {
             const task = ProjectComponent.data.find(t => t.id === taskId);
@@ -1061,6 +1072,7 @@ const ProjectComponent = {
             document.getElementById('task-resp').value = task.responsable;
             document.getElementById('task-prio').value = task.prioridad;
             document.getElementById('task-date').value = task.deadline || '';
+            document.getElementById('task-time').value = task.time || '00:00';
             document.getElementById('task-cost').value = task.costo || '';
             document.getElementById('task-hh-est').value = task.hh_estimated || '';
             document.getElementById('task-hh-exe').value = task.hh_executed || '';
@@ -1072,10 +1084,8 @@ const ProjectComponent = {
 
             if (task.recurrence) {
                 if (task.recurrence.type === 'weekly' && task.recurrence.days) {
-                    task.recurrence.days.forEach(d => {
-                        const cb = document.querySelector(`input[name="rec_days"][value="${d}"]`);
-                        if (cb) cb.checked = true;
-                    });
+                    const inputs = document.querySelectorAll('input[name="rec_days"]');
+                    inputs.forEach(inp => inp.checked = task.recurrence.days.includes(parseInt(inp.value)));
                 }
                 if (task.recurrence.type === 'monthly') {
                     const mType = task.recurrence.monthlyType || 'fixed';
@@ -1095,15 +1105,16 @@ const ProjectComponent = {
             }
 
             // Subtasks
-            if (task.subtasks) ProjectComponent.editingSubtasks = [...task.subtasks];
+            if (task.subtasks) ProjectComponent.editingSubtasks = JSON.parse(JSON.stringify(task.subtasks));
 
             // Attachments
-            if (task.attachments) ProjectComponent.currentAttachments = [...task.attachments];
+            if (task.attachments) ProjectComponent.currentAttachments = JSON.parse(JSON.stringify(task.attachments));
 
         } else {
             title.textContent = 'Nueva Tarea';
             document.getElementById('task-rubro').value = ProjectComponent.rubros[0] || '';
             document.getElementById('task-resp').value = ProjectComponent.responsables[0] || '';
+            document.getElementById('task-prio').value = 'Media';
             ProjectComponent.toggleRecurrenceOptions('none');
         }
 
@@ -1114,6 +1125,7 @@ const ProjectComponent = {
 
     handleTaskSubmit: async (e) => {
         e.preventDefault();
+        const formData = new FormData(e.target);
         const id = document.getElementById('task-id').value;
         const recType = document.getElementById('task-recurrence').value;
 
@@ -1136,15 +1148,16 @@ const ProjectComponent = {
         }
 
         const taskData = {
-            requerimiento: document.getElementById('task-req').value,
-            description: document.getElementById('task-desc').value,
-            rubro: document.getElementById('task-rubro').value,
-            responsable: document.getElementById('task-resp').value,
-            prioridad: document.getElementById('task-prio').value,
-            deadline: document.getElementById('task-date').value,
-            costo: parseFloat(document.getElementById('task-cost').value) || 0,
-            hh_estimated: parseFloat(document.getElementById('task-hh-est').value) || 0,
-            hh_executed: parseFloat(document.getElementById('task-hh-exe').value) || 0,
+            requerimiento: formData.get('requerimiento'),
+            description: formData.get('description'),
+            rubro: formData.get('rubro'),
+            responsable: formData.get('responsable'),
+            prioridad: formData.get('prioridad'),
+            deadline: formData.get('deadline'), // YYYY-MM-DD
+            time: formData.get('time'), // HH:MM
+            costo: parseFloat(formData.get('costo')) || 0,
+            hh_estimated: parseFloat(formData.get('hh_estimated')) || 0,
+            hh_executed: parseFloat(formData.get('hh_executed')) || 0,
             subtasks: ProjectComponent.editingSubtasks,
             attachments: ProjectComponent.currentAttachments,
             recurrence: recurrence,
@@ -1693,6 +1706,73 @@ const ProjectComponent = {
         XLSX.writeFile(wb, filename);
 
         UI.showToast('Exportación completada', 'success');
+    },
+
+    executeCalendarExport: async () => {
+        const selectedIds = Array.from(ProjectComponent.selectedTasks);
+        if (selectedIds.length === 0) return UI.showToast('Selecciona al menos una tarea', 'warning');
+
+        const tasks = ProjectComponent.data.filter(t => selectedIds.includes(t.id));
+
+        if (tasks.length === 0) {
+            UI.showToast('No hay tareas para exportar', 'info');
+            return;
+        }
+
+        // Generate ICS content
+        let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Nexus Flow//Global//EN\n";
+
+        tasks.forEach(t => {
+            if (!t.deadline) return;
+
+            // Format DateTime: YYYYMMDDTHHMMSS
+            const dateStr = t.deadline.replace(/-/g, '');
+            const timeStr = (t.time || '00:00').replace(':', '') + '00';
+            const dtStart = `${dateStr}T${timeStr}`;
+
+            // End time + 1 hour
+            // Simple logic assuming same day + 1 hour (handling day rollover would require Date object parsing but for simplicity of ICS string manip...)
+            // Let's use Date object to be safe
+            const [y, m, d] = t.deadline.split('-').map(Number);
+            const [hh, mm] = (t.time || '00:00').split(':').map(Number);
+
+            const startDate = new Date(y, m - 1, d, hh, mm);
+            const endDate = new Date(startDate);
+            endDate.setHours(startDate.getHours() + 1);
+
+            const formatICSDate = (date) => {
+                return date.getFullYear().toString() +
+                    (date.getMonth() + 1).toString().padStart(2, '0') +
+                    date.getDate().toString().padStart(2, '0') + 'T' +
+                    date.getHours().toString().padStart(2, '0') +
+                    date.getMinutes().toString().padStart(2, '0') + '00';
+            };
+
+            const dtEnd = formatICSDate(endDate);
+            const now = formatICSDate(new Date());
+
+            icsContent += "BEGIN:VEVENT\n";
+            icsContent += `DTSTAMP:${now}\n`;
+            icsContent += `DTSTART:${formatICSDate(startDate)}\n`;
+            icsContent += `DTEND:${dtEnd}\n`;
+            icsContent += `SUMMARY:${t.requerimiento || 'Tarea Nexus'}\n`;
+            icsContent += `DESCRIPTION:${t.description || ''} (Prioridad: ${t.prioridad})\n`;
+            icsContent += "END:VEVENT\n";
+        });
+
+        icsContent += "END:VCALENDAR";
+
+        // Download
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.setAttribute('download', `Nexus_Tasks_${new Date().toISOString().slice(0, 10)}.ics`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        UI.showToast('Archivo de calendario generado', 'success');
+        ProjectComponent.toggleSelectionMode();
     },
 
     toggleTheme: () => {

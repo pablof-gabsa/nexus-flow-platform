@@ -18,6 +18,31 @@ const NavbarComponent = {
                                     </span>
                                 </div>
                             </div>
+
+                            <!-- Context Selector (Admin Only) -->
+                            ${Store.currentContext && Store.currentContext.availableWorkspaces && Store.currentContext.availableWorkspaces.length > 1 ? `
+                                <div class="relative group ml-4 pl-4 border-l border-gray-200 dark:border-gray-700">
+                                    <button class="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-brand-600 transition-colors">
+                                        <i class="fas fa-building text-brand-500"></i>
+                                        <span>${Store.currentContext.role === 'owner' ? 'Mi Espacio' : 'Admin Mode'}</span>
+                                        <i class="fas fa-chevron-down text-xs ml-1"></i>
+                                    </button>
+                                    
+                                    <!-- Dropdown -->
+                                    <div class="absolute left-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-left z-50 border border-gray-100 dark:border-slate-700">
+                                        <div class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                            Cambiar Espacio
+                                        </div>
+                                        ${Store.currentContext.availableWorkspaces.map(ws => `
+                                            <button onclick="Store.switchContext('${ws.ownerId}')" 
+                                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-between group-item">
+                                                <span>${ws.type === 'personal' ? 'Mi Espacio' : 'Admin: ' + ws.ownerId.slice(0, 6) + '...'}</span>
+                                                ${Store.currentContext.ownerId === ws.ownerId ? '<i class="fas fa-check text-brand-600 text-xs"></i>' : ''}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
                             
                             <!-- Custom Company Name -->
                             <div class="hidden md:flex items-center pl-3 border-l border-gray-200 dark:border-gray-700 ml-1 group">

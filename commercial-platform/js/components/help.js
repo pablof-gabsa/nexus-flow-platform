@@ -248,5 +248,4 @@ const HelpComponent = {
             }
         }
     }
-}
 };

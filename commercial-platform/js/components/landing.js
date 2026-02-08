@@ -166,61 +166,7 @@ const LandingComponent = {
                     </div>
                 </section>
 
-                <!-- Trusted By Section (Infinite Carousel) -->
-                <section class="border-y border-gray-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 py-10 overflow-hidden">
-                     <style>
-                        @keyframes infinite-scroll {
-                            from { transform: translateX(0); }
-                            to { transform: translateX(-50%); }
-                        }
-                        .animate-infinite-scroll {
-                            animation: infinite-scroll 40s linear infinite;
-                        }
-                        /* Pause on hover for better UX */
-                        .animate-infinite-scroll:hover {
-                            animation-play-state: paused;
-                        }
-                     </style>
-                     
-                     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-                        <p class="text-center text-sm font-semibold text-gray-400 uppercase tracking-wider">Empresas que confían en nosotros</p>
-                     </div>
 
-                     <div class="relative w-full overflow-hidden">
-                        <div class="flex animate-infinite-scroll w-max gap-16 px-4">
-                            <!-- Helper function to render logo item -->
-                            ${(() => {
-                const companies = [
-                    { name: 'GDBSA', icon: 'fas fa-building', color: 'text-gray-700 dark:text-gray-300' },
-                    { name: 'SCF 3D Rally', icon: 'fas fa-cogs', color: 'text-gray-700 dark:text-gray-300' },
-                    { name: 'Google', icon: 'fab fa-google', color: 'text-gray-500 hover:text-[#4285F4]' },
-                    { name: 'Amazon', icon: 'fab fa-amazon', color: 'text-gray-500 hover:text-[#FF9900]' },
-                    { name: 'Microsoft', icon: 'fab fa-microsoft', color: 'text-gray-500 hover:text-[#00A4EF]' },
-                    { name: 'Stripe', icon: 'fab fa-stripe', color: 'text-gray-500 hover:text-[#008CDD]' },
-                    { name: 'Spotify', icon: 'fab fa-spotify', color: 'text-gray-500 hover:text-[#1DB954]' },
-                    { name: 'Airbnb', icon: 'fab fa-airbnb', color: 'text-gray-500 hover:text-[#FF5A5F]' },
-                    { name: 'Uber', icon: 'fab fa-uber', color: 'text-gray-500 hover:text-black dark:hover:text-white' },
-                    { name: 'Lyft', icon: 'fab fa-lyft', color: 'text-gray-500 hover:text-[#FF00BF]' },
-                    { name: 'AWS', icon: 'fab fa-aws', color: 'text-gray-500 hover:text-[#232F3E]' }
-                ];
-
-                // Duplicate the list 3 times to ensure smooth infinite scroll on wide screens
-                const allCompanies = [...companies, ...companies, ...companies];
-
-                return allCompanies.map(c => `
-                                    <div class="flex items-center gap-3 select-none transition-colors duration-300 ${c.color}">
-                                        <i class="${c.icon} text-3xl"></i>
-                                        <span class="text-xl font-bold font-sans">${c.name}</span>
-                                    </div>
-                                `).join('');
-            })()}
-                        </div>
-                        
-                        <!-- Gradients to fade edges -->
-                        <div class="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-slate-50 dark:from-slate-900 to-transparent pointer-events-none"></div>
-                        <div class="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-slate-50 dark:from-slate-900 to-transparent pointer-events-none"></div>
-                     </div>
-                </section>
 
                 <!-- Footer -->
                 <footer class="bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800">

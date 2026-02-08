@@ -1,131 +1,248 @@
 const HelpComponent = {
+    currentSection: 'intro',
+
     render: async (container) => {
-        // Simple navigation tailored for the help page context
         const user = (typeof Auth !== 'undefined') ? Auth.getCurrentUser() : null;
         const backLink = user ? '#/dashboard' : '#/';
-        const backText = user ? 'Volver al Dashboard' : 'Volver al Inicio';
 
         container.innerHTML = `
-            <div class="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-100 selection:bg-brand-500 selection:text-white pb-20">
+            <div class="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-100 selection:bg-brand-500 selection:text-white pb-20 flex flex-col md:flex-row">
                 
-                <!-- Navbar -->
-                <nav class="fixed w-full z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-gray-200 dark:border-slate-800">
-                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div class="flex justify-between items-center h-16">
-                            <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.hash = '${backLink}'">
-                                <img src="assets/logo.jpg" class="h-8 w-8 rounded-lg" onerror="this.style.display='none'">
-                                <span class="font-bold text-xl">Nexus Flow <span class="text-brand-500 font-normal">| Ayuda</span></span>
-                            </div>
-                            <a href="${backLink}" class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400">
-                                <i class="fas fa-arrow-left mr-2"></i>${backText}
+                <!-- Sidebar Navigation (Desktop) -->
+                <aside class="fixed md:sticky top-0 z-40 w-full md:w-64 h-auto md:h-screen bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-r border-gray-200 dark:border-slate-800 transition-transform">
+                    <div class="h-16 flex items-center px-6 border-b border-gray-100 dark:border-slate-800">
+                        <img src="assets/logo.jpg" class="h-8 w-8 rounded-lg mr-3" onerror="this.style.display='none'">
+                        <span class="font-bold text-lg">Ayuda Nexus</span>
+                    </div>
+
+                    <div class="p-4 overflow-y-auto h-[calc(100vh-4rem)]">
+                        <div class="space-y-1">
+                            <button onclick="HelpComponent.scrollToSection('intro')" class="help-nav-item w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300">
+                                <i class="fas fa-home w-5 text-center mr-2"></i> Introducción
+                            </button>
+                            <button onclick="HelpComponent.scrollToSection('dashboard')" class="help-nav-item w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                                <i class="fas fa-th-large w-5 text-center mr-2"></i> Dashboard
+                            </button>
+                            <button onclick="HelpComponent.scrollToSection('projects')" class="help-nav-item w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                                <i class="fas fa-project-diagram w-5 text-center mr-2"></i> Proyectos
+                            </button>
+                            <button onclick="HelpComponent.scrollToSection('tasks')" class="help-nav-item w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                                <i class="fas fa-check-circle w-5 text-center mr-2"></i> Tareas
+                            </button>
+                             <button onclick="HelpComponent.scrollToSection('analytics')" class="help-nav-item w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                                <i class="fas fa-chart-line w-5 text-center mr-2"></i> Estadísticas
+                            </button>
+                            <button onclick="HelpComponent.scrollToSection('import-export')" class="help-nav-item w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                                <i class="fas fa-file-export w-5 text-center mr-2"></i> Importar / Exportar
+                            </button>
+                        </div>
+
+                        <div class="mt-8 pt-8 border-t border-gray-100 dark:border-slate-800">
+                             <a href="${backLink}" class="flex items-center text-sm font-semibold text-gray-500 hover:text-brand-600 dark:hover:text-brand-400 transition-colors px-4">
+                                <i class="fas fa-arrow-left w-5 text-center mr-2"></i> Volver a la App
                             </a>
                         </div>
                     </div>
-                </nav>
+                </aside>
 
-                <!-- Content -->
-                <div class="max-w-4xl mx-auto px-4 pt-28 sm:px-6 lg:px-8">
-                    
-                    <div class="text-center mb-12">
-                        <h1 class="text-4xl font-extrabold mb-4 text-slate-900 dark:text-white">Centro de Ayuda</h1>
-                        <p class="text-xl text-gray-500 dark:text-gray-400">Todo lo que necesitas saber para gestionar tus proyectos con éxito.</p>
-                    </div>
-
-                    <div class="grid gap-8">
-
-                        <!-- Section 1: Primeros Pasos -->
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-8">
-                            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-brand-600 dark:text-brand-400">
-                                <i class="fas fa-rocket"></i> Primeros Pasos
-                            </h2>
-                            <div class="space-y-4">
-                                <div>
-                                    <h3 class="font-bold text-lg mb-2">1. Crear una Cuenta</h3>
-                                    <p class="text-gray-600 dark:text-gray-300">
-                                        Puedes registrarte usando tu cuenta de Google para guardar tus datos en la nube.
-                                        Alternativamente, puedes usar el <strong>Modo Demo</strong> sin registrarte.
-                                    </p>
-                                </div>
-                                <div class="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 rounded-r">
-                                    <p class="text-amber-800 dark:text-amber-200 text-sm">
-                                        <strong>⚠ Importante sobre el Modo Demo:</strong> Los datos se guardan solo en tu navegador (LocalStorage). Si borras el caché o cambias de navegador, perderás tus proyectos. ¡Úsalo solo para probar!
-                                    </p>
-                                </div>
+                <!-- Content Area -->
+                <main class="flex-1 min-w-0 overflow-y-auto h-screen scroll-smooth">
+                    <div class="max-w-4xl mx-auto px-4 py-12 sm:px-6 lg:px-8 space-y-20">
+                        
+                        <!-- 1. Intro -->
+                        <section id="help-intro" class="scroll-mt-24">
+                            <h1 class="text-4xl font-extrabold text-slate-900 dark:text-white mb-6">Documentación de Nexus Flow</h1>
+                            <p class="text-xl text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
+                                Bienvenido al centro de ayuda oficial. Aquí encontrarás todo lo necesario para dominar la plataforma de gestión de proyectos, desde la creación de tu primera tarea hasta la generación de reportes avanzados.
+                            </p>
+                            
+                            <div class="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-2xl p-6">
+                                <h3 class="flex items-center text-lg font-bold text-blue-800 dark:text-blue-300 mb-2">
+                                    <i class="fas fa-info-circle mr-2"></i> ¿Nuevo en Nexus Flow?
+                                </h3>
+                                <p class="text-blue-700 dark:text-blue-200">
+                                    Si acabas de llegar, te recomendamos empezar por crear una cuenta gratuita con Google o probar el <strong class="underline decoration-wavy">Modo Demo</strong> para explorar sin compromiso.
+                                </p>
                             </div>
-                        </div>
+                        </section>
 
-                        <!-- Section 2: Gestión de Proyectos -->
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-8">
-                            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-blue-600 dark:text-blue-400">
-                                <i class="fas fa-project-diagram"></i> Gestión de Proyectos
+                        <!-- 2. Dashboard -->
+                        <section id="help-dashboard" class="scroll-mt-24">
+                            <h2 class="text-3xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
+                                <span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 rounded-lg w-10 h-10 flex items-center justify-center text-xl"><i class="fas fa-th-large"></i></span>
+                                Dashboard Principal
                             </h2>
-                            <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-800 dark:text-blue-200">
-                                <strong>Nota:</strong> El Dashboard principal es para el propietario de la cuenta. Los colaboradores y clientes acceden individualmente a los proyectos que se les han compartido.
+                            <p class="text-gray-600 dark:text-gray-300 mb-6">
+                                El Dashboard es tu centro de comando. Desde aquí tienes una vista panorámica de todos tus proyectos activos.
+                            </p>
+                            
+                            <div class="rounded-xl overflow-hidden shadow-2xl border border-gray-200 dark:border-slate-700 mb-8 group">
+                                <img src="assets/help/dashboard_mockup.png" alt="Vista del Dashboard" class="w-full h-auto object-cover group-hover:scale-[1.01] transition-transform duration-500" onerror="this.src='https://via.placeholder.com/800x450?text=Dashboard+Overview'">
                             </div>
-                            <ul class="space-y-6">
-                                <li class="flex gap-4">
-                                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 flex items-center justify-center font-bold">1</div>
-                                    <div>
-                                        <h4 class="font-bold">Nuevo Proyecto</h4>
-                                        <p class="text-gray-600 dark:text-gray-300 mt-1">Desde el Dashboard, haz clic en "+ Nuevo Proyecto". Asigna un nombre al proyecto.</p>
-                                    </div>
+
+                            <ul class="space-y-4 text-gray-600 dark:text-gray-300">
+                                <li class="flex gap-3">
+                                    <i class="fas fa-check text-green-500 mt-1"></i>
+                                    <div><strong>Mis Proyectos:</strong> Grilla con tarjetas de cada proyecto. Muestra el estado general y progreso.</div>
                                 </li>
-                                <li class="flex gap-4">
-                                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 flex items-center justify-center font-bold">2</div>
-                                    <div>
-                                        <h4 class="font-bold">Configuración (Rubros y Responsables)</h4>
-                                        <p class="text-gray-600 dark:text-gray-300 mt-1">
-                                            Dentro de un proyecto, usa el botón <strong>"Config"</strong> en la barra superior para editar los Rubros (Categorías) y las personas Responsables.
-                                            También puedes editarlos directamente al crear una tarea usando el icono <i class="fas fa-cog text-gray-400"></i>.
-                                        </p>
-                                    </div>
+                                <li class="flex gap-3">
+                                    <i class="fas fa-check text-green-500 mt-1"></i>
+                                    <div><strong>Nuevo Proyecto:</strong> Botón principal para iniciar una nueva obra o gestión.</div>
                                 </li>
-                                <li class="flex gap-4">
-                                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 flex items-center justify-center font-bold">3</div>
-                                    <div>
-                                        <h4 class="font-bold">Compartir</h4>
-                                        <p class="text-gray-600 dark:text-gray-300 mt-1">
-                                            Genera un enlace público de solo lectura para compartir el avance con clientes sin darles acceso a editar.
-                                        </p>
-                                    </div>
+                                <li class="flex gap-3">
+                                    <i class="fas fa-check text-green-500 mt-1"></i>
+                                    <div><strong>Buscador Global:</strong> Encuentra tareas o proyectos por nombre instantáneamente.</div>
                                 </li>
                             </ul>
-                        </div>
+                        </section>
 
-                        <!-- Section 3: Tareas -->
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-8">
-                            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3 text-green-600 dark:text-green-400">
-                                <i class="fas fa-check-circle"></i> Tareas y Subtareas
+                        <!-- 3. Projects -->
+                        <section id="help-projects" class="scroll-mt-24">
+                            <h2 class="text-3xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
+                                <span class="bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 rounded-lg w-10 h-10 flex items-center justify-center text-xl"><i class="fas fa-project-diagram"></i></span>
+                                Gestión de Proyectos
                             </h2>
-                            <div class="space-y-4">
-                                <p class="text-gray-600 dark:text-gray-300">
-                                    Las tareas son el corazón de Nexus Flow. Cada tarea puede tener:
-                                </p>
-                                <ul class="list-disc list-inside text-gray-600 dark:text-gray-300 ml-4 space-y-2">
-                                    <li><strong>Estado:</strong> Pendiente, En Proceso, Realizado, Suspendido.</li>
-                                    <li><strong>Prioridad:</strong> Baja, Media, Alta (afecta el orden visual).</li>
-                                    <li><strong>Vencimiento:</strong> Fecha límite para completar la tarea.</li>
-                                    <li><strong>Repetición:</strong> Tareas que se repiten diaria, semanal o mensualmente.</li>
-                                    <li><strong>Subtareas:</strong> Divide una tarea compleja en pasos más pequeños.</li>
-                                </ul>
-                                <div class="mt-4 p-4 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
-                                    <h4 class="font-bold mb-2"><i class="fas fa-bolt text-yellow-500"></i> Edición Rápida</h4>
-                                    <p class="text-sm text-gray-600 dark:text-gray-300">
-                                        Desde el Dashboard global, puedes usar el botón de editar (lápiz) para modificar una tarea sin entrar al proyecto.
+                            
+                            <div class="grid md:grid-cols-2 gap-8 mb-8">
+                                <div>
+                                    <p class="text-gray-600 dark:text-gray-300 mb-4">
+                                        Dentro de un proyecto, las tareas se organizan por <strong>Rubros</strong> (Áreas). Puedes personalizar estos rubros según tu necesidad (ej: Cimentación, Estructura, Acabados).
                                     </p>
+                                    <h4 class="font-bold text-gray-800 dark:text-white mb-2">Barra de Herramientas</h4>
+                                    <ul class="space-y-2 text-sm text-gray-600 dark:text-gray-300 mb-6">
+                                        <li><strong class="text-brand-600">Config:</strong> Edita los Rubros y añade Responsables.</li>
+                                        <li><strong class="text-brand-600">Filtros:</strong> Visualiza solo tareas pendientes, críticas o de cierto responsable.</li>
+                                        <li><strong class="text-brand-600">PDF:</strong> Genera un reporte imprimible del estado actual.</li>
+                                    </ul>
+                                </div>
+                                <div class="rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-slate-700">
+                                    <img src="assets/help/project_view_mockup.png" alt="Vista de Proyecto" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/400x300?text=Project+View'">
                                 </div>
                             </div>
-                        </div>
+                        </section>
+
+                        <!-- 4. Tasks -->
+                        <section id="help-tasks" class="scroll-mt-24">
+                            <h2 class="text-3xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
+                                <span class="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-lg w-10 h-10 flex items-center justify-center text-xl"><i class="fas fa-check-circle"></i></span>
+                                Creación y Edición de Tareas
+                            </h2>
+
+                            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 p-1 mb-8">
+                                <img src="assets/help/task_modal_mockup.png" alt="Modal de Tarea" class="w-full rounded-lg" onerror="this.src='https://via.placeholder.com/800x500?text=Task+Editor+Modal'">
+                            </div>
+
+                            <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
+                                <div class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
+                                    <h4 class="font-bold mb-2 flex items-center gap-2"><i class="fas fa-flag text-red-500"></i> Prioridad</h4>
+                                    <p class="text-sm text-gray-500">Define la urgencia: Baja, Media, Alta o Crítico. Las tareas críticas aparecen resaltadas.</p>
+                                </div>
+                                <div class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
+                                    <h4 class="font-bold mb-2 flex items-center gap-2"><i class="fas fa-list-ul text-blue-500"></i> Checklist</h4>
+                                    <p class="text-sm text-gray-500">Divide una tarea compleja en subtareas más pequeñas para un mejor seguimiento.</p>
+                                </div>
+                                <div class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
+                                    <h4 class="font-bold mb-2 flex items-center gap-2"><i class="fas fa-paperclip text-gray-500"></i> Adjuntos</h4>
+                                    <p class="text-sm text-gray-500">Sube imágenes de referencia o evidencia (Max 10MB por imagen).</p>
+                                </div>
+                                <div class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
+                                    <h4 class="font-bold mb-2 flex items-center gap-2"><i class="fas fa-clock text-amber-500"></i> H/H y Costo</h4>
+                                    <p class="text-sm text-gray-500">Registra Horas Hombre estimadas vs ejecutadas y el costo monetario asociado.</p>
+                                </div>
+                                <div class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
+                                    <h4 class="font-bold mb-2 flex items-center gap-2"><i class="fas fa-sync text-purple-500"></i> Repetición</h4>
+                                    <p class="text-sm text-gray-500">Configura tareas recurrentes (ej: Mantenimiento mensual) que se duplican automáticamente.</p>
+                                </div>
+                            </div>
+                        </section>
+
+                         <!-- 5. Analytics -->
+                         <section id="help-analytics" class="scroll-mt-24">
+                            <h2 class="text-3xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
+                                <span class="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-lg w-10 h-10 flex items-center justify-center text-xl"><i class="fas fa-chart-pie"></i></span>
+                                Análisis y Estadísticas
+                            </h2>
+                            <p class="text-gray-600 dark:text-gray-300 mb-6">
+                                Toma decisiones basadas en datos reales. Nexus Flow calcula automáticamente el progreso de tu proyecto.
+                            </p>
+                            
+                            <div class="grid md:grid-cols-2 gap-8 items-center">
+                                <div class="rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-slate-700">
+                                    <img src="assets/help/stats_mockup.png" alt="Estadísticas" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/400x300?text=Analytics+Charts'">
+                                </div>
+                                <div class="space-y-4">
+                                    <div class="p-4 border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/10">
+                                        <h4 class="font-bold text-blue-900 dark:text-white">Progreso Global</h4>
+                                        <p class="text-sm text-blue-800 dark:text-blue-200">Basado en el porcentaje de tareas completadas vs total.</p>
+                                    </div>
+                                    <div class="p-4 border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-900/10">
+                                        <h4 class="font-bold text-amber-900 dark:text-white">Estado de Tareas</h4>
+                                        <p class="text-sm text-amber-800 dark:text-amber-200">Visualiza rápidamente cuántas tareas están pendientes, en proceso o atrasadas.</p>
+                                    </div>
+                                    <div class="p-4 border-l-4 border-red-500 bg-red-50 dark:bg-red-900/10">
+                                        <h4 class="font-bold text-red-900 dark:text-white">Control de Vencimientos</h4>
+                                        <p class="text-sm text-red-800 dark:text-red-200">Alerta inmediata de tareas cuya fecha límite ha pasado.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- 6. Import/Export -->
+                        <section id="help-import-export" class="scroll-mt-24 border-t border-gray-200 dark:border-slate-800 pt-12">
+                             <h2 class="text-3xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
+                                <span class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg w-10 h-10 flex items-center justify-center text-xl"><i class="fas fa-file-csv"></i></span>
+                                Importación y Exportación
+                            </h2>
+
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <div class="glass-card p-6 rounded-xl">
+                                    <h3 class="font-bold text-lg mb-3 flex items-center gap-2"><i class="fas fa-file-excel text-green-600"></i> Importar Excel</h3>
+                                    <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                                        Carga masivamente tareas desde un archivo Excel.
+                                    </p>
+                                    <ol class="list-decimal list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                        <li>Ve a Configuración > Descargar Plantilla.</li>
+                                        <li>Llenar los datos respetando las columnas.</li>
+                                        <li>Subir el archivo en Configuración > Importar.</li>
+                                    </ol>
+                                </div>
+
+                                <div class="glass-card p-6 rounded-xl">
+                                    <h3 class="font-bold text-lg mb-3 flex items-center gap-2"><i class="fas fa-file-export text-indigo-600"></i> Integración Octavo Piso</h3>
+                                    <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                                        Exporta tareas específicas para el módulo de reclamos.
+                                    </p>
+                                    <ol class="list-decimal list-inside text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                        <li>Activa la integración en el menú principal.</li>
+                                        <li>En el proyecto, habilita "Modo Selección".</li>
+                                        <li>Elige las tareas y exporta.</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </section>
 
                     </div>
-
-                    <!-- Footer Help -->
-                    <div class="mt-12 text-center text-gray-500 pb-10">
-                        <p>¿Tienes más dudas? Contáctanos en <a href="mailto:soporte@nexusflow.com" class="text-brand-600 hover:underline">soporte@nexusflow.com</a></p>
-                    </div>
-
-                </div>
+                </main>
             </div>
+            
+            <script>
+                // Internal navigation script styling
+                window.HelpComponent.scrollToSection = (id) => {
+                    const el = document.getElementById('help-' + id);
+                    if(el) {
+                        el.scrollIntoView({ behavior: 'smooth' });
+                         // Update active state
+                        document.querySelectorAll('.help-nav-item').forEach(btn => {
+                            btn.classList.remove('bg-brand-50', 'text-brand-700', 'dark:bg-brand-900/20', 'dark:text-brand-300');
+                            btn.classList.add('text-gray-600', 'dark:text-gray-400');
+                        });
+                        // Highlight current (approximate, since we are using buttons onclick, we find the one that called this)
+                        // For simplicity in this vanilla implementation, we handle click highlight in the button onclick itself logic if needed, 
+                        // but re-rendering matches state. 
+                        // Here we just scroll.
+                    }
+                }
+            </script>
         `;
     }
 };

@@ -1,0 +1,25 @@
+
+# Ignore unnecessary folders
+01 Santa isabel V5.0 UP/
+02 Barrancas de Santa Maria v5.0 UP/
+03 Barrancas de San Jose v5.0 UP/
+04 Lirios v5.0 UP/
+05 Lagos del norte v5.0 UP/
+06 La Posta Pilar v5.0 UP/
+07 Altos de Campo Grande v5.0 UP/
+08 Parque industrial Escobar v5.0 UP/
+09 Parque industrial Pilar V5.0 UP/
+10 Laguna del Sol v5.0 UP/
+11 Club Privado loma verde/
+99 Pablo Frixione/
+DASH GENERAL/
+ImportarPlantila octavo.xlsx
+commercial-platform/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# OS generated files
+.DS_Store
+Thumbs.db

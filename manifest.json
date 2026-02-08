@@ -1,0 +1,23 @@
+{
+  "name": "Nexus App",
+  "short_name": "NexusApp",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563EB",
+  "description": "Plataforma de gestión de proyectos premium",
+  "icons": [
+    {
+      "src": "assets/nexus_logo_v3.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/nexus_logo_v3.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

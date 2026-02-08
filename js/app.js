@@ -3,7 +3,8 @@ const App = {
     state: {
         currentUser: null,
         currentProject: null,
-        currentRoute: null
+        currentRoute: null,
+        installPrompt: null
     },
 
     // Initialization
@@ -24,6 +25,26 @@ const App = {
 
         // Hash Change Listener
         window.addEventListener('hashchange', App.handleRoute);
+
+        // PWA Install Prompt Listener
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            App.state.installPrompt = e;
+            console.log("PWA Install Prompt Captured");
+            // Update UI
+            const installBtn = document.getElementById('pwa-install-btn');
+            if (installBtn) installBtn.classList.remove('hidden');
+        });
+
+        // PWA Installed Listener
+        window.addEventListener('appinstalled', () => {
+            console.log("PWA Installed");
+            const installBtn = document.getElementById('pwa-install-btn');
+            if (installBtn) installBtn.classList.add('hidden');
+            App.state.installPrompt = null;
+        });
 
         // Initialize Auth safely
         try {
@@ -151,6 +172,17 @@ const App = {
 
     navigateTo: (route) => {
         window.location.hash = route;
+    },
+
+    installPWA: async () => {
+        if (!App.state.installPrompt) {
+            alert("No se puede instalar en este momento.\n\nCausa probable: El icono 'logo.jpg' no cumple con los requisitos de PWA (debe ser cuadrado y PNG).\n\nVoy a generar un icono compatible para ti.");
+            return;
+        }
+        App.state.installPrompt.prompt();
+        const { outcome } = await App.state.installPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        App.state.installPrompt = null;
     }
 };
 

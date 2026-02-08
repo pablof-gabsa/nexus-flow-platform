@@ -39,6 +39,13 @@ const NavbarComponent = {
                             </button>
                             ` : ''}
 
+                            <!-- PWA Install Button (Hidden by default, shown by App.js) -->
+                            <button id="pwa-install-btn" class="hidden p-2 rounded-lg text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-slate-700/50 transition-colors animate-pulse" onclick="App.installPWA()" title="Instalar App">
+                                <i class="fas fa-download"></i>
+                            </button>
+
+
+
                             <button onclick="window.location.hash = '#/help'" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700/50 transition-colors" title="Ayuda">
                                 <i class="fas fa-question-circle"></i>
                             </button>

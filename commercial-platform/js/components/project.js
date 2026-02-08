@@ -764,6 +764,7 @@ const ProjectComponent = {
                             ${item.prioridad === 'Crítico' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-red-600 text-white dark:bg-red-500 font-bold shadow-sm" title="Prioridad Crítica">CRÍTICO</span>' : ''}
                             ${item.prioridad === 'Alta' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800" title="Prioridad Alta">ALTA</span>' : ''}
                             ${item.prioridad === 'Media' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800" title="Prioridad Media">Med</span>' : ''}
+                            ${item.prioridad === 'Baja' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800" title="Prioridad Baja">Baja</span>' : ''}
                             ${recurrenceIcon}
                         </div>
                          ${subtasksTotal > 0 ? `

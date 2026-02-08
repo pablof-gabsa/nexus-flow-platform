@@ -533,12 +533,32 @@ const ProjectComponent = {
 
     setSort: (type) => {
         ProjectComponent.sortBy = type;
+        ProjectComponent.updateSortUI();
         ProjectComponent.refreshUI();
     },
 
     setSortOrder: () => {
         ProjectComponent.sortOrder = ProjectComponent.sortOrder === 'asc' ? 'desc' : 'asc';
         ProjectComponent.refreshUI();
+    },
+
+    updateSortUI: () => {
+        const options = ['deadline', 'priority', 'name'];
+        options.forEach(opt => {
+            const btn = document.querySelector(`button[onclick="ProjectComponent.setSort('${opt}')"]`);
+            if (btn) {
+                // If config menu is open, this should find it.
+                // The structure is <span>Text</span> + optional icon
+                // Remove existing check
+                const check = btn.querySelector('.fa-check');
+                if (check) check.remove();
+
+                // Add check if active
+                if (ProjectComponent.sortBy === opt) {
+                    btn.insertAdjacentHTML('beforeend', '<i class="fas fa-check text-brand-500 text-xs"></i>');
+                }
+            }
+        });
     },
 
     getFilteredData: () => {

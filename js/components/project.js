@@ -1479,9 +1479,9 @@ const ProjectComponent = {
         doc.setFontSize(16); // Slightly smaller
         doc.setTextColor(255, 255, 255);
 
-        // Title: "Reporte | [Project Name]"
+        // Title: "Reporte de [Project Name]"
         // Align with logo 
-        doc.text(`Reporte | ${projectName}`, 35, 13);
+        doc.text(`Reporte de ${projectName}`, 35, 13);
 
         // Removed separate "Nexus Flow" line as per request to simplify
 

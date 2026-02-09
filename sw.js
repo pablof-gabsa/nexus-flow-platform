@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v9'; // Incremented to v9 for PDF title fix
+const CACHE_NAME = 'nexus-flow-v10'; // Incremented to v10 for PDF logo fix
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

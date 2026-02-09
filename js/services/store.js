@@ -38,13 +38,24 @@ const Store = {
                 }
 
                 // Add these to available workspaces
-                ownerIds.forEach(oid => {
-                    Store.currentContext.availableWorkspaces.push({
+                const workspacePromises = ownerIds.map(async oid => {
+                    let name = 'Empresa ' + oid.slice(0, 4);
+                    try {
+                        const snap = await db.ref(`users/${oid}/config/companyName`).once('value');
+                        name = snap.val() || name;
+                    } catch (e) { console.warn('Error fetching name for ' + oid); }
+
+                    return {
                         ownerId: oid,
-                        type: 'admin'
-                    });
+                        type: 'admin',
+                        name: name
+                    };
                 });
-                console.log(`Loaded ${ownerIds.length} admin workspaces.`);
+
+                const workspaces = await Promise.all(workspacePromises);
+                Store.currentContext.availableWorkspaces.push(...workspaces);
+
+                console.log(`Loaded ${workspaces.length} admin workspaces with names.`);
             }
         } catch (e) {
             console.error("Error loading admin map", e);

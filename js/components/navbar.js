@@ -36,7 +36,7 @@ const NavbarComponent = {
                                         ${Store.currentContext.availableWorkspaces.map(ws => `
                                             <button onclick="Store.switchContext('${ws.ownerId}')" 
                                                     class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center justify-between group-item">
-                                                <span>${ws.type === 'personal' ? 'Mi Espacio' : 'Admin: ' + ws.ownerId.slice(0, 6) + '...'}</span>
+                                                <span>${ws.type === 'personal' ? 'Mi Espacio' : (ws.name || 'Admin: ' + ws.ownerId.slice(0, 6))}</span>
                                                 ${Store.currentContext.ownerId === ws.ownerId ? '<i class="fas fa-check text-brand-600 text-xs"></i>' : ''}
                                             </button>
                                         `).join('')}

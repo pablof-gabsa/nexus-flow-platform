@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v5'; // Incremented to v5 for navbar fix
+const CACHE_NAME = 'nexus-flow-v6'; // Incremented to v6 for company names fix
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

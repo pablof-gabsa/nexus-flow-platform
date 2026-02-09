@@ -1453,45 +1453,54 @@ const ProjectComponent = {
         modal.onclick = (e) => { if (e.target === modal) close(); };
     },
 
-    generatePDF: (selectedRubros = []) => {
+    generatePDF: async (selectedRubros = []) => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        const projectName = document.querySelector('h2').innerText || 'Proyecto';
+        const projectName = document.querySelector('h2').innerText.trim() || 'Proyecto';
         const companyName = document.getElementById('nav-company-name')?.textContent.trim() || 'Nexus Flow';
         const brandColor = [37, 99, 235]; // #2563EB
 
+        // Load Logo
+        let logoData = null;
+        try {
+            logoData = await Utils.imageToBase64('assets/nexus_logo_v2.png');
+        } catch (e) { console.warn("Logo load failed", e); }
+
         // -- Header --
         doc.setFillColor(...brandColor);
-        doc.rect(0, 0, 210, 40, 'F');
+        doc.rect(0, 0, 210, 20, 'F'); // Reduced height to 20
+
+        // Logo
+        if (logoData) {
+            doc.addImage(logoData, 'PNG', 14, 2, 16, 16);
+        }
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(18);
+        doc.setFontSize(16); // Slightly smaller
         doc.setTextColor(255, 255, 255);
-        doc.text("Nexus Flow", 14, 18);
 
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Reporte de Proyecto | ${projectName}`, 14, 28);
+        // Title: "Reporte | [Project Name]"
+        // Align with logo 
+        doc.text(`Reporte | ${projectName}`, 35, 13);
 
-        // Company Title Box
+        // Removed separate "Nexus Flow" line as per request to simplify
+
+        // Company Title Box (Compacted)
         doc.setFillColor(255, 255, 255);
-        doc.roundedRect(14, 45, 182, 25, 3, 3, 'F');
+        doc.roundedRect(14, 25, 182, 12, 2, 2, 'F');
         doc.setDrawColor(230, 230, 230);
-        doc.roundedRect(14, 45, 182, 25, 3, 3, 'S');
+        doc.roundedRect(14, 25, 182, 12, 2, 2, 'S');
 
-        doc.setFontSize(16);
+        // One line info: Company - Generated Date
+        doc.setFontSize(10);
         doc.setTextColor(30, 41, 59); // Slate-800
         doc.setFont('helvetica', 'bold');
-        doc.text(companyName, 20, 58);
 
-        doc.setFontSize(10);
-        doc.setTextColor(100, 116, 139); // Slate-500
-        doc.setFont('helvetica', 'normal');
         const dateStr = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        doc.text(`Generado el ${dateStr}`, 20, 65);
+        doc.text(`${companyName}  -  Generado el ${dateStr}`, 18, 32);
 
         // -- Content --
-        let yPos = 85;
+        let yPos = 45; // Start earlier
         const tasks = ProjectComponent.getFilteredData();
 
         // Filter rubros based on selection (if array is passed)

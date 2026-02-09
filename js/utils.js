@@ -1,10 +1,10 @@
 const Utils = {
     // Format currency
     formatMoney: (amount) => {
-        return new Intl.NumberFormat('es-AR', { 
-            style: 'currency', 
-            currency: 'ARS', 
-            minimumFractionDigits: 2 
+        return new Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: 'ARS',
+            minimumFractionDigits: 2
         }).format(amount).replace('ARS', '$').trim();
     },
 
@@ -15,7 +15,7 @@ const Utils = {
         if (isNaN(d.getTime())) return dateString;
         return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
     },
-    
+
     // Format date for input[type=date]
     formatDateForInput: (dateObj) => {
         if (!dateObj) return '';
@@ -28,7 +28,7 @@ const Utils = {
         const date = new Date(dateString);
         const now = new Date();
         const seconds = Math.floor((now - date) / 1000);
-        
+
         if (seconds < 60) return 'hace un momento';
         const minutes = Math.floor(seconds / 60);
         if (minutes < 60) return `hace ${minutes} m`;
@@ -36,7 +36,7 @@ const Utils = {
         if (hours < 24) return `hace ${hours} h`;
         const days = Math.floor(hours / 24);
         if (days < 30) return `hace ${days} d`;
-        
+
         return Utils.formatDate(dateString);
     },
 
@@ -57,7 +57,19 @@ const Utils = {
             timeout = setTimeout(later, wait);
         };
     },
-    
+
     // Sleep helper
-    sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms))
+    sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+
+    // Load image as Base64
+    imageToBase64: async (url) => {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
 };

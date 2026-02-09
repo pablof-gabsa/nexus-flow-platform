@@ -12,7 +12,14 @@ const DashboardComponent = {
         priority: 'all',
         responsible: 'all'
     },
-    projectSettings: JSON.parse(localStorage.getItem('nexus_project_settings')) || { order: [], hidden: {} },
+    projectSettings: (() => {
+        try {
+            return JSON.parse(localStorage.getItem('nexus_project_settings')) || { order: [], hidden: {} };
+        } catch (e) {
+            console.warn("Error parsing project settings, resetting to defaults", e);
+            return { order: [], hidden: {} };
+        }
+    })(),
 
     render: async (container, params) => {
         // Handle View Param
@@ -333,8 +340,8 @@ const DashboardComponent = {
         let list = DashboardComponent.viewArchived ? archivedProjects : activeProjects;
 
         if (!DashboardComponent.viewArchived) {
-            const hidden = DashboardComponent.projectSettings.hidden || {};
-            const order = DashboardComponent.projectSettings.order || [];
+            const hidden = DashboardComponent.projectSettings?.hidden || {};
+            const order = DashboardComponent.projectSettings?.order || [];
 
             // 1. Filter
             list = list.filter(p => !hidden[p.id]);
@@ -1345,8 +1352,8 @@ const DashboardComponent = {
         modal.className = 'fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
         document.body.appendChild(modal);
 
-        const order = DashboardComponent.projectSettings.order || [];
-        const hidden = DashboardComponent.projectSettings.hidden || {};
+        const order = DashboardComponent.projectSettings?.order || [];
+        const hidden = DashboardComponent.projectSettings?.hidden || {};
 
         // Ensure all projects are in the list
         const activeProjects = DashboardComponent.projects.filter(p => p.status !== 'inactive');
@@ -1412,18 +1419,20 @@ const DashboardComponent = {
         // Swap
         [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
 
+        if (!DashboardComponent.projectSettings) DashboardComponent.projectSettings = { order: [], hidden: {} };
         DashboardComponent.projectSettings.order = order;
         localStorage.setItem('nexus_project_settings', JSON.stringify(DashboardComponent.projectSettings));
         DashboardComponent.manageProjects(); // Re-render modal
     },
 
     toggleProjectVisibility: (id) => {
-        const hidden = DashboardComponent.projectSettings.hidden || {};
+        const hidden = DashboardComponent.projectSettings?.hidden || {};
         if (hidden[id]) {
             delete hidden[id];
         } else {
             hidden[id] = true;
         }
+        if (!DashboardComponent.projectSettings) DashboardComponent.projectSettings = { order: [], hidden: {} };
         DashboardComponent.projectSettings.hidden = hidden;
         localStorage.setItem('nexus_project_settings', JSON.stringify(DashboardComponent.projectSettings));
         DashboardComponent.manageProjects(); // Re-render modal

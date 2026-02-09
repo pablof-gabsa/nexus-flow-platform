@@ -328,7 +328,31 @@ const DashboardComponent = {
     renderActiveProjectsView: () => {
         const activeProjects = DashboardComponent.projects.filter(p => p.status !== 'inactive');
         const archivedProjects = DashboardComponent.projects.filter(p => p.status === 'inactive');
-        const list = DashboardComponent.viewArchived ? archivedProjects : activeProjects;
+
+        // Filter Hidden & Sort
+        let list = DashboardComponent.viewArchived ? archivedProjects : activeProjects;
+
+        if (!DashboardComponent.viewArchived) {
+            const hidden = DashboardComponent.projectSettings.hidden || {};
+            const order = DashboardComponent.projectSettings.order || [];
+
+            // 1. Filter
+            list = list.filter(p => !hidden[p.id]);
+
+            // 2. Sort
+            list.sort((a, b) => {
+                const idxA = order.indexOf(a.id);
+                const idxB = order.indexOf(b.id);
+                // If both in order list, sort by index
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                // If only A in list, put A first
+                if (idxA !== -1) return -1;
+                // If only B in list, put B first
+                if (idxB !== -1) return 1;
+                // Fallback to name or date
+                return b.createdAt.localeCompare(a.createdAt);
+            });
+        }
 
         return `
             <div class="flex justify-between items-center mb-6">
@@ -339,6 +363,11 @@ const DashboardComponent = {
                     <p class="text-gray-500 dark:text-gray-400 text-sm">Gestiona tus obras y contratos en curso</p>
                 </div>
                 <div class="flex gap-2">
+                     ${!DashboardComponent.viewArchived ? `
+                        <button onclick="DashboardComponent.manageProjects()" class="btn-secondary text-sm" title="Configurar Visibilidad y Orden">
+                            <i class="fas fa-cog mr-2"></i> Configurar
+                        </button>
+                     ` : ''}
                      <button onclick="DashboardComponent.toggleViewArchived()" class="btn-secondary text-sm">
                         <i class="fas fa-${DashboardComponent.viewArchived ? 'box-open' : 'archive'} mr-2"></i>
                         ${DashboardComponent.viewArchived ? 'Ver Activos' : 'Ver Archivados'}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v6'; // Incremented to v6 for company names fix
+const CACHE_NAME = 'nexus-flow-v7'; // Incremented to v7 for project visibility features
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

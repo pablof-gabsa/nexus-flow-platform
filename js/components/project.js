@@ -1456,7 +1456,7 @@ const ProjectComponent = {
     generatePDF: async (selectedRubros = []) => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        const projectName = document.querySelector('h2').innerText.trim() || 'Proyecto';
+        const projectName = document.getElementById('project-name-display')?.innerText.trim() || document.querySelector('h2').innerText.trim().replace('arrow_back', '').trim() || 'Proyecto';
         const companyName = document.getElementById('nav-company-name')?.textContent.trim() || 'Nexus Flow';
         const brandColor = [37, 99, 235]; // #2563EB
 

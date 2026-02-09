@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v8'; // Incremented to v8 for PDF layout updates
+const CACHE_NAME = 'nexus-flow-v9'; // Incremented to v9 for PDF title fix
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

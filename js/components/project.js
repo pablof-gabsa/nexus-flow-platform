@@ -1463,7 +1463,7 @@ const ProjectComponent = {
         // Load Logo
         let logoData = null;
         try {
-            logoData = await Utils.imageToBase64('assets/nexus_logo_v2.png');
+            logoData = await Utils.imageToBase64('assets/nexus_logo_v3.png');
         } catch (e) { console.warn("Logo load failed", e); }
 
         // -- Header --

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v7'; // Incremented to v7 for project visibility features
+const CACHE_NAME = 'nexus-flow-v8'; // Incremented to v8 for PDF layout updates
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

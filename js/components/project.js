@@ -287,11 +287,23 @@ const ProjectComponent = {
                             </div>
                          </div>
 
+                         <!-- Completion Dates (Visible if Status is Realizado or for manual entry) -->
+                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Fecha Fin</label>
+                                <input type="date" name="end_date" id="task-end-date" class="input-primary w-full" onchange="ProjectComponent.calculateExecutedHH()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Hora Fin</label>
+                                <input type="time" name="end_time" id="task-end-time" class="input-primary w-full" onchange="ProjectComponent.calculateExecutedHH()">
+                            </div>
+                         </div>
+
                          <!-- Resources & Cost Row -->
                          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                              <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Recursos (Cant)</label>
-                                <input type="number" name="resources" id="task-resources" class="input-primary w-full" min="1" value="1" onchange="ProjectComponent.calculateHH()">
+                                <input type="number" name="resources" id="task-resources" class="input-primary w-full" min="1" value="1" onchange="ProjectComponent.calculateHH(); ProjectComponent.calculateExecutedHH()">
                              </div>
                              <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Costo ($)</label>
@@ -1118,6 +1130,8 @@ const ProjectComponent = {
             // New Fields
             document.getElementById('task-start-date').value = task.start_date || '';
             document.getElementById('task-start-time').value = task.start_time || '';
+            document.getElementById('task-end-date').value = task.end_date || '';
+            document.getElementById('task-end-time').value = task.end_time || '';
             document.getElementById('task-resources').value = task.resources || 1;
 
             document.getElementById('task-cost').value = task.costo || '';
@@ -1204,6 +1218,8 @@ const ProjectComponent = {
 
             start_date: formData.get('start_date'),
             start_time: formData.get('start_time'),
+            end_date: formData.get('end_date'),
+            end_time: formData.get('end_time'),
             resources: parseInt(formData.get('resources')) || 1,
 
             deadline: formData.get('deadline'), // YYYY-MM-DD
@@ -1303,6 +1319,19 @@ const ProjectComponent = {
             const hours = Utils.calculateBusinessHours(start, end);
             const total = (hours * resources).toFixed(1);
             hhEstInput.value = total;
+        }
+    },
+
+    calculateExecutedHH: () => {
+        const start = document.getElementById('task-start-date').value;
+        const end = document.getElementById('task-end-date').value; // Actual End Date
+        const resources = parseInt(document.getElementById('task-resources').value) || 1;
+        const hhExeInput = document.getElementById('task-hh-exe');
+
+        if (start && end) {
+            const hours = Utils.calculateBusinessHours(start, end);
+            const total = (hours * resources).toFixed(1);
+            hhExeInput.value = total;
         }
     },
 

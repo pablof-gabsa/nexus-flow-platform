@@ -801,6 +801,9 @@ const ProjectComponent = {
         const recurrenceIcon = item.recurrence && item.recurrence.type !== 'none' ?
             `<i class="fas fa-sync-alt text-gray-400 ml-2" title="Recurrente: ${item.recurrence.type}"></i>` : '';
 
+        const subtasksTotal = item.subtasks ? item.subtasks.length : 0;
+        const subtasksDone = item.subtasks ? item.subtasks.filter(s => s.done).length : 0;
+
         return `
                     <li class="p-4 hover:bg-white dark:hover:bg-slate-700/50 transition-colors group ${overdueClass}">
                         <div class="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">

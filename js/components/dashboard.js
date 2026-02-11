@@ -1178,7 +1178,7 @@ const DashboardComponent = {
                                     <i class="fas fa-cog"></i> Gestionar Plantillas
                                 </button>
                             </div>
-                            </div>
+
                         </div>
                     </div>
 

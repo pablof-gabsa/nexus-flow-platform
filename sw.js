@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v12'; // Incremented to v12 for template management
+const CACHE_NAME = 'nexus-flow-v13'; // Incremented to v12 for template management
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

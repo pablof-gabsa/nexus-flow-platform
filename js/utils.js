@@ -80,24 +80,35 @@ const Utils = {
     },
 
     calculateBusinessHours: (start, end) => {
-        const s = new Date(start);
-        const e = new Date(end);
-        if (s > e) return 0;
+        // Helper to parse "YYYY-MM-DD" into local Date (noon) to avoid timezone shifts
+        const parseLocal = (s) => {
+            if (!s) return null;
+            if (s instanceof Date) return s; // Handle already Date objects if any
+            const parts = s.split('-');
+            if (parts.length !== 3) return new Date(s); // Fallback
+            return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+        };
+
+        const s = parseLocal(start);
+        const e = parseLocal(end);
+
+        if (!s || !e || s > e) return 0;
+
+        // Normalize to midnight for comparison
+        const sMidnight = new Date(s); sMidnight.setHours(0, 0, 0, 0);
+        const eMidnight = new Date(e); eMidnight.setHours(0, 0, 0, 0);
 
         // Same Day
-        if (s.toDateString() === e.toDateString()) {
-            const diffMs = e - s;
-            const diffHrs = diffMs / (1000 * 60 * 60);
-            return Math.min(diffHrs, 8); // Cap at 8 hours per day
+        if (sMidnight.getTime() === eMidnight.getTime()) {
+            // If start and end dates are the same, return 8 hours
+            return 8;
         }
 
         // Multiple Days
         let totalHours = 0;
-        let current = new Date(s);
-        current.setHours(0, 0, 0, 0); // Reset to start of day for iteration
+        let current = new Date(sMidnight);
 
-        const endDay = new Date(e);
-        endDay.setHours(0, 0, 0, 0);
+        const endDay = new Date(eMidnight);
 
         while (current < endDay) {
             if (Utils.isWeekday(current)) {

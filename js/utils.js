@@ -99,7 +99,7 @@ const Utils = {
         const endDay = new Date(e);
         endDay.setHours(0, 0, 0, 0);
 
-        while (current <= endDay) {
+        while (current < endDay) {
             if (Utils.isWeekday(current)) {
                 totalHours += 8;
             }

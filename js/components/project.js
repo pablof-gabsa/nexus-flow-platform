@@ -375,9 +375,9 @@ const ProjectComponent = {
 
                         <!-- Attachments Section -->
                         <div>
-                             <label class="block text-sm font-medium dark:text-gray-300 mb-2">Adjuntos (Imágenes max 10MB)</label>
+                             <label class="block text-sm font-medium dark:text-gray-300 mb-2">Adjuntos (Max 10MB)</label>
                              <div class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-4 text-center hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors relative">
-                                <input type="file" id="task-attachments" multiple accept="image/*" onchange="ProjectComponent.handleFileSelect(event)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                                <input type="file" id="task-attachments" multiple onchange="ProjectComponent.handleFileSelect(event)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                                 <i class="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">Arrastra imágenes o haz clic para subir</p>
                              </div>
@@ -1003,14 +1003,31 @@ const ProjectComponent = {
     renderAttachmentsPreview: () => {
         const container = document.getElementById('attachments-preview');
         if (!container) return;
-        container.innerHTML = ProjectComponent.currentAttachments.map((att, i) => `
-            <div class="relative group w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-slate-600">
-                <img src="${att.data}" class="w-full h-full object-cover">
+
+        container.innerHTML = ProjectComponent.currentAttachments.map((att, i) => {
+            const isImage = att.type.startsWith('image/');
+            const icon = ProjectComponent.getFileIcon(att.type, att.name);
+
+            return `
+            <div class="relative group w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-slate-600 flex items-center justify-center bg-gray-50 dark:bg-slate-700" title="${att.name}">
+                ${isImage
+                    ? `<img src="${att.data}" class="w-full h-full object-cover">`
+                    : `<i class="${icon} text-2xl text-gray-500 dark:text-gray-400"></i>`
+                }
                 <button type="button" onclick="ProjectComponent.removeAttachment(${i})" class="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity">
                     <i class="fas fa-times text-xs"></i>
                 </button>
             </div>
-        `).join('');
+            `;
+        }).join('');
+    },
+
+    getFileIcon: (mimeType, fileName) => {
+        if (mimeType.startsWith('image/')) return 'fas fa-image';
+        if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) return 'fas fa-file-pdf text-red-500';
+        if (mimeType.includes('excel') || mimeType.includes('spreadsheet') || fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) return 'fas fa-file-excel text-green-600';
+        if (mimeType.includes('word') || mimeType.includes('document') || fileName.endsWith('.docx') || fileName.endsWith('.doc')) return 'fas fa-file-word text-blue-600';
+        return 'fas fa-file text-gray-400';
     },
 
     // Recurrence UI
@@ -2273,16 +2290,43 @@ const ProjectComponent = {
         }
 
         lightbox.innerHTML = `
-            <button onclick="document.getElementById('${lightboxId}').classList.add('hidden')" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300">&times;</button>
-            <div class="flex flex-wrap justify-center gap-4 max-w-6xl">
-                ${task.attachments.map(att => `
-                    <div class="relative group">
-                        <img src="${att.data}" class="max-h-[80vh] max-w-full object-contain rounded shadow-2xl border border-gray-800">
-                        <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            ${att.name}
-                        </div>
-                    </div>
-                `).join('')}
+            <button onclick="document.getElementById('${lightboxId}').classList.add('hidden')" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 z-50">&times;</button>
+            <div class="flex flex-wrap justify-center gap-6 max-w-6xl p-4 overflow-y-auto max-h-screen">
+                ${task.attachments.map(att => {
+            const isImage = att.type.startsWith('image/');
+            const isPdf = att.type === 'application/pdf' || att.name.endsWith('.pdf');
+            const icon = ProjectComponent.getFileIcon(att.type, att.name);
+
+            if (isImage) {
+                return `
+                        <div class="relative group">
+                            <img src="${att.data}" class="max-h-[80vh] max-w-full object-contain rounded shadow-2xl border border-gray-800">
+                            <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                ${att.name}
+                            </div>
+                        </div>`;
+            } else {
+                // File Card
+                return `
+                        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col items-center gap-4 w-64 h-64 justify-center border border-gray-200 dark:border-slate-700">
+                            <i class="${icon} text-6xl"></i>
+                            <div class="text-center">
+                                <p class="font-bold text-gray-800 dark:text-white truncate max-w-full px-2" title="${att.name}">${att.name}</p>
+                                <p class="text-xs text-gray-500 uppercase mt-1">${att.name.split('.').pop()}</p>
+                            </div>
+                            <div class="flex gap-2 w-full mt-2">
+                                ${isPdf ? `
+                                <a href="${att.data}" target="_blank" class="flex-1 bg-red-100 text-red-700 hover:bg-red-200 py-2 rounded-lg text-sm font-bold text-center transition-colors">
+                                    <i class="fas fa-eye mr-1"></i> Ver PDF
+                                </a>
+                                ` : ''}
+                                <a href="${att.data}" download="${att.name}" class="flex-1 bg-brand-100 text-brand-700 hover:bg-brand-200 py-2 rounded-lg text-sm font-bold text-center transition-colors">
+                                    <i class="fas fa-download mr-1"></i> Descargar
+                                </a>
+                            </div>
+                        </div>`;
+            }
+        }).join('')}
             </div>
         `;
         lightbox.classList.remove('hidden');

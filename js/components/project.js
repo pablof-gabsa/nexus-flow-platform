@@ -311,11 +311,11 @@ const ProjectComponent = {
                              </div>
                              <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">H/H Estimado</label>
-                                <input type="number" name="hh_estimated" id="task-hh-est" step="0.1" class="input-primary w-full bg-gray-50 dark:bg-slate-700" title="Calculado autom. o manual">
+                                <input type="number" name="hh_estimated" id="task-hh-est" step="1" class="input-primary w-full bg-gray-50 dark:bg-slate-700" title="Calculado autom. o manual">
                              </div>
                              <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">H/H Ejecutado</label>
-                                <input type="number" name="hh_executed" id="task-hh-exe" step="0.1" class="input-primary w-full bg-gray-50 dark:bg-slate-700" title="Se calcula al finalizar">
+                                <input type="number" name="hh_executed" id="task-hh-exe" step="1" class="input-primary w-full bg-gray-50 dark:bg-slate-700" title="Se calcula al finalizar">
                              </div>
                          </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1225,8 +1225,8 @@ const ProjectComponent = {
             deadline: formData.get('deadline'), // YYYY-MM-DD
             time: formData.get('time'), // HH:MM
             costo: parseFloat(formData.get('costo')) || 0,
-            hh_estimated: parseFloat(formData.get('hh_estimated')) || 0,
-            hh_executed: parseFloat(formData.get('hh_executed')) || 0,
+            hh_estimated: parseInt(formData.get('hh_estimated')) || 0,
+            hh_executed: parseInt(formData.get('hh_executed')) || 0,
             subtasks: ProjectComponent.editingSubtasks,
             attachments: ProjectComponent.currentAttachments,
             recurrence: recurrence,
@@ -1278,7 +1278,7 @@ const ProjectComponent = {
                 if (startD && endD) {
                     const businessHours = Utils.calculateBusinessHours(startD, endD);
                     const resources = task.resources || 1;
-                    updates.hh_executed = (businessHours * resources).toFixed(1);
+                    updates.hh_executed = Math.round(businessHours * resources);
                 }
             }
 
@@ -1317,7 +1317,7 @@ const ProjectComponent = {
 
         if (start && end) {
             const hours = Utils.calculateBusinessHours(start, end);
-            const total = (hours * resources).toFixed(1);
+            const total = Math.round(hours * resources);
             hhEstInput.value = total;
         }
     },
@@ -1330,7 +1330,7 @@ const ProjectComponent = {
 
         if (start && end) {
             const hours = Utils.calculateBusinessHours(start, end);
-            const total = (hours * resources).toFixed(1);
+            const total = Math.round(hours * resources);
             hhExeInput.value = total;
         }
     },

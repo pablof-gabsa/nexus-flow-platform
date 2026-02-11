@@ -291,11 +291,11 @@ const ProjectComponent = {
                          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Fecha Fin</label>
-                                <input type="date" name="end_date" id="task-end-date" class="input-primary w-full" onchange="ProjectComponent.calculateExecutedHH()">
+                                <input type="date" name="end_date" id="task-end-date" class="input-primary w-full bg-gray-50 dark:bg-slate-700 cursor-not-allowed" readonly>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Hora Fin</label>
-                                <input type="time" name="end_time" id="task-end-time" class="input-primary w-full" onchange="ProjectComponent.calculateExecutedHH()">
+                                <input type="time" name="end_time" id="task-end-time" class="input-primary w-full bg-gray-50 dark:bg-slate-700 cursor-not-allowed" readonly>
                             </div>
                          </div>
 
@@ -315,7 +315,7 @@ const ProjectComponent = {
                              </div>
                              <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">H/H Ejecutado</label>
-                                <input type="number" name="hh_executed" id="task-hh-exe" step="1" class="input-primary w-full bg-gray-50 dark:bg-slate-700" title="Se calcula al finalizar">
+                                <input type="number" name="hh_executed" id="task-hh-exe" step="1" class="input-primary w-full bg-gray-50 dark:bg-slate-700 cursor-not-allowed" readonly title="Se calcula al finalizar">
                              </div>
                          </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1280,6 +1280,11 @@ const ProjectComponent = {
                     const resources = task.resources || 1;
                     updates.hh_executed = Math.round(businessHours * resources);
                 }
+            } else {
+                // Reset if moving away from Realizado
+                updates.end_date = '';
+                updates.end_time = '';
+                updates.hh_executed = 0;
             }
 
             // Logic: Move to 'Realizados' if marked as done

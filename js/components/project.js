@@ -290,11 +290,19 @@ const ProjectComponent = {
                          <!-- Completion Dates (Visible if Status is Realizado or for manual entry) -->
                          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             <div>
-                                <label class="block text-sm font-medium dark:text-gray-300">Fecha Fin</label>
-                                <input type="date" name="end_date" id="task-end-date" class="input-primary w-full bg-gray-50 dark:bg-slate-700 cursor-not-allowed" readonly>
+                                <label class="block text-sm font-medium dark:text-gray-300">Inicio Real</label>
+                                <input type="date" name="real_start_date" id="task-real-start-date" class="input-primary w-full bg-gray-50 dark:bg-slate-700 cursor-not-allowed" readonly title="Se fija al pasar a En Proceso">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium dark:text-gray-300">Hora Fin</label>
+                                <label class="block text-sm font-medium dark:text-gray-300">Hora Real</label>
+                                <input type="time" name="real_start_time" id="task-real-start-time" class="input-primary w-full bg-gray-50 dark:bg-slate-700 cursor-not-allowed" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Fin Real</label>
+                                <input type="date" name="end_date" id="task-end-date" class="input-primary w-full bg-gray-50 dark:bg-slate-700 cursor-not-allowed" readonly title="Se fija al pasar a Realizado">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Hora Fin Real</label>
                                 <input type="time" name="end_time" id="task-end-time" class="input-primary w-full bg-gray-50 dark:bg-slate-700 cursor-not-allowed" readonly>
                             </div>
                          </div>
@@ -1130,6 +1138,8 @@ const ProjectComponent = {
             // New Fields
             document.getElementById('task-start-date').value = task.start_date || '';
             document.getElementById('task-start-time').value = task.start_time || '';
+            document.getElementById('task-real-start-date').value = task.real_start_date || '';
+            document.getElementById('task-real-start-time').value = task.real_start_time || '';
             document.getElementById('task-end-date').value = task.end_date || '';
             document.getElementById('task-end-time').value = task.end_time || '';
             document.getElementById('task-resources').value = task.resources || 1;
@@ -1218,6 +1228,8 @@ const ProjectComponent = {
 
             start_date: formData.get('start_date'),
             start_time: formData.get('start_time'),
+            real_start_date: formData.get('real_start_date'),
+            real_start_time: formData.get('real_start_time'),
             end_date: formData.get('end_date'),
             end_time: formData.get('end_time'),
             resources: parseInt(formData.get('resources')) || 1,
@@ -1260,19 +1272,19 @@ const ProjectComponent = {
             const timeStr = now.toTimeString().slice(0, 5);
 
             // Auto-Timestamp Logic
-            if (newStatus === 'En Proceso' && !task.start_date) {
-                // If just starting, mark start date
-                updates.start_date = dateStr;
-                updates.start_time = timeStr;
+            if (newStatus === 'En Proceso' && !task.real_start_date) {
+                // If just starting, mark REAL start date
+                updates.real_start_date = dateStr;
+                updates.real_start_time = timeStr;
             }
 
             if (newStatus === 'Realizado') {
-                // Mark end date
+                // Mark REAL end date
                 updates.end_date = dateStr;
                 updates.end_time = timeStr;
 
-                // Calculate Executed H/H if start info exists
-                const startD = task.start_date || updates.start_date;
+                // Calculate Executed H/H using REAL dates
+                const startD = task.real_start_date || updates.real_start_date;
                 const endD = dateStr;
 
                 if (startD && endD) {
@@ -1280,7 +1292,7 @@ const ProjectComponent = {
                     const resources = task.resources || 1;
                     updates.hh_executed = Math.round(businessHours * resources);
                 }
-            } else {
+            } else if (task.estado === 'Realizado' && newStatus !== 'Realizado') {
                 // Reset if moving away from Realizado
                 updates.end_date = '';
                 updates.end_time = '';
@@ -1328,7 +1340,7 @@ const ProjectComponent = {
     },
 
     calculateExecutedHH: () => {
-        const start = document.getElementById('task-start-date').value;
+        const start = document.getElementById('task-real-start-date').value;
         const end = document.getElementById('task-end-date').value; // Actual End Date
         const resources = parseInt(document.getElementById('task-resources').value) || 1;
         const hhExeInput = document.getElementById('task-hh-exe');

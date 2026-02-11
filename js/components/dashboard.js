@@ -1173,6 +1173,12 @@ const DashboardComponent = {
                                     </label>
                                 `).join('')}
                             </div>
+                            <div class="mt-2 text-right">
+                                <button onclick="document.getElementById('${modalId}').classList.add('hidden'); DashboardComponent.manageTemplates()" class="text-xs text-brand-600 hover:text-brand-800 hover:underline">
+                                    <i class="fas fa-cog"></i> Gestionar Plantillas
+                                </button>
+                            </div>
+                            </div>
                         </div>
                     </div>
 

@@ -409,6 +409,11 @@ const DashboardComponent = {
                                         <button onclick="DashboardComponent.toggleProjectStatus('${p.id}', '${p.status}')" class="text-gray-400 hover:text-brand-600 p-1" title="${p.status === 'inactive' ? 'Restaurar' : 'Archivar'}">
                                             <i class="fas fa-${p.status === 'inactive' ? 'box-open' : 'box-archive'}"></i>
                                         </button>
+                                        ${Store.currentContext.role === 'owner' ? `
+                                        <button onclick="DashboardComponent.deleteProject('${p.id}')" class="text-gray-400 hover:text-red-600 p-1 ml-1" title="Eliminar Proyecto">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                        ` : ''}
                                      </div>
                                 </div>
                                 

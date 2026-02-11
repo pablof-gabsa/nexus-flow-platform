@@ -266,26 +266,51 @@ const ProjectComponent = {
                                 <label class="block text-sm font-medium dark:text-gray-300">Vencimiento</label>
                                 <div class="flex gap-2">
                                     <input type="date" name="deadline" id="task-date" class="input-primary mt-1 flex-1">
-                                    <input type="time" name="time" id="task-time" class="input-primary mt-1 w-32" value="00:00">
+                                    <input type="date" name="deadline" id="task-date" class="input-primary mt-1 flex-1" onchange="ProjectComponent.calculateHH()">
+                                    <input type="time" name="time" id="task-time" class="input-primary mt-1 w-32" value="00:00" onchange="ProjectComponent.calculateHH()">
                                 </div>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                             <div>
-                                <label class="block text-sm font-medium dark:text-gray-300">Costo Est.</label>
-                                <input type="number" name="costo" id="task-cost" step="0.01" class="input-primary mt-1">
-                             </div>
-                             <div>
-                                <label class="block text-sm font-medium dark:text-gray-300">H/H Est.</label>
-                                <input type="number" name="hh_estimated" id="task-hh-est" step="0.5" class="input-primary mt-1">
-                             </div>
-                             <div>
-                                <label class="block text-sm font-medium dark:text-gray-300">H/H Eje.</label>
-                                <input type="number" name="hh_executed" id="task-hh-exe" step="0.5" class="input-primary mt-1">
-                             </div>
-                        </div>
+                         <!-- Dates & Resources Row -->
+                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Fecha Inicio</label>
+                                <input type="date" name="start_date" id="task-start-date" class="input-primary w-full" onchange="ProjectComponent.calculateHH()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Hora Inicio</label>
+                                <input type="time" name="start_time" id="task-start-time" class="input-primary w-full" onchange="ProjectComponent.calculateHH()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Fecha Vencim.</label>
+                                <input type="date" name="deadline" id="task-date" class="input-primary w-full" onchange="ProjectComponent.calculateHH()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Hora Vencim.</label>
+                                <input type="time" name="time" id="task-time" class="input-primary w-full" onchange="ProjectComponent.calculateHH()">
+                            </div>
+                         </div>
 
+                         <!-- Resources & Cost Row -->
+                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                             <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Recursos (Cant)</label>
+                                <input type="number" name="resources" id="task-resources" class="input-primary w-full" min="1" value="1" onchange="ProjectComponent.calculateHH()">
+                             </div>
+                             <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Costo ($)</label>
+                                <input type="number" name="costo" id="task-cost" step="0.01" class="input-primary w-full">
+                             </div>
+                             <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">H/H Estimado</label>
+                                <input type="number" name="hh_estimated" id="task-hh-est" step="0.1" class="input-primary w-full bg-gray-50 dark:bg-slate-700" title="Calculado autom. o manual">
+                             </div>
+                             <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">H/H Ejecutado</label>
+                                <input type="number" name="hh_executed" id="task-hh-exe" step="0.1" class="input-primary w-full bg-gray-50 dark:bg-slate-700" title="Se calcula al finalizar">
+                             </div>
+                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Repetición</label>
@@ -753,15 +778,6 @@ const ProjectComponent = {
     },
 
     renderTaskItem: (item) => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        let isOverdue = false;
-        if (item.deadline && item.estado !== 'Realizado' && item.estado !== 'Suspendido') {
-            const [y, m, d] = item.deadline.split('-').map(Number);
-            const deadlineDate = new Date(y, m - 1, d);
-            if (deadlineDate < today) isOverdue = true;
-        }
-
         const statusClass = {
             'Pendiente': 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 border border-amber-200 dark:border-amber-700',
             'En Proceso': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 border border-blue-200 dark:border-blue-700',
@@ -769,29 +785,38 @@ const ProjectComponent = {
             'Suspendido': 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600'
         }[item.estado] || '';
 
-        const overdueClass = isOverdue ? 'border-l-4 border-l-red-500 bg-red-50 dark:bg-red-900/10' : '';
-        const overdueText = isOverdue ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-800 dark:text-gray-200';
+        const now = new Date();
+        const isOverdue = item.deadline && new Date(item.deadline) < now && item.estado !== 'Realizado' && item.estado !== 'Suspendido';
 
-        const subtasksTotal = item.subtasks ? item.subtasks.length : 0;
-        const subtasksDone = item.subtasks ? item.subtasks.filter(s => s.done).length : 0;
+        // Late Start Logic: Start Date passed AND status still 'Pendiente'
+        const isLateStart = item.estado === 'Pendiente' && item.start_date && new Date(item.start_date) < now;
+
+        const overdueClass = isOverdue ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500' :
+            isLateStart ? 'bg-red-50 dark:bg-red-900/10 border-l-4 border-red-400' : // Lighter red for late start
+                'border-l-4 border-transparent';
+
+        // Text color for Late Start
+        const statusTextColor = isLateStart ? 'text-red-500 font-bold' : 'text-gray-900 dark:text-white';
+
         const recurrenceIcon = item.recurrence && item.recurrence.type !== 'none' ?
-            `<i class="fas fa-sync-alt text-blue-500 ml-1" title="Se repite ${item.recurrence.type}"></i>` : '';
+            `<i class="fas fa-sync-alt text-gray-400 ml-2" title="Recurrente: ${item.recurrence.type}"></i>` : '';
 
         return `
-            <li class="p-4 hover:bg-white dark:hover:bg-slate-700/50 transition-colors group ${overdueClass}">
-                <div class="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                    <div class="flex-1 flex items-center gap-3">
-                        ${ProjectComponent.isSelectionMode ? `
-                            <input type="checkbox" 
-                                class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                                ${ProjectComponent.selectedTasks.has(item.id) ? 'checked' : ''}
-                                onchange="ProjectComponent.toggleTaskSelection('${item.id}', this.checked)">
-                        ` : ''}
-                        <div class="flex items-center gap-2">
-                            <p class="font-medium ${overdueText}">${item.requerimiento}</p>
-                            ${item.description ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-xl truncate">${item.description}</p>` : ''}
-                            ${isOverdue ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300">VENCIDA</span>' : ''}
-                            ${item.prioridad === 'Crítico' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-red-600 text-white dark:bg-red-500 font-bold shadow-sm" title="Prioridad Crítica">CRÍTICO</span>' : ''}
+                    <li class="p-4 hover:bg-white dark:hover:bg-slate-700/50 transition-colors group ${overdueClass}">
+                        <div class="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                            <div class="flex-1 flex items-center gap-3">
+                                ${ProjectComponent.isSelectionMode ? `
+                                    <input type="checkbox"
+                                        class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                        ${ProjectComponent.selectedTasks.has(item.id) ? 'checked' : ''}
+                                        onchange="ProjectComponent.toggleTaskSelection('${item.id}', this.checked)">
+                                ` : ''}
+                                <div class="flex items-center gap-2">
+                                    <p class="font-medium ${statusTextColor}">${item.requerimiento}</p>
+                                    ${item.description ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-xl truncate">${item.description}</p>` : ''}
+                                    ${isOverdue ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300">VENCIDA</span>' : ''}
+                                    ${isLateStart ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100/80 text-red-500 dark:bg-red-900/40 dark:text-red-300" title="Fecha de inicio vencida">INICIO ATRASADO</span>' : ''}
+                                    ${item.prioridad === 'Crítico' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-red-600 text-white dark:bg-red-500 font-bold shadow-sm" title="Prioridad Crítica">CRÍTICO</span>' : ''}
                             ${item.prioridad === 'Alta' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800" title="Prioridad Alta">ALTA</span>' : ''}
                             ${item.prioridad === 'Media' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800" title="Prioridad Media">Med</span>' : ''}
                             ${item.prioridad === 'Baja' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800" title="Prioridad Baja">Baja</span>' : ''}
@@ -1088,8 +1113,15 @@ const ProjectComponent = {
             document.getElementById('task-rubro').value = task.rubro;
             document.getElementById('task-resp').value = task.responsable;
             document.getElementById('task-prio').value = task.prioridad;
+            document.getElementById('task-prio').value = task.prioridad;
             document.getElementById('task-date').value = task.deadline || '';
             document.getElementById('task-time').value = task.time || '00:00';
+
+            // New Fields
+            document.getElementById('task-start-date').value = task.start_date || '';
+            document.getElementById('task-start-time').value = task.start_time || '';
+            document.getElementById('task-resources').value = task.resources || 1;
+
             document.getElementById('task-cost').value = task.costo || '';
             document.getElementById('task-hh-est').value = task.hh_estimated || '';
             document.getElementById('task-hh-exe').value = task.hh_executed || '';
@@ -1132,6 +1164,7 @@ const ProjectComponent = {
             document.getElementById('task-rubro').value = ProjectComponent.rubros[0] || '';
             document.getElementById('task-resp').value = ProjectComponent.responsables[0] || '';
             document.getElementById('task-prio').value = 'Media';
+            document.getElementById('task-resources').value = 1;
             ProjectComponent.toggleRecurrenceOptions('none');
         }
 
@@ -1170,6 +1203,11 @@ const ProjectComponent = {
             rubro: formData.get('rubro'),
             responsable: formData.get('responsable'),
             prioridad: formData.get('prioridad'),
+
+            start_date: formData.get('start_date'),
+            start_time: formData.get('start_time'),
+            resources: parseInt(formData.get('resources')) || 1,
+
             deadline: formData.get('deadline'), // YYYY-MM-DD
             time: formData.get('time'), // HH:MM
             costo: parseFloat(formData.get('costo')) || 0,
@@ -1200,6 +1238,35 @@ const ProjectComponent = {
     updateStatus: async (taskId, newStatus) => {
         try {
             const task = ProjectComponent.data.find(t => t.id === taskId);
+            if (!task) return;
+
+            let updates = { estado: newStatus };
+            const now = new Date();
+            const dateStr = Utils.formatDateForInput(now);
+            const timeStr = now.toTimeString().slice(0, 5);
+
+            // Auto-Timestamp Logic
+            if (newStatus === 'En Proceso' && !task.start_date) {
+                // If just starting, mark start date
+                updates.start_date = dateStr;
+                updates.start_time = timeStr;
+            }
+
+            if (newStatus === 'Realizado') {
+                // Mark end date
+                updates.end_date = dateStr;
+                updates.end_time = timeStr;
+
+                // Calculate Executed H/H if start info exists
+                const startD = task.start_date || updates.start_date;
+                const endD = dateStr;
+
+                if (startD && endD) {
+                    const businessHours = Utils.calculateBusinessHours(startD, endD);
+                    const resources = task.resources || 1;
+                    updates.hh_executed = (businessHours * resources).toFixed(1);
+                }
+            }
 
             // Logic: Move to 'Realizados' if marked as done
             if (task && newStatus === 'Realizado' && task.rubro !== 'Realizados') {
@@ -1211,7 +1278,8 @@ const ProjectComponent = {
                         ProjectComponent.rubros = newRubros;
                     }
 
-                    await Store.updateTask(ProjectComponent.projectId, taskId, { estado: newStatus, rubro: 'Realizados' });
+                    updates.rubro = 'Realizados';
+                    await Store.updateTask(ProjectComponent.projectId, taskId, updates);
                     ProjectComponent.refreshUI();
                     UI.showToast('Tarea completada y movida a Realizados', 'success');
                     return;
@@ -1219,11 +1287,24 @@ const ProjectComponent = {
             }
 
             // Default behavior
-            await Store.updateTask(ProjectComponent.projectId, taskId, { estado: newStatus });
+            await Store.updateTask(ProjectComponent.projectId, taskId, updates);
             ProjectComponent.refreshUI();
         } catch (e) {
             console.error(e);
             UI.showToast('Error de conexión', 'error');
+        }
+    },
+
+    calculateHH: () => {
+        const start = document.getElementById('task-start-date').value;
+        const end = document.getElementById('task-date').value; // Deadline
+        const resources = parseInt(document.getElementById('task-resources').value) || 1;
+        const hhEstInput = document.getElementById('task-hh-est');
+
+        if (start && end) {
+            const hours = Utils.calculateBusinessHours(start, end);
+            const total = (hours * resources).toFixed(1);
+            hhEstInput.value = total;
         }
     },
 

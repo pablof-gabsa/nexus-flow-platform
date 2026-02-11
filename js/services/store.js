@@ -207,7 +207,7 @@ const Store = {
         await newRef.set(project);
 
         const projectId = newRef.key;
-        await Store.initializeProjectDefaults(projectId);
+        await Store.initializeProjectDefaults(projectId, projectData.rubros, projectData.responsables);
         await db.ref(`project_data/${projectId}/name`).set(projectData.name);
 
         return { id: projectId, ...project };
@@ -264,12 +264,12 @@ const Store = {
     // Project Data (Tasks, Rubros, etc) - Stored separately for sharing capability
     // Structure: project_data/{projectId}/{tasks|rubros|responsables}
 
-    initializeProjectDefaults: async (projectId) => {
+    initializeProjectDefaults: async (projectId, customRubros = null, customResponsables = null) => {
         const defaultRubros = ['Area 1', 'Area 2', 'Realizados', 'Eliminado'];
         const defaultResponsables = ['Administrador', 'Colaborador 1'];
 
-        await db.ref(`project_data/${projectId}/rubros`).set(defaultRubros);
-        await db.ref(`project_data/${projectId}/responsables`).set(defaultResponsables);
+        await db.ref(`project_data/${projectId}/rubros`).set(customRubros || defaultRubros);
+        await db.ref(`project_data/${projectId}/responsables`).set(customResponsables || defaultResponsables);
     },
 
     getProjectData: async (projectId) => {
@@ -424,6 +424,13 @@ const Store = {
         if (!user) return;
         const ownerId = Store.currentContext.ownerId;
         await db.ref(`users/${ownerId}/project_templates/${id}`).remove();
+    },
+
+    updateProjectTemplate: async (id, updates) => {
+        const user = Auth.getCurrentUser();
+        if (!user) return;
+        const ownerId = Store.currentContext.ownerId;
+        await db.ref(`users/${ownerId}/project_templates/${id}`).update(updates);
     },
 
     // Task Templates

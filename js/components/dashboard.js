@@ -1549,7 +1549,10 @@ const DashboardComponent = {
                         <h4 class="font-bold text-gray-800 dark:text-white text-sm">${t.name}</h4>
                         <p class="text-xs text-gray-500">${t.rubros?.length || 0} Areas, ${t.responsables?.length || 0} Resp.</p>
                     </div>
-                    <button onclick="DashboardComponent.deleteTemplate('${t.id}')" class="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><i class="fas fa-trash"></i></button>
+                    <div class="flex gap-1">
+                        <button onclick="DashboardComponent.editTemplate('${t.id}')" class="text-brand-600 hover:bg-brand-50 p-2 rounded-full transition-colors"><i class="fas fa-edit"></i></button>
+                        <button onclick="DashboardComponent.deleteTemplate('${t.id}')" class="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><i class="fas fa-trash"></i></button>
+                    </div>
                 </div>
              `).join('');
         };
@@ -1570,6 +1573,7 @@ const DashboardComponent = {
                     <p class="text-xs text-gray-500 mb-3">Define la estructura base para nuevos proyectos.</p>
                     
                     <form id="create-template-form" class="space-y-3">
+                        <input type="hidden" id="template-id">
                         <input type="text" id="new-template-name" placeholder="Nombre de la Plantilla" class="input-primary w-full text-sm" required>
                         
                         <div class="grid grid-cols-2 gap-2">
@@ -1583,7 +1587,8 @@ const DashboardComponent = {
                              </div>
                         </div>
 
-                        <button type="submit" class="btn-primary w-full text-sm">Guardar Plantilla</button>
+                        <button type="submit" id="btn-save-template" class="btn-primary w-full text-sm">Guardar Plantilla</button>
+                        <button type="button" id="btn-cancel-edit" onclick="DashboardComponent.resetTemplateForm()" class="btn-secondary w-full text-sm hidden">Cancelar Edición</button>
                     </form>
                 </div>
             </div>
@@ -1593,6 +1598,7 @@ const DashboardComponent = {
 
         document.getElementById('create-template-form').onsubmit = async (e) => {
             e.preventDefault();
+            const templateId = document.getElementById('template-id').value;
             const name = document.getElementById('new-template-name').value.trim();
             const rubrosStr = document.getElementById('new-template-rubros').value;
             const respsStr = document.getElementById('new-template-resps').value;
@@ -1606,15 +1612,51 @@ const DashboardComponent = {
 
             const responsables = respsStr.split(',').map(s => s.trim()).filter(s => s);
 
-            try {
-                await Store.createProjectTemplate({ name, rubros, responsables });
-                UI.showToast("Plantilla creada", "success");
-                document.getElementById(modalId).classList.add('hidden');
-                DashboardComponent.manageTemplates(); // Re-open/Refresh
-            } catch (err) {
-                UI.showToast("Error al guardar plantilla", "error");
+            if (templateId) {
+                // Update
+                try {
+                    await Store.updateProjectTemplate(templateId, { name, rubros, responsables });
+                    UI.showToast("Plantilla actualizada", "success");
+                    DashboardComponent.manageTemplates(); // Refresh
+                } catch (err) {
+                    UI.showToast("Error al actualizar", "error");
+                }
+            } else {
+                // Create
+                try {
+                    await Store.createProjectTemplate({ name, rubros, responsables });
+                    UI.showToast("Plantilla creada", "success");
+                    DashboardComponent.manageTemplates(); // Refresh
+                } catch (err) {
+                    UI.showToast("Error al guardar plantilla", "error");
+                }
             }
         };
+    },
+
+    editTemplate: (id) => {
+        // Find existing data
+        // We need to fetch again or access local closure 'templates' if we are lucky... 
+        // properly we should refetch or store in Component
+        Store.getProjectTemplates().then(templates => {
+            const t = templates.find(x => x.id === id);
+            if (!t) return;
+
+            document.getElementById('template-id').value = t.id;
+            document.getElementById('new-template-name').value = t.name;
+            document.getElementById('new-template-rubros').value = (t.rubros || []).join(', ');
+            document.getElementById('new-template-resps').value = (t.responsables || []).join(', ');
+
+            document.getElementById('btn-save-template').textContent = "Actualizar Plantilla";
+            document.getElementById('btn-cancel-edit').classList.remove('hidden');
+        });
+    },
+
+    resetTemplateForm: () => {
+        document.getElementById('create-template-form').reset();
+        document.getElementById('template-id').value = '';
+        document.getElementById('btn-save-template').textContent = "Guardar Plantilla";
+        document.getElementById('btn-cancel-edit').classList.add('hidden');
     },
 
     deleteTemplate: async (id) => {

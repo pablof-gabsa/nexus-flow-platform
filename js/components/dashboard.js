@@ -976,14 +976,21 @@ const DashboardComponent = {
 
         /* Removed local DOM reading */
 
-        // Global Sort: Project Name -> Deadline
+        // Global Sort: Deadline -> Project Name
         filtered.sort((a, b) => {
-            const pC = a.projectName.localeCompare(b.projectName);
-            if (pC !== 0) return pC;
-            if (a.deadline && b.deadline) return a.deadline.localeCompare(b.deadline);
-            if (a.deadline) return -1;
-            if (b.deadline) return 1;
-            return 0;
+            // 1. Deadline (Earliest first)
+            // Handle limits: if one has deadline and other doesn't
+            if (a.deadline && !b.deadline) return -1; // a comes first
+            if (!a.deadline && b.deadline) return 1;  // b comes first
+
+            // Both have deadline?
+            if (a.deadline && b.deadline) {
+                const dC = a.deadline.localeCompare(b.deadline);
+                if (dC !== 0) return dC;
+            }
+
+            // Fallback (or if neither has deadline): Sort by Project Name
+            return a.projectName.localeCompare(b.projectName);
         });
 
         const toShow = filtered.slice(0, limit);

@@ -10,7 +10,8 @@ const DashboardComponent = {
     currentEditingTask: null,
     globalFilters: {
         priority: 'all',
-        responsible: 'all'
+        responsible: 'all',
+        status: 'active'
     },
     projectSettings: (() => {
         try {
@@ -595,6 +596,15 @@ const DashboardComponent = {
                     <span class="font-medium text-sm">Filtros Globales:</span>
                 </div>
                 
+                <select onchange="DashboardComponent.setGlobalFilter('status', this.value)" class="input-primary text-sm py-1.5 w-auto">
+                    <option value="active" ${DashboardComponent.globalFilters.status === 'active' ? 'selected' : ''}>Activas (Pend/Proc)</option>
+                    <option value="all" ${DashboardComponent.globalFilters.status === 'all' ? 'selected' : ''}>Todas</option>
+                    <option value="Pendiente" ${DashboardComponent.globalFilters.status === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                    <option value="En Proceso" ${DashboardComponent.globalFilters.status === 'En Proceso' ? 'selected' : ''}>En Proceso</option>
+                    <option value="Realizado" ${DashboardComponent.globalFilters.status === 'Realizado' ? 'selected' : ''}>Realizado</option>
+                    <option value="Suspendido" ${DashboardComponent.globalFilters.status === 'Suspendido' ? 'selected' : ''}>Suspendido</option>
+                </select>
+
                 <select onchange="DashboardComponent.setGlobalFilter('responsible', this.value)" class="input-primary text-sm py-1.5 w-auto">
                     <option value="all" ${DashboardComponent.globalFilters.responsible === 'all' ? 'selected' : ''}>Todos los Responsables</option>
                     ${[...DashboardComponent.allResponsables].sort().map(r => `<option value="${r}" ${DashboardComponent.globalFilters.responsible === r ? 'selected' : ''}>${r}</option>`).join('')}
@@ -749,13 +759,22 @@ const DashboardComponent = {
     },
 
     clearGlobalFilters: () => {
-        DashboardComponent.globalFilters = { priority: 'all', responsible: 'all' };
+        DashboardComponent.globalFilters = { priority: 'all', responsible: 'all', status: 'active' };
         DashboardComponent.render(document.getElementById('main-content'));
     },
 
     getFilteredTasks: () => {
         return DashboardComponent.allTasks.filter(t => {
-            if (t.estado === 'Realizado' || t.estado === 'Suspendido') return false; // Base filter
+            // Status Filter
+            const sFilter = DashboardComponent.globalFilters.status || 'active'; // Default safety
+
+            if (sFilter === 'active') {
+                if (t.estado === 'Realizado' || t.estado === 'Suspendido') return false;
+            } else if (sFilter !== 'all') {
+                // Specific status
+                if (t.estado !== sFilter) return false;
+            }
+            // if 'all', logic passes (no return false based on status)
 
             if (DashboardComponent.globalFilters.responsible !== 'all' && t.responsable !== DashboardComponent.globalFilters.responsible) return false;
             if (DashboardComponent.globalFilters.priority !== 'all' && t.prioridad !== DashboardComponent.globalFilters.priority) return false;

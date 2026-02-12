@@ -372,6 +372,9 @@ const Store = {
                     ...task,
                     estado: 'Pendiente',
                     deadline: nextDate.toISOString().split('T')[0],
+                    real_start_date: '',
+                    end_date: '',
+                    hh_executed: 0,
                     subtasks: task.subtasks ? task.subtasks.map(s => ({ ...s, done: false })) : []
                 };
 

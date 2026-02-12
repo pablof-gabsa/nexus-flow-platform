@@ -303,7 +303,7 @@ const ProjectComponent = {
                          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                              <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Recursos (Cant)</label>
-                                <input type="number" name="resources" id="task-resources" class="input-primary w-full" min="1" value="1" onchange="ProjectComponent.calculateHH(); ProjectComponent.calculateExecutedHH()">
+                                <input type="number" name="resources" id="task-resources" class="input-primary w-full" min="0" value="0" onchange="ProjectComponent.calculateHH(); ProjectComponent.calculateExecutedHH()">
                              </div>
                              <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Costo ($)</label>
@@ -1129,10 +1129,10 @@ const ProjectComponent = {
 
             // New Fields
             document.getElementById('task-start-date').value = task.start_date || '';
-            document.getElementById('task-start-time').value = task.start_time || '';
+            document.getElementById('task-start-time').value = task.start_time || '00:00';
             document.getElementById('task-real-start-date').value = task.real_start_date || '';
             document.getElementById('task-end-date').value = task.end_date || '';
-            document.getElementById('task-resources').value = task.resources || 1;
+            document.getElementById('task-resources').value = (task.resources !== undefined && task.resources !== null) ? task.resources : 0;
 
             document.getElementById('task-cost').value = task.costo || '';
             document.getElementById('task-hh-est').value = task.hh_estimated || '';
@@ -1176,7 +1176,8 @@ const ProjectComponent = {
             document.getElementById('task-rubro').value = ProjectComponent.rubros[0] || '';
             document.getElementById('task-resp').value = ProjectComponent.responsables[0] || '';
             document.getElementById('task-prio').value = 'Media';
-            document.getElementById('task-resources').value = 1;
+            document.getElementById('task-start-time').value = '00:00';
+            document.getElementById('task-resources').value = 0;
             ProjectComponent.toggleRecurrenceOptions('none');
         }
 
@@ -1220,7 +1221,7 @@ const ProjectComponent = {
             start_time: formData.get('start_time'),
             real_start_date: formData.get('real_start_date'),
             end_date: formData.get('end_date'),
-            resources: parseInt(formData.get('resources')) || 1,
+            resources: parseInt(formData.get('resources')),
 
             deadline: formData.get('deadline'), // YYYY-MM-DD
             time: formData.get('time'), // HH:MM
@@ -1314,7 +1315,8 @@ const ProjectComponent = {
     calculateHH: () => {
         const start = document.getElementById('task-start-date').value;
         const end = document.getElementById('task-date').value; // Deadline
-        const resources = parseInt(document.getElementById('task-resources').value) || 1;
+        const resVal = parseInt(document.getElementById('task-resources').value);
+        const resources = isNaN(resVal) ? 0 : resVal;
         const hhEstInput = document.getElementById('task-hh-est');
 
         if (start && end) {
@@ -1327,7 +1329,8 @@ const ProjectComponent = {
     calculateExecutedHH: () => {
         const start = document.getElementById('task-real-start-date').value;
         const end = document.getElementById('task-end-date').value; // Actual End Date
-        const resources = parseInt(document.getElementById('task-resources').value) || 1;
+        const resVal = parseInt(document.getElementById('task-resources').value);
+        const resources = isNaN(resVal) ? 0 : resVal;
         const hhExeInput = document.getElementById('task-hh-exe');
 
         if (start && end) {

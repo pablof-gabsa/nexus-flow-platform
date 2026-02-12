@@ -293,8 +293,18 @@ const Store = {
 
             if (task && task.recurrence && task.recurrence.type !== 'none') {
                 // Calculate next date
+                // Calculate next date
                 const recurrence = task.recurrence;
-                let nextDate = new Date();
+                let nextDate;
+
+                if (task.deadline) {
+                    const parts = task.deadline.split('-');
+                    // Use Noon to avoid DST/Timezone issues when doing date math
+                    nextDate = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+                } else {
+                    nextDate = new Date();
+                }
+
                 const deadline = task.deadline ? new Date(task.deadline) : new Date();
 
                 // --- Advanced Recurrence Logic ---

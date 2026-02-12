@@ -368,10 +368,38 @@ const Store = {
                 }
 
                 // Create New Task
+                const newDeadline = nextDate.toISOString().split('T')[0];
+                let newStartDate = '';
+
+                // Calculate duration to shift start_date accordingly
+                if (task.deadline && task.start_date) {
+                    const oldDeadline = new Date(task.deadline).getTime();
+                    const oldStart = new Date(task.start_date).getTime();
+                    const duration = oldDeadline - oldStart;
+
+                    if (duration >= 0) {
+                        const newDeadlineTime = new Date(newDeadline).getTime();
+                        // New Start = New Deadline - Old Duration
+                        // Using noon to avoid timezone shifts when setting date string
+                        const newStartObj = new Date(newDeadlineTime - duration);
+                        // Adjust to ensure we get the correct YYYY-MM-DD
+                        newStartObj.setMinutes(newStartObj.getMinutes() + newStartObj.getTimezoneOffset());
+                        // Actually, simpler: just subtract milliseconds from the date object
+
+                        // Robust Date String:
+                        const d = new Date(newDeadlineTime - duration);
+                        // Add timezone offset to ensure T00:00:00 doesn't shift to previous day in UTC
+                        const userTimezoneOffset = d.getTimezoneOffset() * 60000;
+                        const localDate = new Date(d.getTime() + userTimezoneOffset);
+                        newStartDate = localDate.toISOString().split('T')[0];
+                    }
+                }
+
                 const newTask = {
                     ...task,
                     estado: 'Pendiente',
-                    deadline: nextDate.toISOString().split('T')[0],
+                    deadline: newDeadline,
+                    start_date: newStartDate || task.start_date, // Fallback to old if calc fails, or better, keep duration logic
                     real_start_date: '',
                     end_date: '',
                     hh_executed: 0,

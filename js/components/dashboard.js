@@ -346,18 +346,9 @@ const DashboardComponent = {
             // 1. Filter
             list = list.filter(p => !hidden[p.id]);
 
-            // 2. Sort
+            // 2. Sort - Alphabetical Order enforced
             list.sort((a, b) => {
-                const idxA = order.indexOf(a.id);
-                const idxB = order.indexOf(b.id);
-                // If both in order list, sort by index
-                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-                // If only A in list, put A first
-                if (idxA !== -1) return -1;
-                // If only B in list, put B first
-                if (idxB !== -1) return 1;
-                // Fallback to name or date
-                return b.createdAt.localeCompare(a.createdAt);
+                return a.name.localeCompare(b.name);
             });
         }
 

@@ -467,12 +467,12 @@ const ProjectComponent = {
                 <div class="h-8 w-px bg-indigo-500"></div>
                 <div class="flex gap-2">
                     <button onclick="ProjectComponent.toggleSelectionMode()" class="px-4 py-2 text-sm hover:bg-indigo-700 rounded-lg transition-colors">Cancelar</button>
-                    ${IntegrationsComponent.isEnabled('octavo_piso') ? `
+                    ${(IntegrationsComponent.isEnabled('octavo_piso') || ProjectComponent.isShared) ? `
                     <button onclick="ProjectComponent.executeOctavoExport()" class="bg-white text-indigo-600 px-6 py-2 rounded-lg font-bold hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" ${ProjectComponent.selectedTasks.size === 0 ? 'disabled' : ''}>
                         Exportar Octavo
                     </button>
                     ` : ''}
-                     ${IntegrationsComponent.isEnabled('google_calendar') ? `
+                     ${(IntegrationsComponent.isEnabled('google_calendar') || ProjectComponent.isShared) ? `
                     <button onclick="ProjectComponent.executeCalendarExport()" class="bg-white text-blue-600 px-6 py-2 rounded-lg font-bold hover:bg-blue-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2" ${ProjectComponent.selectedTasks.size === 0 ? 'disabled' : ''}>
                         <i class="fas fa-calendar-plus"></i> Exp. Calendar
                     </button>

@@ -84,7 +84,7 @@ const ProjectComponent = {
                         </h2>
                     </div>
                     
-                    <div class="flex flex-wrap gap-2 pointer-events-${ProjectComponent.isEditable ? 'auto' : 'none'} ${ProjectComponent.isEditable ? '' : 'opacity-50'}">
+                    <div class="flex flex-wrap gap-2">
 
                         ${ProjectComponent.isEditable ? `
                         <div class="flex items-center shadow-lg shadow-brand-500/30 rounded-lg">
@@ -92,13 +92,15 @@ const ProjectComponent = {
                                 <i class="fas fa-plus"></i> <span class="hidden sm:inline">Nueva Tarea</span>
                             </button>
                         </div>
+                        ` : ''}
 
-                        ${(IntegrationsComponent.isEnabled('octavo_piso') || IntegrationsComponent.isEnabled('google_calendar')) ? `
-                        <button onclick="ProjectComponent.toggleSelectionMode()" class="bg-white dark:bg-slate-800 text-indigo-600 border border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-2" title="Integraciones">
+                        ${/* INTEGRATIONS: Show if Enabled OR Shared (standard ones are always on for shared) */ ''}
+                        ${(IntegrationsComponent.isEnabled('octavo_piso') || IntegrationsComponent.isEnabled('google_calendar') || ProjectComponent.isShared) ? `
+                        <button onclick="ProjectComponent.toggleSelectionMode()" class="bg-white dark:bg-slate-800 text-indigo-600 border border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-2 pointer-events-auto opacity-100" title="Integraciones">
                             <i class="fas fa-plug"></i> <span>Integraciones</span>
                         </button>
                         ` : ''}
-                        ` : ''}
+                        
                         
                         ${!ProjectComponent.isShared ? `
                         <button onclick="ProjectComponent.shareProject()" class="btn-secondary text-sm px-4">
@@ -108,7 +110,7 @@ const ProjectComponent = {
 
 
                         <div class="relative group">
-                            <button class="btn-secondary text-sm px-4">
+                            <button class="btn-secondary text-sm px-4 pointer-events-auto opacity-100">
                                 <i class="fas fa-cog"></i> <span class="hidden sm:inline">Configuración</span>
                             </button>
                             <!-- Dropdown Wrapper -->
@@ -1965,7 +1967,14 @@ const ProjectComponent = {
     },
 
     toggleTheme: () => {
-        document.documentElement.classList.toggle('dark');
+        const html = document.documentElement;
+        if (html.classList.contains('dark')) {
+            html.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        } else {
+            html.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
     },
 
     // Management Actions

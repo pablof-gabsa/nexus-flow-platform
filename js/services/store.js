@@ -172,22 +172,18 @@ const Store = {
 
     removeAdmin: async (email) => {
         const user = Auth.getCurrentUser();
-        if (Store.currentContext.role !== 'owner') return;
+        if (Store.currentContext.role !== 'owner') {
+            throw new Error("Solo el propietario puede revocar accesos");
+        }
 
         const emailKey = email.replace(/\./g, ',');
 
+        // 1. Remove from Global Map (Multi-Tenant)
         await db.ref(`admin_map/${emailKey}/${user.uid}`).remove();
-        // Remove from both to be safe
+
+        // 2. Remove from both new and legacy structures to be safe
         await db.ref(`users/${user.uid}/config/admins/${emailKey}`).remove();
         await db.ref(`users/${user.uid}/authorized_admins/${emailKey}`).remove();
-    },
-
-    removeAdmin: async (email) => {
-        const user = Auth.getCurrentUser();
-        const emailKey = email.replace(/\./g, ',');
-
-        await db.ref(`admin_map/${emailKey}/${user.uid}`).remove();
-        await db.ref(`users/${user.uid}/config/admins/${emailKey}`).remove();
     },
 
     createProject: async (projectData) => {

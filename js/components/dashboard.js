@@ -1536,9 +1536,16 @@ const DashboardComponent = {
             try {
                 await Store.removeAdmin(email);
                 UI.showToast("Acceso revocado", "success");
-                document.getElementById('manage-admins-modal').classList.add('hidden');
-                DashboardComponent.manageAdmins(); // Refresh
+
+                // Safety check: only hide if it exists and is not already hidden (though hide usually doesn't throw, 
+                // but let's be sure we're not causing TypeErrors)
+                const modal = document.getElementById('manage-admins-modal');
+                if (modal) modal.classList.add('hidden');
+
+                // Correct Refresh: render the full main content to update the table
+                DashboardComponent.render(document.getElementById('main-content'));
             } catch (err) {
+                console.error(err);
                 UI.showToast("Error al eliminar", "error");
             }
         }

@@ -179,9 +179,16 @@ const Store = {
         const emailKey = email.replace(/\./g, ',');
 
         // 1. Remove from Global Map (Multi-Tenant)
+        // Modern structure
         await db.ref(`admin_map/${emailKey}/${user.uid}`).remove();
 
-        // 2. Remove from both new and legacy structures to be safe
+        // Legacy structure cleanup: if the map has a direct 'ownerId' field matching this owner
+        const legacySnap = await db.ref(`admin_map/${emailKey}/ownerId`).once('value');
+        if (legacySnap.val() === user.uid) {
+            await db.ref(`admin_map/${emailKey}`).remove();
+        }
+
+        // 2. Remove from both new and legacy structures in owner's tree to be safe
         await db.ref(`users/${user.uid}/config/admins/${emailKey}`).remove();
         await db.ref(`users/${user.uid}/authorized_admins/${emailKey}`).remove();
     },

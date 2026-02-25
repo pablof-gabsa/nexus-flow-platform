@@ -166,6 +166,18 @@
                 navigator.serviceWorker.register('sw.js')
                     .then(registration => {
                         console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        
+                        // Check for updates immediately
+                        registration.update();
+
+                        // Logic to reload when a new Service Worker takes over
+                        let refreshing = false;
+                        navigator.serviceWorker.addEventListener('controllerchange', () => {
+                            if (refreshing) return;
+                            refreshing = true;
+                            console.log('New version detected - Reloading page...');
+                            window.location.reload();
+                        });
                     })
                     .catch(err => {
                         console.log('ServiceWorker registration failed: ', err);

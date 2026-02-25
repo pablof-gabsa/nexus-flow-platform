@@ -529,11 +529,12 @@ const Store = {
         const user = Auth.getCurrentUser();
         if (!user) throw new Error("Usuario no autenticado");
 
-        // Create a unique path: uploads/{ownerId}/{timestamp}_{filename}
-        const ownerId = Store.currentContext.ownerId;
+        // Create a unique path: uploads/{uploaderUid}/{timestamp}_{filename}
+        // Using user.uid ensures admins can write to their own folder per Storage Rules
+        const uploaderId = user.uid;
         const timestamp = Date.now();
         const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-        const path = `uploads/${ownerId}/${timestamp}_${safeName}`;
+        const path = `uploads/${uploaderId}/${timestamp}_${safeName}`;
 
         const ref = storage.ref(path);
 

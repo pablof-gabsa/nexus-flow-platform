@@ -41,6 +41,24 @@ const ProjectComponent = {
         ProjectComponent.isShared = !!options.isShared;
         ProjectComponent.isEditable = options.isEditable !== false;
 
+        // Load Persisted Filters
+        const savedFilters = localStorage.getItem(`project_filters_${projectId}`);
+        if (savedFilters) {
+            try {
+                ProjectComponent.filters = JSON.parse(savedFilters);
+            } catch (e) {
+                console.warn("Error parsing saved filters", e);
+            }
+        } else {
+            // Reset to defaults
+            ProjectComponent.filters = {
+                status: 'Todos',
+                priority: 'Todos',
+                date: 'Todas',
+                responsible: 'Todos'
+            };
+        }
+
         // Fetch Project Data
         // If Shared, we bypass the secure Store.getProject and go straight to public data
         let projectInfo;
@@ -576,6 +594,12 @@ const ProjectComponent = {
 
     setFilter: (type, value) => {
         ProjectComponent.filters[type] = value;
+
+        // Persist Filters
+        if (ProjectComponent.projectId) {
+            localStorage.setItem(`project_filters_${ProjectComponent.projectId}`, JSON.stringify(ProjectComponent.filters));
+        }
+
         ProjectComponent.render(document.getElementById('main-content'), ProjectComponent.projectId, {
             isShared: ProjectComponent.isShared,
             isEditable: ProjectComponent.isEditable
@@ -583,9 +607,6 @@ const ProjectComponent = {
 
         // If modal is open, re-render it to update selection state
         const modal = document.getElementById('filter-modal');
-        if (modal && !modal.classList.contains('hidden')) {
-            ProjectComponent.openFilterModal();
-        }
         if (modal && !modal.classList.contains('hidden')) {
             ProjectComponent.openFilterModal();
         }
@@ -634,8 +655,11 @@ const ProjectComponent = {
 
             // Date / Due
             if (ProjectComponent.filters.date !== 'Todas') {
-                if (!t.deadline) return false;
-                const d = new Date(t.deadline);
+                // Priority: start_date, fallback: deadline
+                const taskDate = t.start_date || t.deadline;
+                if (!taskDate) return false;
+
+                const d = new Date(taskDate);
                 // fix strict date comparison by resetting time
                 const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
@@ -643,20 +667,27 @@ const ProjectComponent = {
                 today.setHours(0, 0, 0, 0);
 
                 if (ProjectComponent.filters.date === 'Vencidas') {
-                    // Overdue and NOT done
+                    // Overdue and NOT done (using deadline for "Overdue" specifically makes more sense than start_date, 
+                    // but according to requirements we prioritize start_date then deadline for the "Fecha" filter logic)
                     if (t.estado === 'Realizado' || t.estado === 'Suspendido') return false;
                     return dDate < today;
                 }
-                if (ProjectComponent.filters.date === 'Vencen Hoy') return dDate.getTime() === today.getTime();
+                if (ProjectComponent.filters.date === 'Hoy') return dDate.getTime() === today.getTime();
 
-                if (ProjectComponent.filters.date === 'Vencen este mes') {
+                if (ProjectComponent.filters.date === 'Este Mes') {
                     return dDate.getMonth() === today.getMonth() && dDate.getFullYear() === today.getFullYear();
                 }
 
-                if (ProjectComponent.filters.date === 'Próximas (7d)') {
+                if (ProjectComponent.filters.date === 'Próximos 7d') {
                     const nextWeek = new Date(today);
                     nextWeek.setDate(today.getDate() + 7);
                     return dDate >= today && dDate <= nextWeek;
+                }
+
+                if (ProjectComponent.filters.date === 'Próximos 30d') {
+                    const nextMonth = new Date(today);
+                    nextMonth.setDate(today.getDate() + 30);
+                    return dDate >= today && dDate <= nextMonth;
                 }
             }
 
@@ -706,11 +737,11 @@ const ProjectComponent = {
                         </div>
                     </div>
 
-                    <!-- Due Date -->
+                    <!-- Date Filter -->
                     <div>
-                        <h4 class="font-bold text-sm text-gray-900 dark:text-white mb-2">Vencimiento</h4>
+                        <h4 class="font-bold text-sm text-gray-900 dark:text-white mb-2">Fecha</h4>
                         <div class="flex flex-wrap gap-2">
-                             ${['Todas', 'Vencidas', 'Vencen Hoy', 'Vencen este mes', 'Próximas (7d)'].map(val =>
+                             ${['Todas', 'Vencidas', 'Hoy', 'Este Mes', 'Próximos 7d', 'Próximos 30d'].map(val =>
             `<button onclick="ProjectComponent.setFilter('date', '${val}')" class="px-4 py-2 rounded-full text-sm font-medium border transition-colors ${pillClass(f.date === val)}">${val}</button>`
         ).join('')}
                         </div>

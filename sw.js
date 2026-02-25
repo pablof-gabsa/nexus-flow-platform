@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v14'; // Incremented to v14 for automatic update enforcement
+const CACHE_NAME = 'nexus-flow-v15'; // Incremented to v15 for filter logic updates
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

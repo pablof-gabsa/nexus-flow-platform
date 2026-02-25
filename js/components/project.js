@@ -46,6 +46,22 @@ const ProjectComponent = {
         let projectInfo;
         if (ProjectComponent.isShared) {
             const data = await Store.getProjectData(projectId);
+
+            // SECURITY: Validate Token
+            const token = options.params ? options.params.get('t') : null;
+            if (!data.sharingToken || data.sharingToken !== token) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+                        <div class="bg-red-50 dark:bg-red-900/20 p-8 rounded-2xl border border-red-100 dark:border-red-900/30 max-w-sm">
+                            <i class="fas fa-link-slash text-5xl text-red-500 mb-4"></i>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Enlace expirado o inválido</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">El propietario ha cambiado el enlace de acceso o este ya no es válido.</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
             // Create dummy project info from public data
             projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido', ...data };
         } else {
@@ -1380,7 +1396,7 @@ const ProjectComponent = {
         }
     },
 
-    shareProject: () => {
+    shareProject: async () => {
         const modalId = 'share-modal';
         let modal = document.getElementById(modalId);
 
@@ -1391,12 +1407,15 @@ const ProjectComponent = {
             document.body.appendChild(modal);
         }
 
+        const data = await Store.getProjectData(ProjectComponent.projectId);
+        const token = data.sharingToken || '';
+
         // Base URL logic: remove query params and ensure we point to #/share/ID
         const baseUrl = window.location.href.split('?')[0].replace('#/dashboard', '').replace('#/project/', '#/share/');
-        // If we are already at #/project/ID, the replace works. 
-        // Safer: construct from origin + hash
         const cleanHash = window.location.hash.split('?')[0].replace('#/project/', '#/share/');
         const projectUrl = window.location.origin + window.location.pathname + cleanHash;
+
+        const isOwner = Store.currentContext.role === 'owner';
 
         modal.innerHTML = `
             <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-scale-up">
@@ -1407,7 +1426,7 @@ const ProjectComponent = {
 
                 <div class="space-y-4">
                     <!-- Edit Option -->
-                    <div class="glass-card p-4 rounded-xl border border-blue-100 dark:border-blue-900 hover:border-blue-300 transition-colors cursor-pointer group" onclick="ProjectComponent.copyLink('${projectUrl}?mode=edit')">
+                    <div class="glass-card p-4 rounded-xl border border-blue-100 dark:border-blue-900 hover:border-blue-300 transition-colors cursor-pointer group" onclick="ProjectComponent.copyLink('${projectUrl}?mode=edit&t=${token}')">
                         <div class="flex items-center gap-4">
                             <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-full text-blue-600 dark:text-blue-300">
                                 <i class="fas fa-edit text-xl"></i>
@@ -1421,7 +1440,7 @@ const ProjectComponent = {
                     </div>
 
                     <!-- Read Only Option -->
-                    <div class="glass-card p-4 rounded-xl border border-green-100 dark:border-green-900 hover:border-green-300 transition-colors cursor-pointer group" onclick="ProjectComponent.copyLink('${projectUrl}?mode=readonly')">
+                    <div class="glass-card p-4 rounded-xl border border-green-100 dark:border-green-900 hover:border-green-300 transition-colors cursor-pointer group" onclick="ProjectComponent.copyLink('${projectUrl}?mode=readonly&t=${token}')">
                         <div class="flex items-center gap-4">
                             <div class="bg-green-100 dark:bg-green-900 p-3 rounded-full text-green-600 dark:text-green-300">
                                 <i class="fas fa-eye text-xl"></i>
@@ -1433,6 +1452,15 @@ const ProjectComponent = {
                             <i class="fas fa-chevron-right ml-auto text-gray-300 group-hover:text-brand-500"></i>
                         </div>
                     </div>
+
+                    ${isOwner ? `
+                    <div class="pt-4 border-t border-gray-100 dark:border-slate-700">
+                        <button onclick="ProjectComponent.rotateLink()" class="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/30 transition-colors font-semibold text-sm">
+                            <i class="fas fa-rotate"></i> Cambiar Enlace Activo
+                        </button>
+                        <p class="text-[10px] text-amber-500 text-center mt-2 italic">Esto invalidará todos los links que hayas compartido previamente.</p>
+                    </div>
+                    ` : ''}
                 </div>
 
                 <p class="text-center text-xs text-gray-400 mt-6">
@@ -1442,6 +1470,20 @@ const ProjectComponent = {
         `;
 
         modal.classList.remove('hidden');
+    },
+
+    rotateLink: async () => {
+        if (!await UI.confirm("¿Seguro que querés cambiar el enlace? Los links compartidos dejarán de funcionar.")) return;
+
+        try {
+            await Store.rotateSharingToken(ProjectComponent.projectId);
+            UI.showToast("Enlace rotado con éxito", "success");
+            // Re-open sharing modal to show new links
+            ProjectComponent.shareProject();
+        } catch (err) {
+            console.error(err);
+            UI.showToast("Error al rotar enlace", "error");
+        }
     },
 
     copyLink: (url) => {

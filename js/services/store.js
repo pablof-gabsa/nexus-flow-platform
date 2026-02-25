@@ -193,6 +193,13 @@ const Store = {
         await db.ref(`users/${user.uid}/authorized_admins/${emailKey}`).remove();
     },
 
+    rotateSharingToken: async (projectId) => {
+        if (Store.currentContext.role !== 'owner') throw new Error("Acción restringida");
+        const newToken = Utils.generateId().slice(0, 8);
+        await db.ref(`project_data/${projectId}/sharingToken`).set(newToken);
+        return newToken;
+    },
+
     createProject: async (projectData) => {
         const user = Auth.getCurrentUser();
         if (!user) throw new Error("No authenticated user");
@@ -210,8 +217,10 @@ const Store = {
         await newRef.set(project);
 
         const projectId = newRef.key;
+        const sharingToken = Utils.generateId(8);
         await Store.initializeProjectDefaults(projectId, projectData.rubros, projectData.responsables);
         await db.ref(`project_data/${projectId}/name`).set(projectData.name);
+        await db.ref(`project_data/${projectId}/sharingToken`).set(sharingToken);
 
         return { id: projectId, ...project };
     },
@@ -277,7 +286,17 @@ const Store = {
 
     getProjectData: async (projectId) => {
         const snapshot = await db.ref(`project_data/${projectId}`).once('value');
-        return snapshot.val() || { tasks: {}, rubros: [], responsables: [], name: 'Proyecto Compartido' };
+        const val = snapshot.val();
+        if (!val) return { tasks: {}, rubros: [], responsables: [], name: 'Proyecto Compartido', sharingToken: '' };
+
+        // Lazy initialization for existing projects
+        if (!val.sharingToken) {
+            const token = Utils.generateId(8);
+            await db.ref(`project_data/${projectId}/sharingToken`).set(token);
+            val.sharingToken = token;
+        }
+
+        return val;
     },
 
     // Tasks

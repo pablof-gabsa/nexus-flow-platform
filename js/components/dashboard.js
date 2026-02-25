@@ -252,7 +252,7 @@ const DashboardComponent = {
                 <div class="glass-card p-5 rounded-2xl flex items-center justify-between cursor-pointer hover:shadow-md transition-all" onclick="DashboardComponent.switchView('projects')">
                     <div>
                         <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Proyectos Activos</p>
-                        <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">${DashboardComponent.projects.filter(p => p.status !== 'inactive').length}</p>
+                        <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">${DashboardComponent.projects.filter(p => p.status !== 'inactive' && !DashboardComponent.projectSettings?.hidden?.[p.id]).length}</p>
                     </div>
                     <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
                         <i class="fas fa-project-diagram text-xl"></i>
@@ -764,8 +764,13 @@ const DashboardComponent = {
     },
 
     getFilteredTasks: () => {
+        const hidden = DashboardComponent.projectSettings?.hidden || {};
+
         return DashboardComponent.allTasks.filter(t => {
-            // Status Filter
+            // 1. Visibility Filter (By Project)
+            if (hidden[t.projectId]) return false;
+
+            // 2. Status Filter
             const sFilter = DashboardComponent.globalFilters.status || 'active'; // Default safety
 
             if (sFilter === 'active') {

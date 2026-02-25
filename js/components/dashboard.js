@@ -410,7 +410,9 @@ const DashboardComponent = {
                                 </div>
                                 
                                 <h3 class="font-bold text-gray-900 dark:text-white text-lg mb-1 truncate">${p.name}</h3>
-                                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">${p.description || 'Sin descripción'}</p>
+                                 ${(p.description && p.description !== 'Nuevo proyecto' && p.description !== 'Sin descripción') ? `
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">${p.description}</p>
+                                 ` : ''}
                                 
                                 <div class="space-y-2">
                                     <div class="flex justify-between text-xs text-gray-500">
@@ -1155,7 +1157,7 @@ const DashboardComponent = {
             const name = prompt("Nombre del Proyecto:");
             if (!name) return;
             try {
-                await Store.createProject({ name, description: 'Nuevo proyecto', createdAt: new Date().toISOString() });
+                await Store.createProject({ name, description: '', createdAt: new Date().toISOString() });
                 UI.showToast("Proyecto creado exitosamente", "success");
                 DashboardComponent.render(document.getElementById('main-content'));
             } catch (e) { UI.showToast("Error al crear proyecto", "error"); }
@@ -1229,7 +1231,7 @@ const DashboardComponent = {
                 }
 
                 try {
-                    let projectData = { name, description: 'Nuevo proyecto', createdAt: new Date().toISOString() };
+                    let projectData = { name, description: '', createdAt: new Date().toISOString() };
 
                     // Apply Template Data
                     if (templateId !== 'blank') {

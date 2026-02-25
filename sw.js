@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v15'; // Incremented to v15 for filter logic updates
+const CACHE_NAME = 'nexus-flow-v16'; // Removed default project descriptions
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

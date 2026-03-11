@@ -1041,10 +1041,6 @@ const ProjectComponent = {
     // Attachments Logic
     handleFileSelect: async (event) => {
         const files = Array.from(event.target.files);
-        if (ProjectComponent.currentAttachments.length + files.length > 3) {
-            UI.showToast('Máximo 3 adjuntos por tarea', 'warning');
-            return;
-        }
 
         // 1. Upload Loop
         for (const file of files) {

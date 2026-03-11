@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v16'; // Removed default project descriptions
+const CACHE_NAME = 'nexus-flow-v17'; // Version updated to force refresh after removing attachment limit
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

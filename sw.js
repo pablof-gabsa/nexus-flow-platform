@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v17'; // Version updated to force refresh after removing attachment limit
+const CACHE_NAME = 'nexus-flow-v18'; // Version updated to force refresh after fixing collaborator task templates
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

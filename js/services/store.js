@@ -465,8 +465,8 @@ const Store = {
     createProjectTemplate: async (templateData) => {
         const user = Auth.getCurrentUser();
         if (!user) return;
-        // Templates belong to the OWNER
-        const ownerId = Store.currentContext.ownerId;
+        // Templates belong to the OWNER or the user themselves in shared mode
+        const ownerId = Store.currentContext.ownerId || user.uid;
         const ref = db.ref(`users/${ownerId}/project_templates`).push();
         const template = { ...templateData, id: ref.key, createdBy: user.email };
         await ref.set(template);
@@ -476,7 +476,7 @@ const Store = {
     getProjectTemplates: async () => {
         const user = Auth.getCurrentUser();
         if (!user) return [];
-        const ownerId = Store.currentContext.ownerId;
+        const ownerId = Store.currentContext.ownerId || user.uid;
         const snapshot = await db.ref(`users/${ownerId}/project_templates`).once('value');
         const data = snapshot.val();
         return data ? Object.values(data) : [];
@@ -485,14 +485,14 @@ const Store = {
     deleteProjectTemplate: async (id) => {
         const user = Auth.getCurrentUser();
         if (!user) return;
-        const ownerId = Store.currentContext.ownerId;
+        const ownerId = Store.currentContext.ownerId || user.uid;
         await db.ref(`users/${ownerId}/project_templates/${id}`).remove();
     },
 
     updateProjectTemplate: async (id, updates) => {
         const user = Auth.getCurrentUser();
         if (!user) return;
-        const ownerId = Store.currentContext.ownerId;
+        const ownerId = Store.currentContext.ownerId || user.uid;
         await db.ref(`users/${ownerId}/project_templates/${id}`).update(updates);
     },
 
@@ -500,8 +500,8 @@ const Store = {
     createTaskTemplate: async (templateData) => {
         const user = Auth.getCurrentUser();
         if (!user) return;
-        // Task templates belong to the OWNER
-        const ownerId = Store.currentContext.ownerId;
+        // Task templates belong to the OWNER or the user themselves in shared mode
+        const ownerId = Store.currentContext.ownerId || user.uid;
         const ref = db.ref(`users/${ownerId}/task_templates`).push();
         const template = { ...templateData, id: ref.key, createdBy: user.email };
         await ref.set(template);
@@ -511,7 +511,7 @@ const Store = {
     getTaskTemplates: async () => {
         const user = Auth.getCurrentUser();
         if (!user) return [];
-        const ownerId = Store.currentContext.ownerId;
+        const ownerId = Store.currentContext.ownerId || user.uid;
         const snapshot = await db.ref(`users/${ownerId}/task_templates`).once('value');
         const data = snapshot.val();
         return data ? Object.values(data) : [];
@@ -520,7 +520,7 @@ const Store = {
     deleteTaskTemplate: async (id) => {
         const user = Auth.getCurrentUser();
         if (!user) return;
-        const ownerId = Store.currentContext.ownerId;
+        const ownerId = Store.currentContext.ownerId || user.uid;
         await db.ref(`users/${ownerId}/task_templates/${id}`).remove();
     },
 
@@ -550,8 +550,8 @@ const Store = {
     getIntegrations: async () => {
         const user = Auth.getCurrentUser();
         if (!user) return {};
-        // Always usage owner context for settings
-        const ownerId = Store.currentContext.ownerId;
+        // Always usage owner context for settings, or fallback
+        const ownerId = Store.currentContext.ownerId || user.uid;
         const snap = await db.ref(`users/${ownerId}/integrations`).once('value');
         return snap.val() || {};
     },
@@ -559,7 +559,7 @@ const Store = {
     saveIntegration: async (name, settings) => {
         const user = Auth.getCurrentUser();
         if (!user) return;
-        const ownerId = Store.currentContext.ownerId;
+        const ownerId = Store.currentContext.ownerId || user.uid;
         await db.ref(`users/${ownerId}/integrations/${name}`).update(settings);
     }
 };

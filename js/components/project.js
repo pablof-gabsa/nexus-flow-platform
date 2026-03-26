@@ -2550,6 +2550,19 @@ const ProjectComponent = {
         }
     },
 
+    deleteTaskTemplate: async (id) => {
+        if (confirm("¿Seguro que deseas eliminar esta plantilla?")) {
+            try {
+                await Store.deleteTaskTemplate(id);
+                UI.showToast("Plantilla eliminada", "success");
+                // Refresh the modal list
+                ProjectComponent.openTaskTemplates();
+            } catch (e) {
+                UI.showToast("Error al eliminar plantilla", "error");
+            }
+        }
+    },
+
     // --- Excel Import ---
     importFromExcel: () => {
         // Create hidden file input

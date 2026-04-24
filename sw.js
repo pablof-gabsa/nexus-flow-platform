@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v18'; // Version updated to force refresh after fixing collaborator task templates
+const CACHE_NAME = 'nexus-flow-v19'; // Version updated to include Assets module
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -17,8 +17,9 @@ const ASSETS_TO_CACHE = [
     './js/components/project.js',
     './js/components/shared.js',
     './js/components/help.js',
-    './assets/nexus_logo_v3.png', // Changed from logo.jpg to v3 png
-    './manifest.json' // Explicitly cache manifest
+    './js/components/assets.js',
+    './assets/nexus_logo_v3.png',
+    './manifest.json'
 ];
 
 // Install Event: Cache core assets

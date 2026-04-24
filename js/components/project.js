@@ -483,13 +483,8 @@ const ProjectComponent = {
         // Convert map to array
         ProjectComponent.data = fullData.tasks ? Object.keys(fullData.tasks).map(k => ({ id: k, ...fullData.tasks[k] })) : [];
 
-        // Load assets for the asset selector
-        try {
-            ProjectComponent.assets = await Store.getAssets(ProjectComponent.projectId);
-        } catch (e) {
-            console.warn('Error loading assets', e);
-            ProjectComponent.assets = [];
-        }
+        // Load assets from the already-fetched project data (avoids separate Firebase call)
+        ProjectComponent.assets = fullData.assets ? Object.keys(fullData.assets).map(k => ({ id: k, ...fullData.assets[k] })) : [];
     },
 
     refreshUI: async () => {

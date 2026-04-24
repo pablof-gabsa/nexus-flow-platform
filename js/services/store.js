@@ -561,5 +561,43 @@ const Store = {
         if (!user) return;
         const ownerId = Store.currentContext.ownerId || user.uid;
         await db.ref(`users/${ownerId}/integrations/${name}`).update(settings);
+    },
+
+    // --- Assets Management ---
+
+    getAssets: async (projectId) => {
+        const snapshot = await db.ref(`project_data/${projectId}/assets`).once('value');
+        const data = snapshot.val();
+        if (!data) return [];
+        return Object.keys(data).map(key => ({ id: key, ...data[key] }));
+    },
+
+    getAsset: async (projectId, assetId) => {
+        const snapshot = await db.ref(`project_data/${projectId}/assets/${assetId}`).once('value');
+        const data = snapshot.val();
+        if (!data) return null;
+        return { id: assetId, ...data };
+    },
+
+    addAsset: async (projectId, assetData) => {
+        const user = Auth.getCurrentUser();
+        if (!user) throw new Error("No authenticated user");
+
+        const ref = db.ref(`project_data/${projectId}/assets`).push();
+        const asset = {
+            ...assetData,
+            createdAt: new Date().toISOString(),
+            createdBy: user.email
+        };
+        await ref.set(asset);
+        return { id: ref.key, ...asset };
+    },
+
+    updateAsset: async (projectId, assetId, updates) => {
+        await db.ref(`project_data/${projectId}/assets/${assetId}`).update(updates);
+    },
+
+    deleteAsset: async (projectId, assetId) => {
+        await db.ref(`project_data/${projectId}/assets/${assetId}`).remove();
     }
 };

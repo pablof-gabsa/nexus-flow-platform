@@ -3,6 +3,7 @@ const ProjectComponent = {
     data: [], // Tasks
     rubros: [],
     responsables: [],
+    assets: [], // Assets for this project
 
     // Filters State
     filters: {
@@ -137,6 +138,9 @@ const ProjectComponent = {
                         
                         
                         ${!ProjectComponent.isShared ? `
+                        <button onclick="App.navigateTo('#/project/${projectId}/assets')" class="btn-secondary text-sm px-4" title="Control de Activos">
+                            <i class="fas fa-boxes-stacked"></i> <span class="hidden sm:inline">Activos</span>
+                        </button>
                         <button onclick="ProjectComponent.shareProject()" class="btn-secondary text-sm px-4">
                             <i class="fas fa-share-alt"></i> <span class="hidden sm:inline">Compartir</span>
                         </button>
@@ -292,6 +296,12 @@ const ProjectComponent = {
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium dark:text-gray-300">Activo <span class="text-xs text-gray-400">(opcional)</span></label>
+                                <select name="assetId" id="task-asset" class="input-primary mt-1">
+                                    <option value="">— Sin activo —</option>
+                                </select>
+                            </div>
                             <div>
                                 <label class="block text-sm font-medium dark:text-gray-300">Prioridad</label>
                                 <select name="prioridad" id="task-prio" class="input-primary mt-1">
@@ -472,6 +482,14 @@ const ProjectComponent = {
 
         // Convert map to array
         ProjectComponent.data = fullData.tasks ? Object.keys(fullData.tasks).map(k => ({ id: k, ...fullData.tasks[k] })) : [];
+
+        // Load assets for the asset selector
+        try {
+            ProjectComponent.assets = await Store.getAssets(ProjectComponent.projectId);
+        } catch (e) {
+            console.warn('Error loading assets', e);
+            ProjectComponent.assets = [];
+        }
     },
 
     refreshUI: async () => {
@@ -588,8 +606,13 @@ const ProjectComponent = {
     renderModalOptions: () => {
         const rubroSelect = document.getElementById('task-rubro');
         const respSelect = document.getElementById('task-resp');
+        const assetSelect = document.getElementById('task-asset');
         if (rubroSelect) rubroSelect.innerHTML = ProjectComponent.rubros.map(r => `<option>${r}</option>`).join('');
         if (respSelect) respSelect.innerHTML = ProjectComponent.responsables.map(r => `<option>${r}</option>`).join('');
+        if (assetSelect) {
+            assetSelect.innerHTML = '<option value="">— Sin activo —</option>' +
+                ProjectComponent.assets.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+        }
     },
 
     setFilter: (type, value) => {
@@ -1171,6 +1194,7 @@ const ProjectComponent = {
             document.getElementById('task-prio').value = task.prioridad;
             document.getElementById('task-date').value = task.deadline || '';
             document.getElementById('task-time').value = task.time || '00:00';
+            if (document.getElementById('task-asset')) document.getElementById('task-asset').value = task.assetId || '';
 
             // New Fields
             document.getElementById('task-start-date').value = task.start_date || '';
@@ -1261,6 +1285,7 @@ const ProjectComponent = {
             rubro: formData.get('rubro'),
             responsable: formData.get('responsable'),
             prioridad: formData.get('prioridad'),
+            assetId: formData.get('assetId') || '',
 
             start_date: formData.get('start_date'),
             start_time: formData.get('start_time'),

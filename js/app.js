@@ -130,6 +130,11 @@ const App = {
                 if (typeof DashboardComponent !== 'undefined') await DashboardComponent.render(main, params);
                 else main.innerHTML = '<p class="p-10 text-center">Dashboard Component Not Loaded</p>';
             }
+            else if (route.match(/^#\/project\/.+\/assets$/)) {
+                const projectId = route.replace('#/project/', '').replace('/assets', '');
+                if (typeof AssetsComponent !== 'undefined') await AssetsComponent.render(main, projectId);
+                else main.innerHTML = '<p class="p-10 text-center">Assets Component Not Loaded</p>';
+            }
             else if (route.startsWith('#/project/')) {
                 const projectId = route.replace('#/project/', '');
                 if (typeof ProjectComponent !== 'undefined') await ProjectComponent.render(main, projectId);

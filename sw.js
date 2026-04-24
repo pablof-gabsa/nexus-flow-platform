@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v19'; // Version updated to include Assets module
+const CACHE_NAME = 'nexus-flow-v20'; // Fix: asset select population in openTaskModal
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

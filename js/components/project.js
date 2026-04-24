@@ -477,19 +477,14 @@ const ProjectComponent = {
     refreshData: async () => {
         const fullData = await Store.getProjectData(ProjectComponent.projectId);
 
-        // DEBUG: Log what getProjectData returns
-        console.log('[DEBUG] fullData keys:', Object.keys(fullData));
-        console.log('[DEBUG] fullData.assets:', fullData.assets);
-
         ProjectComponent.rubros = fullData.rubros || [];
         ProjectComponent.responsables = fullData.responsables || [];
 
         // Convert map to array
         ProjectComponent.data = fullData.tasks ? Object.keys(fullData.tasks).map(k => ({ id: k, ...fullData.tasks[k] })) : [];
 
-        // Load assets from the already-fetched project data (avoids separate Firebase call)
+        // Load assets from the already-fetched project data
         ProjectComponent.assets = fullData.assets ? Object.keys(fullData.assets).map(k => ({ id: k, ...fullData.assets[k] })) : [];
-        console.log('[DEBUG] ProjectComponent.assets:', ProjectComponent.assets);
     },
 
     refreshUI: async () => {
@@ -607,14 +602,11 @@ const ProjectComponent = {
         const rubroSelect = document.getElementById('task-rubro');
         const respSelect = document.getElementById('task-resp');
         const assetSelect = document.getElementById('task-asset');
-        console.log('[DEBUG renderModalOptions] assetSelect found:', !!assetSelect, 'assets count:', ProjectComponent.assets.length);
         if (rubroSelect) rubroSelect.innerHTML = ProjectComponent.rubros.map(r => `<option>${r}</option>`).join('');
         if (respSelect) respSelect.innerHTML = ProjectComponent.responsables.map(r => `<option>${r}</option>`).join('');
         if (assetSelect) {
-            const html = '<option value="">— Sin activo —</option>' +
+            assetSelect.innerHTML = '<option value="">— Sin activo —</option>' +
                 ProjectComponent.assets.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-            console.log('[DEBUG renderModalOptions] Setting innerHTML:', html);
-            assetSelect.innerHTML = html;
         }
     },
 
@@ -1181,6 +1173,13 @@ const ProjectComponent = {
         document.getElementById('task-form').reset();
         document.getElementById('task-id').value = '';
         document.getElementById('task-time').value = '00:00'; // Default time
+
+        // Populate asset select (ensures it's always populated when modal opens)
+        const assetSelect = document.getElementById('task-asset');
+        if (assetSelect) {
+            assetSelect.innerHTML = '<option value="">— Sin activo —</option>' +
+                ProjectComponent.assets.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+        }
 
         if (taskId) {
             const task = ProjectComponent.data.find(t => t.id === taskId);

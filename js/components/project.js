@@ -477,6 +477,10 @@ const ProjectComponent = {
     refreshData: async () => {
         const fullData = await Store.getProjectData(ProjectComponent.projectId);
 
+        // DEBUG: Log what getProjectData returns
+        console.log('[DEBUG] fullData keys:', Object.keys(fullData));
+        console.log('[DEBUG] fullData.assets:', fullData.assets);
+
         ProjectComponent.rubros = fullData.rubros || [];
         ProjectComponent.responsables = fullData.responsables || [];
 
@@ -485,6 +489,7 @@ const ProjectComponent = {
 
         // Load assets from the already-fetched project data (avoids separate Firebase call)
         ProjectComponent.assets = fullData.assets ? Object.keys(fullData.assets).map(k => ({ id: k, ...fullData.assets[k] })) : [];
+        console.log('[DEBUG] ProjectComponent.assets:', ProjectComponent.assets);
     },
 
     refreshUI: async () => {

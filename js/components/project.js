@@ -607,11 +607,14 @@ const ProjectComponent = {
         const rubroSelect = document.getElementById('task-rubro');
         const respSelect = document.getElementById('task-resp');
         const assetSelect = document.getElementById('task-asset');
+        console.log('[DEBUG renderModalOptions] assetSelect found:', !!assetSelect, 'assets count:', ProjectComponent.assets.length);
         if (rubroSelect) rubroSelect.innerHTML = ProjectComponent.rubros.map(r => `<option>${r}</option>`).join('');
         if (respSelect) respSelect.innerHTML = ProjectComponent.responsables.map(r => `<option>${r}</option>`).join('');
         if (assetSelect) {
-            assetSelect.innerHTML = '<option value="">— Sin activo —</option>' +
+            const html = '<option value="">— Sin activo —</option>' +
                 ProjectComponent.assets.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+            console.log('[DEBUG renderModalOptions] Setting innerHTML:', html);
+            assetSelect.innerHTML = html;
         }
     },
 

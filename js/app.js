@@ -140,6 +140,11 @@ const App = {
                 if (typeof ProjectComponent !== 'undefined') await ProjectComponent.render(main, projectId);
                 else main.innerHTML = '<p class="p-10 text-center">Project Component Not Loaded</p>';
             }
+            else if (route.match(/^#\/share\/.+\/assets$/)) {
+                const projectId = route.replace('#/share/', '').replace('/assets', '');
+                if (typeof AssetsComponent !== 'undefined') await AssetsComponent.render(main, projectId, { isShared: true, params: params });
+                else main.innerHTML = '<p class="p-10 text-center">Assets Component Not Loaded</p>';
+            }
             else if (route.startsWith('#/share/')) {
                 const projectId = route.replace('#/share/', '');
                 if (typeof SharedComponent !== 'undefined') await SharedComponent.render(main, projectId, params);

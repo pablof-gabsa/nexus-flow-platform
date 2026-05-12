@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v20'; // Fix: asset select population in openTaskModal
+const CACHE_NAME = 'nexus-flow-v21'; // Fix: show Activos button in shared projects
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

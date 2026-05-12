@@ -7,22 +7,30 @@ const AssetsComponent = {
     currentAssetAttachments: [],
     editingAssetId: null,
     selectedAssetDetail: null,
+    isShared: false,
 
-    render: async (container, projectId) => {
+    render: async (container, projectId, options = {}) => {
         AssetsComponent.projectId = projectId;
+        AssetsComponent.isShared = !!options.isShared;
         await AssetsComponent.refreshData();
 
-        const projectInfo = await Store.getProject(projectId);
+        let projectInfo = await Store.getProject(projectId);
+        if (!projectInfo && AssetsComponent.isShared) {
+            const data = await Store.getProjectData(projectId);
+            projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido' };
+        }
         const projectName = projectInfo ? projectInfo.name : 'Proyecto';
+        const backRoute = AssetsComponent.isShared ? `#/share/${projectId}` : `#/project/${projectId}`;
 
         container.innerHTML = `
-            ${NavbarComponent.render()}
+            ${!AssetsComponent.isShared ? NavbarComponent.render() : ''}
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
                 <!-- Header -->
                 <div class="glass-panel p-4 rounded-xl mb-6 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 md:top-20 z-30 shadow-sm backdrop-blur-md bg-white/70 dark:bg-slate-900/70 border-b border-white/20">
                     <div>
                         <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <span onclick="App.navigateTo('#/project/${projectId}')" class="cursor-pointer hover:text-brand-600"><i class="fas fa-arrow-left"></i></span>
+                            <span onclick="App.navigateTo('${backRoute}')" class="cursor-pointer hover:text-brand-600"><i class="fas fa-arrow-left"></i></span>
+                            ${AssetsComponent.isShared ? '<span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider">Compartido</span>' : ''}
                             <i class="fas fa-boxes-stacked text-brand-500"></i>
                             Activos
                             <span class="text-base font-normal text-gray-400">— ${projectName}</span>

@@ -137,10 +137,10 @@ const ProjectComponent = {
                         ` : ''}
                         
                         
-                        ${!ProjectComponent.isShared ? `
-                        <button onclick="App.navigateTo('#/project/${projectId}/assets')" class="btn-secondary text-sm px-4" title="Control de Activos">
+                        <button onclick="App.navigateTo('${ProjectComponent.isShared ? '#/share/' + projectId + '/assets' : '#/project/' + projectId + '/assets'}')" class="btn-secondary text-sm px-4" title="Control de Activos">
                             <i class="fas fa-boxes-stacked"></i> <span class="hidden sm:inline">Activos</span>
                         </button>
+                        ${!ProjectComponent.isShared ? `
                         <button onclick="ProjectComponent.shareProject()" class="btn-secondary text-sm px-4">
                             <i class="fas fa-share-alt"></i> <span class="hidden sm:inline">Compartir</span>
                         </button>

@@ -144,16 +144,22 @@ const AssetsComponent = {
             `;
         }
 
-        const knownCategories = AssetsComponent.assetCategories || [];
-        const categories = [
-            ...knownCategories,
-            ...AssetsComponent.assets
-                .map(asset => asset.category || 'Sin categoria')
-                .filter(category => category && !knownCategories.includes(category))
-        ];
+        const grouped = {};
+        const seenAssets = new Set();
+        const categories = [...new Set([...(AssetsComponent.assetCategories || [])])];
+
+        AssetsComponent.assets.forEach(asset => {
+            if (!asset || seenAssets.has(asset.id)) return;
+            seenAssets.add(asset.id);
+
+            const category = asset.category || 'Sin categoria';
+            if (!categories.includes(category)) categories.push(category);
+            if (!grouped[category]) grouped[category] = [];
+            grouped[category].push(asset);
+        });
 
         return categories.map(category => {
-            const list = AssetsComponent.assets.filter(asset => (asset.category || 'Sin categoria') === category);
+            const list = grouped[category] || [];
             if (list.length === 0) return '';
 
             return `

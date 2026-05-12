@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v28'; // Feature: configurable asset groupers
+const CACHE_NAME = 'nexus-flow-v29'; // Fix: prevent duplicate assets across groupers
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

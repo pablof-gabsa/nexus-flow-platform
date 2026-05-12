@@ -62,7 +62,7 @@ const AssetsComponent = {
             ${!AssetsComponent.isShared ? NavbarComponent.render() : ''}
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
                 <!-- Header -->
-                <div class="glass-panel p-4 rounded-xl mb-6 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 md:top-20 z-30 shadow-sm backdrop-blur-md bg-white/70 dark:bg-slate-900/70 border-b border-white/20">
+                <div class="glass-panel p-4 rounded-xl mb-8 flex flex-col md:flex-row justify-between items-center gap-4 relative z-20 shadow-sm backdrop-blur-md bg-white/80 dark:bg-slate-900/90 border-b border-white/20">
                     <div>
                         <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                             <span onclick="App.navigateTo('${backRoute}')" class="cursor-pointer hover:text-brand-600"><i class="fas fa-arrow-left"></i></span>
@@ -82,7 +82,7 @@ const AssetsComponent = {
                 </div>
 
                 <!-- Assets Grid -->
-                <div id="assets-grid-container">
+                <div id="assets-grid-container" class="relative z-10">
                     ${AssetsComponent.renderAssetsGrid()}
                 </div>
             </div>

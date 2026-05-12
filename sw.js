@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v25'; // Fix: shared upload skips auth before Base64 fallback
+const CACHE_NAME = 'nexus-flow-v26'; // Fix: assets header spacing over first row
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

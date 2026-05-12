@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v31'; // Feature: asset service status
+const CACHE_NAME = 'nexus-flow-v32'; // UI: in-service asset count on group cards
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

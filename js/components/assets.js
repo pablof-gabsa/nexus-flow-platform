@@ -175,6 +175,7 @@ const AssetsComponent = {
         assets.forEach(asset => AssetsComponent.getTasksForAsset(asset.id).forEach(task => taskIds.add(task.id)));
         const docsCount = assets.reduce((sum, asset) => sum + ((asset.documents || []).length), 0);
         const outOfService = assets.filter(asset => (asset.serviceStatus || 'En servicio') === 'Fuera de servicio').length;
+        const inService = assets.length - outOfService;
 
         return `
             <button onclick="AssetsComponent.openCategory('${category}')" class="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all group border border-transparent hover:border-brand-200 dark:hover:border-brand-900 text-left">
@@ -190,6 +191,7 @@ const AssetsComponent = {
                     <h3 class="font-bold text-gray-900 dark:text-white truncate mb-2">${category}</h3>
                     <div class="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                         <span><i class="fas fa-boxes-stacked text-brand-500 mr-1"></i>${assets.length} activos</span>
+                        ${inService > 0 ? `<span class="text-emerald-500"><i class="fas fa-power-off mr-1"></i>${inService}</span>` : ''}
                         ${taskIds.size > 0 ? `<span><i class="fas fa-tasks text-amber-500 mr-1"></i>${taskIds.size}</span>` : ''}
                         ${docsCount > 0 ? `<span><i class="fas fa-paperclip mr-1"></i>${docsCount}</span>` : ''}
                         ${outOfService > 0 ? `<span class="text-red-500"><i class="fas fa-power-off mr-1"></i>${outOfService}</span>` : ''}

@@ -521,9 +521,6 @@ const ProjectComponent = {
                             <span class="text-base font-normal text-gray-400">— ${projectInfo.name}</span>
                         </h2>
                     </div>
-                    <button onclick="App.navigateTo('${ProjectComponent.isShared ? '#/share/' + projectId + '/assets' + ProjectComponent.shareParams : '#/project/' + projectId + '/assets'}')" class="btn-secondary text-sm px-4">
-                        <i class="fas fa-boxes-stacked"></i> Activos
-                    </button>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">

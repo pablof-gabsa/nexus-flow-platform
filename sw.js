@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v34'; // Fix: project load without metrics widgets
+const CACHE_NAME = 'nexus-flow-v35'; // UI: remove assets button from metrics page
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

@@ -5,14 +5,17 @@ const AssetsComponent = {
     rubros: [],
     responsables: [],
     currentAssetAttachments: [],
+    pendingDeletedFiles: [],
     editingAssetId: null,
     selectedAssetDetail: null,
     isShared: false,
+    isEditable: true,
     shareParams: '', // query string for shared mode (e.g. '?mode=edit&t=TOKEN')
 
     render: async (container, projectId, options = {}) => {
         AssetsComponent.projectId = projectId;
         AssetsComponent.isShared = !!options.isShared;
+        AssetsComponent.isEditable = options.isEditable !== false;
 
         // Preserve sharing query params for navigation
         if (AssetsComponent.isShared && options.params) {
@@ -24,11 +27,29 @@ const AssetsComponent = {
             AssetsComponent.shareParams = '';
         }
 
-        await AssetsComponent.refreshData();
-
         let projectInfo = null;
         if (!AssetsComponent.isShared) {
             projectInfo = await Store.getProject(projectId);
+            await AssetsComponent.refreshData();
+        } else {
+            const data = await Store.getProjectData(projectId);
+            const token = options.params ? options.params.get('t') : null;
+
+            if (!data.sharingToken || data.sharingToken !== token) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+                        <div class="bg-red-50 dark:bg-red-900/20 p-8 rounded-2xl border border-red-100 dark:border-red-900/30 max-w-sm">
+                            <i class="fas fa-link-slash text-5xl text-red-500 mb-4"></i>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Enlace expirado o invalido</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">El propietario ha cambiado el enlace de acceso o este ya no es valido.</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            AssetsComponent.applyProjectData(data);
+            projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido' };
         }
         if (!projectInfo) {
             const data = await Store.getProjectData(projectId);
@@ -52,9 +73,11 @@ const AssetsComponent = {
                         </h2>
                     </div>
                     <div class="flex gap-2">
+                        ${AssetsComponent.isEditable ? `
                         <button onclick="AssetsComponent.openAssetModal()" class="btn-primary text-sm px-4 shadow-lg shadow-brand-500/30">
                             <i class="fas fa-plus"></i> <span class="hidden sm:inline">Nuevo Activo</span>
                         </button>
+                        ` : ''}
                     </div>
                 </div>
 
@@ -72,8 +95,12 @@ const AssetsComponent = {
     },
 
     refreshData: async () => {
-        AssetsComponent.assets = await Store.getAssets(AssetsComponent.projectId);
         const fullData = await Store.getProjectData(AssetsComponent.projectId);
+        AssetsComponent.applyProjectData(fullData);
+    },
+
+    applyProjectData: (fullData) => {
+        AssetsComponent.assets = fullData.assets ? Object.keys(fullData.assets).map(k => ({ id: k, ...fullData.assets[k] })) : [];
         AssetsComponent.tasks = fullData.tasks ? Object.keys(fullData.tasks).map(k => ({ id: k, ...fullData.tasks[k] })) : [];
         AssetsComponent.rubros = fullData.rubros || [];
         AssetsComponent.responsables = fullData.responsables || [];
@@ -98,7 +125,7 @@ const AssetsComponent = {
                     </div>
                     <h3 class="text-lg font-medium text-gray-900 dark:text-white">No hay activos registrados</h3>
                     <p class="text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-2">Comenzá creando tu primer activo para vincular tareas y documentación.</p>
-                    <button onclick="AssetsComponent.openAssetModal()" class="btn-primary mt-6"><i class="fas fa-plus mr-2"></i>Crear Activo</button>
+                    ${AssetsComponent.isEditable ? `<button onclick="AssetsComponent.openAssetModal()" class="btn-primary mt-6"><i class="fas fa-plus mr-2"></i>Crear Activo</button>` : ''}
                 </div>
             `;
         }
@@ -119,14 +146,14 @@ const AssetsComponent = {
                                     ? `<img src="${asset.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="${asset.name}">`
                                     : `<div class="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600"><i class="fas fa-image text-5xl"></i></div>`
                                 }
-                                <div class="absolute top-2 right-2 flex gap-1" onclick="event.stopPropagation()">
+                                ${AssetsComponent.isEditable ? `<div class="absolute top-2 right-2 flex gap-1" onclick="event.stopPropagation()">
                                     <button onclick="AssetsComponent.openAssetModal('${asset.id}')" class="w-8 h-8 rounded-full bg-white/80 dark:bg-slate-800/80 text-gray-600 dark:text-gray-300 hover:bg-white flex items-center justify-center text-xs shadow-sm backdrop-blur-sm" title="Editar">
                                         <i class="fas fa-pen"></i>
                                     </button>
                                     <button onclick="AssetsComponent.deleteAsset('${asset.id}')" class="w-8 h-8 rounded-full bg-white/80 dark:bg-slate-800/80 text-red-500 hover:bg-red-50 flex items-center justify-center text-xs shadow-sm backdrop-blur-sm" title="Eliminar">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
-                                </div>
+                                </div>` : ''}
                             </div>
                             <!-- Info -->
                             <div class="p-4">
@@ -151,8 +178,14 @@ const AssetsComponent = {
     // --- Asset CRUD Modal ---
 
     openAssetModal: (assetId = null) => {
+        if (!AssetsComponent.isEditable) {
+            UI.showToast('Este enlace es de solo lectura', 'warning');
+            return;
+        }
+
         AssetsComponent.editingAssetId = assetId;
         AssetsComponent.currentAssetAttachments = [];
+        AssetsComponent.pendingDeletedFiles = [];
 
         const modal = document.getElementById('asset-modal');
         const title = document.getElementById('asset-modal-title');
@@ -160,6 +193,8 @@ const AssetsComponent = {
 
         form.reset();
         document.getElementById('asset-image-preview').innerHTML = '';
+        document.getElementById('asset-image-preview').dataset.url = '';
+        document.getElementById('asset-image-preview').dataset.removed = '';
 
         if (assetId) {
             const asset = AssetsComponent.assets.find(a => a.id === assetId);
@@ -168,7 +203,8 @@ const AssetsComponent = {
             document.getElementById('asset-name').value = asset.name || '';
             document.getElementById('asset-description').value = asset.description || '';
             if (asset.image) {
-                document.getElementById('asset-image-preview').innerHTML = `<img src="${asset.image}" class="w-full h-32 object-cover rounded-lg">`;
+                document.getElementById('asset-image-preview').innerHTML = AssetsComponent.renderImagePreview(asset.image);
+                document.getElementById('asset-image-preview').dataset.url = asset.image;
             }
             AssetsComponent.currentAssetAttachments = asset.documents ? JSON.parse(JSON.stringify(asset.documents)) : [];
         } else {
@@ -235,9 +271,11 @@ const AssetsComponent = {
 
         try {
             UI.showToast('Subiendo imagen...', 'info');
-            const url = await Store.uploadFile(file);
-            document.getElementById('asset-image-preview').innerHTML = `<img src="${url}" class="w-full h-32 object-cover rounded-lg">`;
-            document.getElementById('asset-image-preview').dataset.url = url;
+            const url = await Store.uploadFile(file, AssetsComponent.getUploadContext());
+            const preview = document.getElementById('asset-image-preview');
+            preview.innerHTML = AssetsComponent.renderImagePreview(url);
+            preview.dataset.url = url;
+            preview.dataset.removed = '';
             UI.showToast('Imagen subida', 'success');
         } catch (e) {
             console.error(e);
@@ -252,7 +290,7 @@ const AssetsComponent = {
             if (file.size > 10 * 1024 * 1024) { UI.showToast(`${file.name} muy pesado (Max 10MB)`, 'error'); continue; }
             try {
                 UI.showToast(`Subiendo ${file.name}...`, 'info');
-                const url = await Store.uploadFile(file);
+                const url = await Store.uploadFile(file, AssetsComponent.getUploadContext());
                 AssetsComponent.currentAssetAttachments.push({ name: file.name, data: url, type: file.type });
                 UI.showToast(`${file.name} subido`, 'success');
             } catch (e) {
@@ -264,7 +302,37 @@ const AssetsComponent = {
         event.target.value = '';
     },
 
+    getUploadContext: () => ({
+        allowAnonymous: AssetsComponent.isShared,
+        fallbackToBase64: AssetsComponent.isShared,
+        forceBase64: AssetsComponent.isShared,
+        folder: `uploads/assets/${AssetsComponent.projectId}`
+    }),
+
+    renderImagePreview: (url) => `
+        <div class="relative group">
+            <img src="${url}" class="w-full h-32 object-cover rounded-lg">
+            <button type="button" onclick="AssetsComponent.removeAssetImage()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow flex items-center justify-center opacity-90 hover:opacity-100" title="Quitar imagen">
+                <i class="fas fa-trash-alt text-xs"></i>
+            </button>
+        </div>
+    `,
+
+    removeAssetImage: async () => {
+        const preview = document.getElementById('asset-image-preview');
+        if (!preview) return;
+
+        const oldUrl = preview.dataset.url;
+        if (oldUrl) AssetsComponent.pendingDeletedFiles.push(oldUrl);
+
+        preview.innerHTML = '';
+        preview.dataset.url = '';
+        preview.dataset.removed = 'true';
+    },
+
     removeAssetDoc: (index) => {
+        const removed = AssetsComponent.currentAssetAttachments[index];
+        if (removed) AssetsComponent.pendingDeletedFiles.push(removed.data);
         AssetsComponent.currentAssetAttachments.splice(index, 1);
         AssetsComponent.renderAssetDocsPreview();
     },
@@ -292,9 +360,10 @@ const AssetsComponent = {
         const description = document.getElementById('asset-description').value.trim();
         const imgPreview = document.getElementById('asset-image-preview');
         let image = imgPreview.dataset.url || '';
+        const imageWasRemoved = imgPreview.dataset.removed === 'true';
 
         // If editing and image wasn't changed, keep existing
-        if (AssetsComponent.editingAssetId && !image) {
+        if (AssetsComponent.editingAssetId && !image && !imageWasRemoved) {
             const existing = AssetsComponent.assets.find(a => a.id === AssetsComponent.editingAssetId);
             if (existing) image = existing.image || '';
         }
@@ -315,6 +384,8 @@ const AssetsComponent = {
                 UI.showToast('Activo creado', 'success');
             }
             document.getElementById('asset-modal').classList.add('hidden');
+            await Promise.all(AssetsComponent.pendingDeletedFiles.map(url => Store.deleteUploadedFile(url)));
+            AssetsComponent.pendingDeletedFiles = [];
             AssetsComponent.refreshUI();
         } catch (err) {
             console.error(err);
@@ -323,8 +394,11 @@ const AssetsComponent = {
     },
 
     deleteAsset: async (assetId) => {
+        if (!AssetsComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         if (!await UI.confirm('¿Eliminar este activo? Las tareas vinculadas no se eliminarán.')) return;
         try {
+            const asset = AssetsComponent.assets.find(a => a.id === assetId);
+            if (asset) await AssetsComponent.deleteAssetFiles(asset);
             await Store.deleteAsset(AssetsComponent.projectId, assetId);
             UI.showToast('Activo eliminado', 'success');
             AssetsComponent.refreshUI();
@@ -348,8 +422,13 @@ const AssetsComponent = {
         modal.querySelector('#asset-detail-content').innerHTML = `
             <!-- Image -->
             ${asset.image ? `
-                <div class="rounded-xl overflow-hidden mb-6 max-h-64">
+                <div class="rounded-xl overflow-hidden mb-6 max-h-64 relative group">
                     <img src="${asset.image}" class="w-full h-full object-cover" alt="${asset.name}">
+                    ${AssetsComponent.isEditable ? `
+                    <button onclick="AssetsComponent.deleteAssetImage('${assetId}')" class="absolute top-3 right-3 bg-red-500 text-white w-9 h-9 rounded-full shadow flex items-center justify-center opacity-90 hover:opacity-100" title="Eliminar imagen">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
+                    ` : ''}
                 </div>
             ` : ''}
 
@@ -358,9 +437,9 @@ const AssetsComponent = {
                     <h3 class="text-2xl font-bold dark:text-white">${asset.name}</h3>
                     ${asset.description ? `<p class="text-gray-500 dark:text-gray-400 mt-1">${asset.description}</p>` : ''}
                 </div>
-                <div class="flex gap-2">
+                ${AssetsComponent.isEditable ? `<div class="flex gap-2">
                     <button onclick="AssetsComponent.openAssetModal('${assetId}'); document.getElementById('asset-detail-modal').classList.add('hidden');" class="btn-secondary text-sm px-3"><i class="fas fa-pen"></i></button>
-                </div>
+                </div>` : ''}
             </div>
 
             <!-- Documents -->
@@ -368,14 +447,21 @@ const AssetsComponent = {
                 <div class="mb-6">
                     <h4 class="font-bold text-sm text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"><i class="fas fa-paperclip text-brand-500"></i> Documentos (${docs.length})</h4>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        ${docs.map(doc => {
+                        ${docs.map((doc, index) => {
                             const isImg = doc.type && doc.type.startsWith('image/');
                             const icon = isImg ? 'fas fa-image text-blue-500' : (doc.name.endsWith('.pdf') ? 'fas fa-file-pdf text-red-500' : 'fas fa-file text-gray-400');
                             return `
-                                <a href="${doc.data}" target="_blank" class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors border border-gray-100 dark:border-slate-600 group">
-                                    <i class="${icon} text-lg"></i>
-                                    <span class="text-xs text-gray-700 dark:text-gray-300 truncate group-hover:text-brand-600">${doc.name}</span>
-                                </a>
+                                <div class="relative group/doc">
+                                    <a href="${doc.data}" target="_blank" class="flex items-center gap-2 p-3 pr-8 bg-gray-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors border border-gray-100 dark:border-slate-600 group">
+                                        <i class="${icon} text-lg"></i>
+                                        <span class="text-xs text-gray-700 dark:text-gray-300 truncate group-hover:text-brand-600">${doc.name}</span>
+                                    </a>
+                                    ${AssetsComponent.isEditable ? `
+                                    <button onclick="event.preventDefault(); AssetsComponent.deleteAssetDocument('${assetId}', ${index})" class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/doc:opacity-100 transition-opacity" title="Eliminar archivo">
+                                        <i class="fas fa-times text-[10px]"></i>
+                                    </button>
+                                    ` : ''}
+                                </div>
                             `;
                         }).join('')}
                     </div>
@@ -386,9 +472,11 @@ const AssetsComponent = {
             <div>
                 <div class="flex justify-between items-center mb-3">
                     <h4 class="font-bold text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2"><i class="fas fa-tasks text-brand-500"></i> Tareas Vinculadas (${assetTasks.length})</h4>
+                    ${AssetsComponent.isEditable ? `
                     <button onclick="AssetsComponent.createTaskForAsset('${assetId}')" class="text-xs bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 px-3 py-1.5 rounded-lg hover:bg-brand-200 dark:hover:bg-brand-900/50 transition-colors font-medium">
                         <i class="fas fa-plus mr-1"></i> Nueva Tarea
                     </button>
+                    ` : ''}
                 </div>
 
                 ${assetTasks.length === 0 ? `
@@ -429,6 +517,7 @@ const AssetsComponent = {
     },
 
     createTaskForAsset: (assetId) => {
+        if (!AssetsComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         // Close detail modal, navigate to project, and open task modal with asset pre-selected
         document.getElementById('asset-detail-modal').classList.add('hidden');
         // Store the assetId to pre-select after navigation
@@ -449,5 +538,39 @@ const AssetsComponent = {
                 }, 200);
             }
         }, 800);
+    },
+
+    deleteAssetImage: async (assetId) => {
+        if (!AssetsComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
+        const asset = AssetsComponent.assets.find(a => a.id === assetId);
+        if (!asset || !asset.image) return;
+        if (!await UI.confirm('Eliminar la imagen principal de este activo?')) return;
+
+        await Store.deleteUploadedFile(asset.image);
+        await Store.updateAsset(AssetsComponent.projectId, assetId, { image: '' });
+        UI.showToast('Imagen eliminada', 'success');
+        await AssetsComponent.refreshUI();
+        document.getElementById('asset-detail-modal')?.classList.add('hidden');
+    },
+
+    deleteAssetDocument: async (assetId, index) => {
+        if (!AssetsComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
+        const asset = AssetsComponent.assets.find(a => a.id === assetId);
+        if (!asset || !asset.documents || !asset.documents[index]) return;
+        if (!await UI.confirm('Eliminar este archivo del activo?')) return;
+
+        const nextDocs = [...asset.documents];
+        const [removed] = nextDocs.splice(index, 1);
+        await Store.deleteUploadedFile(removed.data);
+        await Store.updateAsset(AssetsComponent.projectId, assetId, { documents: nextDocs });
+        UI.showToast('Archivo eliminado', 'success');
+        await AssetsComponent.refreshUI();
+        if (AssetsComponent.assets.find(a => a.id === assetId)) AssetsComponent.openDetail(assetId);
+    },
+
+    deleteAssetFiles: async (asset) => {
+        if (asset.image) await Store.deleteUploadedFile(asset.image);
+        const docs = asset.documents || [];
+        await Promise.all(docs.map(doc => Store.deleteUploadedFile(doc.data)));
     }
 };

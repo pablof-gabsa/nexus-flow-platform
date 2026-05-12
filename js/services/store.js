@@ -526,24 +526,65 @@ const Store = {
 
     // Storage
     uploadFile: async (file, context = {}) => {
-        const user = Auth.getCurrentUser();
-        if (!user) throw new Error("Usuario no autenticado");
+        let user = Auth.getCurrentUser();
+
+        if (!user && context.allowAnonymous && typeof auth !== 'undefined' && auth.signInAnonymously) {
+            try {
+                const credential = await auth.signInAnonymously();
+                user = credential.user || Auth.getCurrentUser();
+            } catch (error) {
+                console.warn("Anonymous upload session failed", error);
+            }
+        }
+
+        const fallbackToBase64 = () => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+        if (context.forceBase64) return fallbackToBase64();
+
+        if (!user) {
+            if (context.fallbackToBase64) return fallbackToBase64();
+            throw new Error("Usuario no autenticado");
+        }
 
         // Create a unique path: uploads/{uploaderUid}/{timestamp}_{filename}
         // Using user.uid ensures admins can write to their own folder per Storage Rules
         const uploaderId = user.uid;
         const timestamp = Date.now();
         const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-        const path = `uploads/${uploaderId}/${timestamp}_${safeName}`;
+        const folder = context.folder || `uploads/${uploaderId}`;
+        const path = `${folder}/${uploaderId}_${timestamp}_${safeName}`;
 
-        const ref = storage.ref(path);
+        try {
+            const ref = storage.ref(path);
 
-        // Upload
-        const snapshot = await ref.put(file);
+            // Upload
+            const snapshot = await ref.put(file);
 
-        // Get URL
-        const url = await snapshot.ref.getDownloadURL();
-        return url;
+            // Get URL
+            const url = await snapshot.ref.getDownloadURL();
+            return url;
+        } catch (error) {
+            if (context.fallbackToBase64) {
+                console.warn("Storage upload failed, using Base64 fallback", error);
+                return fallbackToBase64();
+            }
+            throw error;
+        }
+    },
+
+    deleteUploadedFile: async (url) => {
+        if (!url || typeof storage === 'undefined' || url.startsWith('data:')) return;
+
+        try {
+            await storage.refFromURL(url).delete();
+        } catch (error) {
+            console.warn("Could not delete file from Storage", error);
+        }
     },
 
     // Integrations

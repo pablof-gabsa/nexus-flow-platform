@@ -142,7 +142,8 @@ const App = {
             }
             else if (route.match(/^#\/share\/.+\/assets$/)) {
                 const projectId = route.replace('#/share/', '').replace('/assets', '');
-                if (typeof AssetsComponent !== 'undefined') await AssetsComponent.render(main, projectId, { isShared: true, params: params });
+                const isEditable = params.get('mode') === 'edit';
+                if (typeof AssetsComponent !== 'undefined') await AssetsComponent.render(main, projectId, { isShared: true, isEditable: isEditable, params: params });
                 else main.innerHTML = '<p class="p-10 text-center">Assets Component Not Loaded</p>';
             }
             else if (route.startsWith('#/share/')) {

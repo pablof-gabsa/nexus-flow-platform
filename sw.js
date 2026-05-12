@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v23'; // Fix: allow saving assets in shared mode
+const CACHE_NAME = 'nexus-flow-v24'; // Fix: shared assets uploads and file deletion controls
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

@@ -1083,7 +1083,12 @@ const ProjectComponent = {
                 UI.showToast(`Subiendo ${file.name}...`, 'info');
 
                 // Call Store to upload
-                const url = await Store.uploadFile(file);
+                const url = await Store.uploadFile(file, {
+                    allowAnonymous: ProjectComponent.isShared,
+                    fallbackToBase64: ProjectComponent.isShared,
+                    forceBase64: ProjectComponent.isShared,
+                    folder: `uploads/tasks/${ProjectComponent.projectId}`
+                });
 
                 ProjectComponent.currentAttachments.push({
                     name: file.name,

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v21'; // Fix: show Activos button in shared projects
+const CACHE_NAME = 'nexus-flow-v22'; // Fix: preserve sharing token in Activos navigation
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

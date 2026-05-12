@@ -20,6 +20,7 @@ const ProjectComponent = {
     editingSubtasks: [],
     isShared: false,
     isEditable: true,
+    shareParams: '', // query string for shared mode
 
     // Constants
     statusColors: {
@@ -41,6 +42,16 @@ const ProjectComponent = {
         ProjectComponent.projectId = projectId;
         ProjectComponent.isShared = !!options.isShared;
         ProjectComponent.isEditable = options.isEditable !== false;
+
+        // Preserve sharing query params for navigation
+        if (ProjectComponent.isShared && options.params) {
+            const parts = [];
+            if (options.params.get('mode')) parts.push('mode=' + options.params.get('mode'));
+            if (options.params.get('t')) parts.push('t=' + options.params.get('t'));
+            ProjectComponent.shareParams = parts.length > 0 ? '?' + parts.join('&') : '';
+        } else {
+            ProjectComponent.shareParams = '';
+        }
 
         // Load Persisted Filters
         const savedFilters = localStorage.getItem(`project_filters_${projectId}`);
@@ -137,7 +148,7 @@ const ProjectComponent = {
                         ` : ''}
                         
                         
-                        <button onclick="App.navigateTo('${ProjectComponent.isShared ? '#/share/' + projectId + '/assets' : '#/project/' + projectId + '/assets'}')" class="btn-secondary text-sm px-4" title="Control de Activos">
+                        <button onclick="App.navigateTo('${ProjectComponent.isShared ? '#/share/' + projectId + '/assets' + ProjectComponent.shareParams : '#/project/' + projectId + '/assets'}')" class="btn-secondary text-sm px-4" title="Control de Activos">
                             <i class="fas fa-boxes-stacked"></i> <span class="hidden sm:inline">Activos</span>
                         </button>
                         ${!ProjectComponent.isShared ? `

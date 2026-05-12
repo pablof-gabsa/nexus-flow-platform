@@ -8,19 +8,34 @@ const AssetsComponent = {
     editingAssetId: null,
     selectedAssetDetail: null,
     isShared: false,
+    shareParams: '', // query string for shared mode (e.g. '?mode=edit&t=TOKEN')
 
     render: async (container, projectId, options = {}) => {
         AssetsComponent.projectId = projectId;
         AssetsComponent.isShared = !!options.isShared;
+
+        // Preserve sharing query params for navigation
+        if (AssetsComponent.isShared && options.params) {
+            const parts = [];
+            if (options.params.get('mode')) parts.push('mode=' + options.params.get('mode'));
+            if (options.params.get('t')) parts.push('t=' + options.params.get('t'));
+            AssetsComponent.shareParams = parts.length > 0 ? '?' + parts.join('&') : '';
+        } else {
+            AssetsComponent.shareParams = '';
+        }
+
         await AssetsComponent.refreshData();
 
-        let projectInfo = await Store.getProject(projectId);
-        if (!projectInfo && AssetsComponent.isShared) {
+        let projectInfo = null;
+        if (!AssetsComponent.isShared) {
+            projectInfo = await Store.getProject(projectId);
+        }
+        if (!projectInfo) {
             const data = await Store.getProjectData(projectId);
             projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido' };
         }
         const projectName = projectInfo ? projectInfo.name : 'Proyecto';
-        const backRoute = AssetsComponent.isShared ? `#/share/${projectId}` : `#/project/${projectId}`;
+        const backRoute = AssetsComponent.isShared ? `#/share/${projectId}${AssetsComponent.shareParams}` : `#/project/${projectId}`;
 
         container.innerHTML = `
             ${!AssetsComponent.isShared ? NavbarComponent.render() : ''}
@@ -383,7 +398,7 @@ const AssetsComponent = {
                         ${assetTasks.map(t => {
                             const statusColor = { 'Pendiente': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', 'En Proceso': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', 'Realizado': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', 'Suspendido': 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' };
                             return `
-                                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/30 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/60 transition-colors cursor-pointer" onclick="App.navigateTo('#/project/${AssetsComponent.projectId}')">
+                                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/30 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/60 transition-colors cursor-pointer" onclick="App.navigateTo('${AssetsComponent.isShared ? '#/share/' + AssetsComponent.projectId + AssetsComponent.shareParams : '#/project/' + AssetsComponent.projectId}')">
                                     <div class="flex-1 min-w-0">
                                         <p class="text-sm font-medium text-gray-900 dark:text-white truncate">${t.requerimiento}</p>
                                         <p class="text-xs text-gray-400 mt-0.5">${t.responsable || ''} ${t.deadline ? '· ' + Utils.formatDate(t.deadline) : ''}</p>
@@ -418,7 +433,10 @@ const AssetsComponent = {
         document.getElementById('asset-detail-modal').classList.add('hidden');
         // Store the assetId to pre-select after navigation
         sessionStorage.setItem('nexus_prefill_assetId', assetId);
-        App.navigateTo(`#/project/${AssetsComponent.projectId}`);
+        const route = AssetsComponent.isShared
+            ? `#/share/${AssetsComponent.projectId}${AssetsComponent.shareParams}`
+            : `#/project/${AssetsComponent.projectId}`;
+        App.navigateTo(route);
         // The ProjectComponent.render will pick this up via openTaskModal
         setTimeout(() => {
             if (typeof ProjectComponent !== 'undefined') {

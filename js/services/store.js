@@ -580,14 +580,13 @@ const Store = {
     },
 
     addAsset: async (projectId, assetData) => {
-        const user = Auth.getCurrentUser();
-        if (!user) throw new Error("No authenticated user");
+        const user = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
 
         const ref = db.ref(`project_data/${projectId}/assets`).push();
         const asset = {
             ...assetData,
             createdAt: new Date().toISOString(),
-            createdBy: user.email
+            createdBy: user ? user.email : 'Colaborador'
         };
         await ref.set(asset);
         return { id: ref.key, ...asset };

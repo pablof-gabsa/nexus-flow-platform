@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v22'; // Fix: preserve sharing token in Activos navigation
+const CACHE_NAME = 'nexus-flow-v23'; // Fix: allow saving assets in shared mode
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

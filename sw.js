@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v29'; // Fix: prevent duplicate assets across groupers
+const CACHE_NAME = 'nexus-flow-v30'; // Feature: category cards for assets
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

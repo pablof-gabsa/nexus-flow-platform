@@ -158,22 +158,71 @@ const AssetsComponent = {
             grouped[category].push(asset);
         });
 
-        return categories.map(category => {
+        return `
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                ${categories.map(category => {
             const list = grouped[category] || [];
             if (list.length === 0) return '';
+            return AssetsComponent.renderCategoryCard(category, list);
+        }).join('')}
+            </div>
+        `;
+    },
 
-            return `
-                <section class="mb-10">
-                    <div class="flex items-center gap-3 mb-4">
-                        <h3 class="text-sm font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">${category}</h3>
-                        <span class="text-xs bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 rounded-full px-2 py-0.5">${list.length}</span>
+    renderCategoryCard: (category, assets) => {
+        const cover = assets.find(asset => asset.image)?.image || '';
+        const taskIds = new Set();
+        assets.forEach(asset => AssetsComponent.getTasksForAsset(asset.id).forEach(task => taskIds.add(task.id)));
+        const docsCount = assets.reduce((sum, asset) => sum + ((asset.documents || []).length), 0);
+
+        return `
+            <button onclick="AssetsComponent.openCategory('${category}')" class="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all group border border-transparent hover:border-brand-200 dark:hover:border-brand-900 text-left">
+                <div class="h-40 bg-gray-100 dark:bg-slate-700 relative overflow-hidden">
+                    ${cover
+                        ? `<img src="${cover}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="${category}">`
+                        : `<div class="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600"><i class="fas fa-layer-group text-5xl"></i></div>`
+                    }
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
+                    <span class="absolute top-3 right-3 text-xs font-bold bg-white/90 dark:bg-slate-900/90 text-gray-700 dark:text-gray-200 rounded-full px-2 py-1">${assets.length}</span>
+                </div>
+                <div class="p-4">
+                    <h3 class="font-bold text-gray-900 dark:text-white truncate mb-2">${category}</h3>
+                    <div class="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                        <span><i class="fas fa-boxes-stacked text-brand-500 mr-1"></i>${assets.length} activos</span>
+                        ${taskIds.size > 0 ? `<span><i class="fas fa-tasks text-amber-500 mr-1"></i>${taskIds.size}</span>` : ''}
+                        ${docsCount > 0 ? `<span><i class="fas fa-paperclip mr-1"></i>${docsCount}</span>` : ''}
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        ${list.map(asset => AssetsComponent.renderAssetCard(asset)).join('')}
+                </div>
+            </button>
+        `;
+    },
+
+    openCategory: (category) => {
+        const assets = AssetsComponent.assets.filter(asset => (asset.category || 'Sin categoria') === category);
+        const modalId = 'asset-category-detail-modal';
+        let modal = document.getElementById(modalId);
+
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
+            document.body.appendChild(modal);
+        }
+
+        modal.innerHTML = `
+            <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl animate-scale-up">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-2xl font-bold dark:text-white">${category}</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">${assets.length} activos</p>
                     </div>
-                </section>
-            `;
-        }).join('');
+                    <button onclick="document.getElementById('${modalId}').remove()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white text-2xl">&times;</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${assets.map(asset => AssetsComponent.renderAssetCard(asset)).join('')}
+                </div>
+            </div>
+        `;
     },
 
     renderAssetCard: (asset) => {
@@ -183,7 +232,7 @@ const AssetsComponent = {
         const docsCount = (asset.documents || []).length;
 
         return `
-            <div class="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all group border border-transparent hover:border-brand-200 dark:hover:border-brand-900 cursor-pointer" onclick="AssetsComponent.openDetail('${asset.id}')">
+            <div class="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all group border border-transparent hover:border-brand-200 dark:hover:border-brand-900 cursor-pointer" onclick="AssetsComponent.openDetail('${asset.id}'); document.getElementById('asset-category-detail-modal')?.remove();">
                 <div class="h-40 bg-gray-100 dark:bg-slate-700 relative overflow-hidden">
                     ${asset.image
                         ? `<img src="${asset.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="${asset.name}">`

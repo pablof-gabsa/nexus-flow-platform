@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v26'; // Fix: assets header spacing over first row
+const CACHE_NAME = 'nexus-flow-v27'; // Fix: linked asset tasks focus target task
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

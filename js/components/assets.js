@@ -485,8 +485,12 @@ const AssetsComponent = {
                     <div class="space-y-2 max-h-60 overflow-y-auto">
                         ${assetTasks.map(t => {
                             const statusColor = { 'Pendiente': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', 'En Proceso': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', 'Realizado': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', 'Suspendido': 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' };
+                            const rowClass = AssetsComponent.isEditable
+                                ? 'hover:bg-gray-100 dark:hover:bg-slate-700/60 cursor-pointer'
+                                : 'cursor-default';
+                            const rowClick = AssetsComponent.isEditable ? `onclick="AssetsComponent.openLinkedTask('${t.id}')"` : '';
                             return `
-                                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/30 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/60 transition-colors cursor-pointer" onclick="App.navigateTo('${AssetsComponent.isShared ? '#/share/' + AssetsComponent.projectId + AssetsComponent.shareParams : '#/project/' + AssetsComponent.projectId}')">
+                                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/30 rounded-lg transition-colors ${rowClass}" ${rowClick}>
                                     <div class="flex-1 min-w-0">
                                         <p class="text-sm font-medium text-gray-900 dark:text-white truncate">${t.requerimiento}</p>
                                         <p class="text-xs text-gray-400 mt-0.5">${t.responsable || ''} ${t.deadline ? '· ' + Utils.formatDate(t.deadline) : ''}</p>
@@ -501,6 +505,17 @@ const AssetsComponent = {
         `;
 
         modal.classList.remove('hidden');
+    },
+
+    openLinkedTask: (taskId) => {
+        if (!AssetsComponent.isEditable) return;
+
+        document.getElementById('asset-detail-modal')?.classList.add('hidden');
+        sessionStorage.setItem('nexus_focus_taskId', taskId);
+        const route = AssetsComponent.isShared
+            ? `#/share/${AssetsComponent.projectId}${AssetsComponent.shareParams}`
+            : `#/project/${AssetsComponent.projectId}`;
+        App.navigateTo(route);
     },
 
     renderDetailModal: () => {

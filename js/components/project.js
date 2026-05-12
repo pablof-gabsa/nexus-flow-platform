@@ -483,6 +483,7 @@ const ProjectComponent = {
         `;
 
         await ProjectComponent.refreshUI();
+        ProjectComponent.focusTaskFromSession();
     },
 
     refreshData: async () => {
@@ -505,6 +506,40 @@ const ProjectComponent = {
         ProjectComponent.renderStats();
         ProjectComponent.renderModalOptions();
         ProjectComponent.renderExportBar();
+    },
+
+    focusTaskFromSession: () => {
+        const taskId = sessionStorage.getItem('nexus_focus_taskId');
+        if (!taskId) return;
+        sessionStorage.removeItem('nexus_focus_taskId');
+
+        const task = ProjectComponent.data.find(t => t.id === taskId);
+        if (!task) return;
+
+        ProjectComponent.openRubros.add(task.rubro);
+
+        const isVisible = ProjectComponent.getFilteredData().some(t => t.id === taskId);
+        if (!isVisible) {
+            ProjectComponent.filters = {
+                status: 'Todos',
+                priority: 'Todos',
+                date: 'Todas',
+                responsible: 'Todos'
+            };
+            localStorage.setItem(`project_filters_${ProjectComponent.projectId}`, JSON.stringify(ProjectComponent.filters));
+        }
+
+        ProjectComponent.renderChecklist();
+
+        setTimeout(() => {
+            const row = document.getElementById(`task-row-${taskId}`);
+            if (!row) return;
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add('ring-2', 'ring-brand-500', 'bg-brand-50', 'dark:bg-brand-900/20');
+            setTimeout(() => {
+                row.classList.remove('ring-2', 'ring-brand-500', 'bg-brand-50', 'dark:bg-brand-900/20');
+            }, 2500);
+        }, 150);
     },
 
     renderExportBar: () => {
@@ -890,7 +925,7 @@ const ProjectComponent = {
         const subtasksDone = item.subtasks ? item.subtasks.filter(s => s.done).length : 0;
 
         return `
-                    <li class="p-4 hover:bg-white dark:hover:bg-slate-700/50 transition-colors group ${overdueClass}">
+                    <li id="task-row-${item.id}" class="p-4 hover:bg-white dark:hover:bg-slate-700/50 transition-colors group ${overdueClass}">
                         <div class="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                             <div class="flex-1 flex items-center gap-3">
                                 ${ProjectComponent.isSelectionMode ? `

@@ -130,6 +130,11 @@ const App = {
                 if (typeof DashboardComponent !== 'undefined') await DashboardComponent.render(main, params);
                 else main.innerHTML = '<p class="p-10 text-center">Dashboard Component Not Loaded</p>';
             }
+            else if (route.match(/^#\/project\/.+\/metrics$/)) {
+                const projectId = route.replace('#/project/', '').replace('/metrics', '');
+                if (typeof ProjectComponent !== 'undefined') await ProjectComponent.renderMetrics(main, projectId);
+                else main.innerHTML = '<p class="p-10 text-center">Project Component Not Loaded</p>';
+            }
             else if (route.match(/^#\/project\/.+\/assets$/)) {
                 const projectId = route.replace('#/project/', '').replace('/assets', '');
                 if (typeof AssetsComponent !== 'undefined') await AssetsComponent.render(main, projectId);
@@ -138,6 +143,12 @@ const App = {
             else if (route.startsWith('#/project/')) {
                 const projectId = route.replace('#/project/', '');
                 if (typeof ProjectComponent !== 'undefined') await ProjectComponent.render(main, projectId);
+                else main.innerHTML = '<p class="p-10 text-center">Project Component Not Loaded</p>';
+            }
+            else if (route.match(/^#\/share\/.+\/metrics$/)) {
+                const projectId = route.replace('#/share/', '').replace('/metrics', '');
+                const isEditable = params.get('mode') === 'edit';
+                if (typeof ProjectComponent !== 'undefined') await ProjectComponent.renderMetrics(main, projectId, { isShared: true, isEditable: isEditable, params: params });
                 else main.innerHTML = '<p class="p-10 text-center">Project Component Not Loaded</p>';
             }
             else if (route.match(/^#\/share\/.+\/assets$/)) {

@@ -151,6 +151,9 @@ const ProjectComponent = {
                         <button onclick="App.navigateTo('${ProjectComponent.isShared ? '#/share/' + projectId + '/assets' + ProjectComponent.shareParams : '#/project/' + projectId + '/assets'}')" class="btn-secondary text-sm px-4" title="Control de Activos">
                             <i class="fas fa-boxes-stacked"></i> <span class="hidden sm:inline">Activos</span>
                         </button>
+                        <button onclick="App.navigateTo('${ProjectComponent.isShared ? '#/share/' + projectId + '/metrics' + ProjectComponent.shareParams : '#/project/' + projectId + '/metrics'}')" class="btn-secondary text-sm px-4" title="Metricas">
+                            <i class="fas fa-chart-line"></i> <span class="hidden sm:inline">Metricas</span>
+                        </button>
                         ${!ProjectComponent.isShared ? `
                         <button onclick="ProjectComponent.shareProject()" class="btn-secondary text-sm px-4">
                             <i class="fas fa-share-alt"></i> <span class="hidden sm:inline">Compartir</span>
@@ -222,33 +225,6 @@ const ProjectComponent = {
                         <button onclick="ProjectComponent.openPDFModal()" class="btn-secondary text-sm px-4 pointer-events-auto">
                             <i class="fas fa-file-pdf"></i> <span class="hidden sm:inline">PDF</span>
                         </button>
-                    </div>
-                </div>
-
-                <!-- Metrics & Charts -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    <div class="glass-card p-6 rounded-xl lg:col-span-2">
-                        <h3 class="font-bold text-gray-700 dark:text-white mb-4">Progreso Global</h3>
-                        <div class="flex items-center gap-4 mb-4">
-                            <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-4">
-                                <div id="project-progress-bar" class="bg-brand-600 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
-                            </div>
-                            <span id="project-progress-text" class="font-bold text-brand-600">0%</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 h-48">
-                            <div class="relative">
-                                <canvas id="activityChart"></canvas>
-                            </div>
-                            <div class="relative">
-                                <canvas id="deadlineChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="glass-card p-6 rounded-xl">
-                        <h3 class="font-bold text-gray-700 dark:text-white mb-4">Resumen</h3>
-                        <div id="project-stats" class="space-y-4">
-                            <!-- Stats injected via JS -->
-                        </div>
                     </div>
                 </div>
 
@@ -484,6 +460,110 @@ const ProjectComponent = {
 
         await ProjectComponent.refreshUI();
         ProjectComponent.focusTaskFromSession();
+    },
+
+    renderMetrics: async (container, projectId, options = {}) => {
+        ProjectComponent.projectId = projectId;
+        ProjectComponent.isShared = !!options.isShared;
+        ProjectComponent.isEditable = options.isEditable !== false;
+
+        if (ProjectComponent.isShared && options.params) {
+            const parts = [];
+            if (options.params.get('mode')) parts.push('mode=' + options.params.get('mode'));
+            if (options.params.get('t')) parts.push('t=' + options.params.get('t'));
+            ProjectComponent.shareParams = parts.length > 0 ? '?' + parts.join('&') : '';
+        } else {
+            ProjectComponent.shareParams = '';
+        }
+
+        let projectInfo;
+        if (ProjectComponent.isShared) {
+            const data = await Store.getProjectData(projectId);
+            const token = options.params ? options.params.get('t') : null;
+            if (!data.sharingToken || data.sharingToken !== token) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+                        <div class="bg-red-50 dark:bg-red-900/20 p-8 rounded-2xl border border-red-100 dark:border-red-900/30 max-w-sm">
+                            <i class="fas fa-link-slash text-5xl text-red-500 mb-4"></i>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Enlace expirado o invalido</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">El propietario ha cambiado el enlace de acceso o este ya no es valido.</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido', ...data };
+        } else {
+            projectInfo = await Store.getProject(projectId);
+        }
+
+        if (!projectInfo) {
+            container.innerHTML = `<div class="p-10 text-center dark:text-gray-300">Proyecto no encontrado o acceso denegado.</div>`;
+            return;
+        }
+
+        await ProjectComponent.refreshData();
+
+        const backRoute = ProjectComponent.isShared
+            ? `#/share/${projectId}${ProjectComponent.shareParams}`
+            : `#/project/${projectId}`;
+
+        container.innerHTML = `
+            ${!ProjectComponent.isShared ? NavbarComponent.render() : ''}
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
+                <div class="glass-panel p-4 rounded-xl mb-8 flex flex-col md:flex-row justify-between items-center gap-4 relative z-20 shadow-sm backdrop-blur-md bg-white/80 dark:bg-slate-900/90 border-b border-white/20">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span onclick="App.navigateTo('${backRoute}')" class="cursor-pointer hover:text-brand-600"><i class="fas fa-arrow-left"></i></span>
+                            ${ProjectComponent.isShared ? '<span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider">Compartido</span>' : ''}
+                            <i class="fas fa-chart-line text-brand-500"></i>
+                            Metricas
+                            <span class="text-base font-normal text-gray-400">— ${projectInfo.name}</span>
+                        </h2>
+                    </div>
+                    <button onclick="App.navigateTo('${ProjectComponent.isShared ? '#/share/' + projectId + '/assets' + ProjectComponent.shareParams : '#/project/' + projectId + '/assets'}')" class="btn-secondary text-sm px-4">
+                        <i class="fas fa-boxes-stacked"></i> Activos
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="glass-card p-6 rounded-xl lg:col-span-2">
+                        <h3 class="font-bold text-gray-700 dark:text-white mb-4">Progreso Global</h3>
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-4">
+                                <div id="project-progress-bar" class="bg-brand-600 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="project-progress-text" class="font-bold text-brand-600">0%</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-56">
+                            <div class="relative"><canvas id="activityChart"></canvas></div>
+                            <div class="relative"><canvas id="deadlineChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 rounded-xl">
+                        <h3 class="font-bold text-gray-700 dark:text-white mb-4">Resumen</h3>
+                        <div id="project-stats" class="space-y-4"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="glass-card p-6 rounded-xl lg:col-span-2">
+                        <h3 class="font-bold text-gray-700 dark:text-white mb-4">Estado de Activos</h3>
+                        <div class="h-64 relative"><canvas id="assetStatusChart"></canvas></div>
+                    </div>
+                    <div class="glass-card p-6 rounded-xl">
+                        <h3 class="font-bold text-gray-700 dark:text-white mb-4">Activos</h3>
+                        <div id="asset-status-stats" class="space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        setTimeout(() => {
+            ProjectComponent.renderCharts();
+            ProjectComponent.renderStats();
+            ProjectComponent.renderAssetStatusMetrics();
+        }, 100);
     },
 
     refreshData: async () => {
@@ -2456,6 +2536,53 @@ const ProjectComponent = {
             <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>Pendientes</span> <span class="font-bold text-amber-600">${pending}</span></div>
             <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>Vencidas</span> <span class="font-bold text-red-600">${overdue}</span></div>
         `;
+    },
+
+    renderAssetStatusMetrics: () => {
+        const container = document.getElementById('asset-status-stats');
+        const ctx = document.getElementById('assetStatusChart');
+        if (!container || !ctx) return;
+
+        const total = ProjectComponent.assets.length;
+        const outOfService = ProjectComponent.assets.filter(asset => (asset.serviceStatus || 'En servicio') === 'Fuera de servicio').length;
+        const inService = total - outOfService;
+
+        container.innerHTML = `
+            <div class="flex justify-between items-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                <span class="text-emerald-600 dark:text-emerald-400">En servicio</span>
+                <span class="font-bold text-emerald-700 dark:text-emerald-300">${inService}</span>
+            </div>
+            <div class="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <span class="text-red-600 dark:text-red-400">Fuera de servicio</span>
+                <span class="font-bold text-red-700 dark:text-red-300">${outOfService}</span>
+            </div>
+            <div class="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <span class="text-blue-600 dark:text-blue-400">Total activos</span>
+                <span class="font-bold text-blue-700 dark:text-blue-300">${total}</span>
+            </div>
+        `;
+
+        if (ProjectComponent.assetStatusChart) ProjectComponent.assetStatusChart.destroy();
+
+        ProjectComponent.assetStatusChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['En servicio', 'Fuera de servicio'],
+                datasets: [{
+                    data: [inService, outOfService],
+                    backgroundColor: ['rgba(16, 185, 129, 0.85)', 'rgba(239, 68, 68, 0.85)'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                },
+                cutout: '65%'
+            }
+        });
     },
 
     editProjectName: async () => {

@@ -582,8 +582,12 @@ const ProjectComponent = {
     refreshUI: async () => {
         await ProjectComponent.refreshData(); // Ensure fresh data
         ProjectComponent.renderChecklist();
-        ProjectComponent.renderCharts();
-        ProjectComponent.renderStats();
+        if (document.getElementById('activityChart') && document.getElementById('deadlineChart')) {
+            ProjectComponent.renderCharts();
+        }
+        if (document.getElementById('project-stats')) {
+            ProjectComponent.renderStats();
+        }
         ProjectComponent.renderModalOptions();
         ProjectComponent.renderExportBar();
     },
@@ -2528,8 +2532,11 @@ const ProjectComponent = {
             }
         });
 
+        const statsContainer = document.getElementById('project-stats');
+        if (!statsContainer) return;
+
         // Stats Text (Optional: Keep or remove based on new UI, keeping for now but simplified)
-        document.getElementById('project-stats').innerHTML = `
+        statsContainer.innerHTML = `
             <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>Total Histórico</span> <span class="font-bold">${total}</span></div>
             <hr class="border-gray-100 dark:border-slate-700 my-1">
             <div class="flex justify-between p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-700"><span>En Proceso</span> <span class="font-bold text-blue-600">${inProcess}</span></div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v33'; // Feature: metrics page with asset status
+const CACHE_NAME = 'nexus-flow-v34'; // Fix: project load without metrics widgets
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

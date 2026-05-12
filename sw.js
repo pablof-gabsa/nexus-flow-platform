@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v27'; // Fix: linked asset tasks focus target task
+const CACHE_NAME = 'nexus-flow-v28'; // Feature: configurable asset groupers
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

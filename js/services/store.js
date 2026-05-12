@@ -637,6 +637,10 @@ const Store = {
         await db.ref(`project_data/${projectId}/assets/${assetId}`).update(updates);
     },
 
+    updateAssetCategories: async (projectId, categories) => {
+        await db.ref(`project_data/${projectId}/assetCategories`).set(categories);
+    },
+
     deleteAsset: async (projectId, assetId) => {
         await db.ref(`project_data/${projectId}/assets/${assetId}`).remove();
     }

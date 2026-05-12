@@ -526,6 +526,15 @@ const Store = {
 
     // Storage
     uploadFile: async (file, context = {}) => {
+        const fallbackToBase64 = () => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+        if (context.forceBase64) return fallbackToBase64();
+
         let user = Auth.getCurrentUser();
 
         if (!user && context.allowAnonymous && typeof auth !== 'undefined' && auth.signInAnonymously) {
@@ -536,15 +545,6 @@ const Store = {
                 console.warn("Anonymous upload session failed", error);
             }
         }
-
-        const fallbackToBase64 = () => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-
-        if (context.forceBase64) return fallbackToBase64();
 
         if (!user) {
             if (context.fallbackToBase64) return fallbackToBase64();

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v24'; // Fix: shared assets uploads and file deletion controls
+const CACHE_NAME = 'nexus-flow-v25'; // Fix: shared upload skips auth before Base64 fallback
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

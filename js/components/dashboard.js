@@ -22,6 +22,28 @@ const DashboardComponent = {
         }
     })(),
 
+    isStatsProject: (project) => {
+        if (!project || project.status === 'inactive') return false;
+
+        const hidden = DashboardComponent.projectSettings?.hidden || {};
+        if (hidden[project.id]) return false;
+
+        return true;
+    },
+
+    getStatsProjects: () => {
+        return DashboardComponent.projects.filter(p => DashboardComponent.isStatsProject(p));
+    },
+
+    isStatsTask: (task) => {
+        if (!task || task.projectStatus === 'inactive') return false;
+
+        const hidden = DashboardComponent.projectSettings?.hidden || {};
+        if (hidden[task.projectId]) return false;
+
+        return true;
+    },
+
     render: async (container, params) => {
         // Handle View Param
         if (params && params.get('view')) {
@@ -42,8 +64,9 @@ const DashboardComponent = {
         // 1. Fetch Resources (Only if not already loaded or forced refresh needed? For now always fetch to be safe)
         try {
             DashboardComponent.projects = await Store.getProjects();
-            // Fetch all active projects for global stats
-            const projectsToFetch = DashboardComponent.projects.filter(p => true);
+            // Fetch only projects that count for global stats.
+            // Archived projects are excluded for owners, and hidden projects are excluded from admin/owner dashboard counts.
+            const projectsToFetch = DashboardComponent.getStatsProjects();
 
             // Fetch Admins if needed for Users view
             if (DashboardComponent.currentView === 'users' && (Store.currentContext.role === 'owner' || Store.currentContext.role === 'admin')) {
@@ -60,10 +83,6 @@ const DashboardComponent = {
             DashboardComponent.allResponsables.clear();
 
             await Promise.all(projectsToFetch.map(async (p) => {
-                // We fetch ALL data to ensure Global Stats are accurate, 
-                // regardless of whether the project is currently 'visible' in the active list.
-
-
                 try {
                     const data = await Store.getProjectData(p.id);
                     const tasks = data.tasks ? Object.keys(data.tasks).map(key => ({
@@ -186,7 +205,7 @@ const DashboardComponent = {
                             
                             ${v.id === 'tasks' ? `
                                 <span class="hidden lg:flex ml-auto bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                    ${DashboardComponent.allTasks.filter(t => t.estado === 'Pendiente').length}
+                                    ${DashboardComponent.allTasks.filter(t => DashboardComponent.isStatsTask(t) && t.estado === 'Pendiente').length}
                                 </span>
                             ` : ''}
                         </button>
@@ -252,7 +271,7 @@ const DashboardComponent = {
                 <div class="glass-card p-5 rounded-2xl flex items-center justify-between cursor-pointer hover:shadow-md transition-all" onclick="DashboardComponent.switchView('projects')">
                     <div>
                         <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Proyectos Activos</p>
-                        <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">${DashboardComponent.projects.filter(p => p.status !== 'inactive' && !DashboardComponent.projectSettings?.hidden?.[p.id]).length}</p>
+                        <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">${DashboardComponent.getStatsProjects().length}</p>
                     </div>
                     <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
                         <i class="fas fa-project-diagram text-xl"></i>
@@ -766,11 +785,9 @@ const DashboardComponent = {
     },
 
     getFilteredTasks: () => {
-        const hidden = DashboardComponent.projectSettings?.hidden || {};
-
         return DashboardComponent.allTasks.filter(t => {
             // 1. Visibility Filter (By Project)
-            if (hidden[t.projectId]) return false;
+            if (!DashboardComponent.isStatsTask(t)) return false;
 
             // 2. Status Filter
             const sFilter = DashboardComponent.globalFilters.status || 'active'; // Default safety

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v35'; // UI: remove assets button from metrics page
+const CACHE_NAME = 'nexus-flow-v36'; // Stats: exclude archived/hidden projects from dashboard counts
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

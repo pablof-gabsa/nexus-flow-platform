@@ -174,6 +174,7 @@ const AssetsComponent = {
         const taskIds = new Set();
         assets.forEach(asset => AssetsComponent.getTasksForAsset(asset.id).forEach(task => taskIds.add(task.id)));
         const docsCount = assets.reduce((sum, asset) => sum + ((asset.documents || []).length), 0);
+        const outOfService = assets.filter(asset => (asset.serviceStatus || 'En servicio') === 'Fuera de servicio').length;
 
         return `
             <button onclick="AssetsComponent.openCategory('${category}')" class="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all group border border-transparent hover:border-brand-200 dark:hover:border-brand-900 text-left">
@@ -191,6 +192,7 @@ const AssetsComponent = {
                         <span><i class="fas fa-boxes-stacked text-brand-500 mr-1"></i>${assets.length} activos</span>
                         ${taskIds.size > 0 ? `<span><i class="fas fa-tasks text-amber-500 mr-1"></i>${taskIds.size}</span>` : ''}
                         ${docsCount > 0 ? `<span><i class="fas fa-paperclip mr-1"></i>${docsCount}</span>` : ''}
+                        ${outOfService > 0 ? `<span class="text-red-500"><i class="fas fa-power-off mr-1"></i>${outOfService}</span>` : ''}
                     </div>
                 </div>
             </button>
@@ -230,6 +232,7 @@ const AssetsComponent = {
         const pending = assetTasks.filter(t => t.estado === 'Pendiente' || t.estado === 'En Proceso').length;
         const done = assetTasks.filter(t => t.estado === 'Realizado').length;
         const docsCount = (asset.documents || []).length;
+        const isOutOfService = (asset.serviceStatus || 'En servicio') === 'Fuera de servicio';
 
         return `
             <div class="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all group border border-transparent hover:border-brand-200 dark:hover:border-brand-900 cursor-pointer" onclick="AssetsComponent.openDetail('${asset.id}'); document.getElementById('asset-category-detail-modal')?.remove();">
@@ -248,7 +251,12 @@ const AssetsComponent = {
                     </div>` : ''}
                 </div>
                 <div class="p-4">
+                    <div class="flex items-start justify-between gap-2 mb-1">
                     <h3 class="font-bold text-gray-900 dark:text-white truncate mb-1">${asset.name}</h3>
+                        <span class="text-[10px] font-bold rounded-full px-2 py-1 whitespace-nowrap ${isOutOfService ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}">
+                            ${asset.serviceStatus || 'En servicio'}
+                        </span>
+                    </div>
                     ${asset.description ? `<p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-3">${asset.description}</p>` : '<div class="mb-3"></div>'}
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex gap-3">
@@ -407,6 +415,7 @@ const AssetsComponent = {
             document.getElementById('asset-name').value = asset.name || '';
             document.getElementById('asset-description').value = asset.description || '';
             document.getElementById('asset-category').value = asset.category || 'Sin categoria';
+            document.getElementById('asset-service-status').value = asset.serviceStatus || 'En servicio';
             if (asset.image) {
                 document.getElementById('asset-image-preview').innerHTML = AssetsComponent.renderImagePreview(asset.image);
                 document.getElementById('asset-image-preview').dataset.url = asset.image;
@@ -415,6 +424,7 @@ const AssetsComponent = {
         } else {
             title.textContent = 'Nuevo Activo';
             document.getElementById('asset-category').value = AssetsComponent.assetCategories[0] || 'Sin categoria';
+            document.getElementById('asset-service-status').value = 'En servicio';
         }
 
         AssetsComponent.renderAssetDocsPreview();
@@ -444,6 +454,13 @@ const AssetsComponent = {
                             <select id="asset-category" class="input-primary mt-1">
                                 ${(AssetsComponent.assetCategories || []).map(category => `<option value="${category}">${category}</option>`).join('')}
                                 <option value="Sin categoria">Sin categoria</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium dark:text-gray-300">Estado operativo</label>
+                            <select id="asset-service-status" class="input-primary mt-1">
+                                <option>En servicio</option>
+                                <option>Fuera de servicio</option>
                             </select>
                         </div>
 
@@ -573,6 +590,7 @@ const AssetsComponent = {
         const name = document.getElementById('asset-name').value.trim();
         const description = document.getElementById('asset-description').value.trim();
         const category = document.getElementById('asset-category').value || 'Sin categoria';
+        const serviceStatus = document.getElementById('asset-service-status').value || 'En servicio';
         const imgPreview = document.getElementById('asset-image-preview');
         let image = imgPreview.dataset.url || '';
         const imageWasRemoved = imgPreview.dataset.removed === 'true';
@@ -587,6 +605,7 @@ const AssetsComponent = {
             name,
             description,
             category,
+            serviceStatus,
             image,
             documents: AssetsComponent.currentAssetAttachments
         };
@@ -634,6 +653,7 @@ const AssetsComponent = {
         const modal = document.getElementById('asset-detail-modal');
         const assetTasks = AssetsComponent.getTasksForAsset(assetId);
         const docs = asset.documents || [];
+        const isOutOfService = (asset.serviceStatus || 'En servicio') === 'Fuera de servicio';
 
         modal.querySelector('#asset-detail-content').innerHTML = `
             <!-- Image -->
@@ -651,7 +671,12 @@ const AssetsComponent = {
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <h3 class="text-2xl font-bold dark:text-white">${asset.name}</h3>
-                    <p class="text-xs text-brand-500 dark:text-brand-400 font-bold uppercase tracking-wide mt-1">${asset.category || 'Sin categoria'}</p>
+                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                        <p class="text-xs text-brand-500 dark:text-brand-400 font-bold uppercase tracking-wide">${asset.category || 'Sin categoria'}</p>
+                        <span class="text-[10px] font-bold rounded-full px-2 py-1 ${isOutOfService ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}">
+                            ${asset.serviceStatus || 'En servicio'}
+                        </span>
+                    </div>
                     ${asset.description ? `<p class="text-gray-500 dark:text-gray-400 mt-1">${asset.description}</p>` : ''}
                 </div>
                 ${AssetsComponent.isEditable ? `<div class="flex gap-2">

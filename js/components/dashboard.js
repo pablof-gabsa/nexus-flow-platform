@@ -808,8 +808,7 @@ const DashboardComponent = {
     },
 
     calculateGlobalStats: () => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const today = Utils.startOfToday();
         const nextWeek = new Date(today);
         nextWeek.setDate(today.getDate() + 7);
 
@@ -827,9 +826,8 @@ const DashboardComponent = {
 
             if (!t.deadline) return;
 
-            // Date Parsing
-            const [y, m, d] = t.deadline.split('-').map(Number);
-            const date = new Date(y, m - 1, d);
+            const date = Utils.parseLocalDate(t.deadline);
+            if (!date) return;
 
             if (date < today) {
                 overdueCount++;

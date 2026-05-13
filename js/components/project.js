@@ -666,17 +666,9 @@ const ProjectComponent = {
         const totalCost = activeTasks.reduce((sum, t) => sum + (parseFloat(t.costo) || 0), 0);
 
         // Calculate Overdue
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
         const overdue = tasks.filter(t => {
             if (!t.deadline || t.estado === 'Realizado' || t.estado === 'Suspendido') return false;
-            const d = new Date(t.deadline);
-            d.setHours(0, 0, 0, 0); // compare dates only
-            // Fix: timezone offset issue often makes deadline look like previous day. 
-            // Assuming deadline string "YYYY-MM-DD" is local.
-            const [y, m, d_] = t.deadline.split('-').map(Number);
-            const deadlineDate = new Date(y, m - 1, d_);
-            return deadlineDate < today;
+            return Utils.isDateOverdue(t.deadline);
         }).length;
         const pending = tasks.filter(t => t.estado === 'Pendiente').length;
 
@@ -804,18 +796,16 @@ const ProjectComponent = {
                 const taskDate = t.start_date || t.deadline;
                 if (!taskDate) return false;
 
-                const d = new Date(taskDate);
-                // fix strict date comparison by resetting time
-                const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                const dDate = Utils.parseLocalDate(taskDate);
+                if (!dDate) return false;
 
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                const today = Utils.startOfToday();
 
                 if (ProjectComponent.filters.date === 'Vencidas') {
                     // Overdue and NOT done (using deadline for "Overdue" specifically makes more sense than start_date, 
                     // but according to requirements we prioritize start_date then deadline for the "Fecha" filter logic)
                     if (t.estado === 'Realizado' || t.estado === 'Suspendido') return false;
-                    return dDate < today;
+                    return Utils.isDateOverdue(taskDate);
                 }
                 if (ProjectComponent.filters.date === 'Hoy') return dDate.getTime() === today.getTime();
 
@@ -986,11 +976,10 @@ const ProjectComponent = {
             'Suspendido': 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600'
         }[item.estado] || '';
 
-        const now = new Date();
-        const isOverdue = item.deadline && new Date(item.deadline) < now && item.estado !== 'Realizado' && item.estado !== 'Suspendido';
+        const isOverdue = item.deadline && Utils.isDateOverdue(item.deadline) && item.estado !== 'Realizado' && item.estado !== 'Suspendido';
 
         // Late Start Logic: Start Date passed AND status still 'Pendiente'
-        const isLateStart = item.estado === 'Pendiente' && item.start_date && new Date(item.start_date) < now;
+        const isLateStart = item.estado === 'Pendiente' && item.start_date && Utils.isDateOverdue(item.start_date);
 
         const overdueClass = isOverdue ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500' :
             isLateStart ? 'bg-red-50 dark:bg-red-900/10 border-l-4 border-red-400' : // Lighter red for late start
@@ -1892,7 +1881,7 @@ const ProjectComponent = {
 
             items.forEach(item => {
                 // Task Row
-                const isLate = item.deadline && new Date(item.deadline) < new Date() && item.estado !== 'Realizado';
+                const isLate = item.deadline && Utils.isDateOverdue(item.deadline) && item.estado !== 'Realizado';
                 const statusColor = {
                     'Realizado': [16, 185, 129], // Emerald
                     'Pendiente': [245, 158, 11], // Amber
@@ -2447,8 +2436,11 @@ const ProjectComponent = {
                 return;
             }
 
-            const [y, m, d] = t.deadline.split('-').map(Number);
-            const date = new Date(y, m - 1, d);
+            const date = Utils.parseLocalDate(t.deadline);
+            if (!date) {
+                onTrack++;
+                return;
+            }
 
             if (date < today) overdue++;
             else if (date >= today && date <= nextWeek) dueSoon++;

@@ -16,6 +16,31 @@ const Utils = {
         return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
     },
 
+    // Parse "YYYY-MM-DD" as a local calendar day.
+    parseLocalDate: (dateString) => {
+        if (!dateString) return null;
+        if (dateString instanceof Date) return new Date(dateString.getFullYear(), dateString.getMonth(), dateString.getDate());
+
+        const parts = dateString.split('-').map(Number);
+        if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+    },
+
+    startOfToday: () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return today;
+    },
+
+    isDateOverdue: (dateString, referenceDate = new Date()) => {
+        const date = Utils.parseLocalDate(dateString);
+        if (!date) return false;
+
+        const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+        return date < today;
+    },
+
     // Format date for input[type=date]
     formatDateForInput: (dateObj) => {
         if (!dateObj) return '';

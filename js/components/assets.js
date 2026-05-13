@@ -401,6 +401,11 @@ const AssetsComponent = {
         const form = document.getElementById('asset-form');
         const categorySelect = document.getElementById('asset-category');
 
+        if (!modal || !title || !form) {
+            console.warn('Asset modal is not available yet.');
+            return false;
+        }
+
         form.reset();
         if (categorySelect) {
             categorySelect.innerHTML = (AssetsComponent.assetCategories || []).map(category => `<option value="${category}">${category}</option>`).join('') +
@@ -431,6 +436,7 @@ const AssetsComponent = {
 
         AssetsComponent.renderAssetDocsPreview();
         modal.classList.remove('hidden');
+        return true;
     },
 
     renderAssetModal: () => {
@@ -620,7 +626,7 @@ const AssetsComponent = {
                 await Store.addAsset(AssetsComponent.projectId, assetData);
                 UI.showToast('Activo creado', 'success');
             }
-            document.getElementById('asset-modal').classList.add('hidden');
+            document.getElementById('asset-modal')?.classList.add('hidden');
             await Promise.all(AssetsComponent.pendingDeletedFiles.map(url => Store.deleteUploadedFile(url)));
             AssetsComponent.pendingDeletedFiles = [];
             AssetsComponent.refreshUI();
@@ -778,7 +784,7 @@ const AssetsComponent = {
     createTaskForAsset: (assetId) => {
         if (!AssetsComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         // Close detail modal, navigate to project, and open task modal with asset pre-selected
-        document.getElementById('asset-detail-modal').classList.add('hidden');
+        document.getElementById('asset-detail-modal')?.classList.add('hidden');
         // Store the assetId to pre-select after navigation
         sessionStorage.setItem('nexus_prefill_assetId', assetId);
         const route = AssetsComponent.isShared
@@ -786,17 +792,26 @@ const AssetsComponent = {
             : `#/project/${AssetsComponent.projectId}`;
         App.navigateTo(route);
         // The ProjectComponent.render will pick this up via openTaskModal
-        setTimeout(() => {
-            if (typeof ProjectComponent !== 'undefined') {
-                ProjectComponent.openTaskModal();
-                // Set the asset select after modal opens
-                setTimeout(() => {
-                    const sel = document.getElementById('task-asset');
-                    if (sel) sel.value = assetId;
+        const openWhenReady = (attempt = 0) => {
+            const opened = typeof ProjectComponent !== 'undefined' && ProjectComponent.openTaskModal();
+            if (!opened) {
+                if (attempt < 10) {
+                    setTimeout(() => openWhenReady(attempt + 1), 200);
+                } else {
                     sessionStorage.removeItem('nexus_prefill_assetId');
-                }, 200);
+                    UI.showToast('No se pudo abrir el formulario de tarea. Intenta nuevamente.', 'warning');
+                }
+                return;
             }
-        }, 800);
+
+            // Set the asset select after modal opens
+            setTimeout(() => {
+                const sel = document.getElementById('task-asset');
+                if (sel) sel.value = assetId;
+                sessionStorage.removeItem('nexus_prefill_assetId');
+            }, 200);
+        };
+        setTimeout(() => openWhenReady(), 800);
     },
 
     deleteAssetImage: async (assetId) => {

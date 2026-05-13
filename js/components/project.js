@@ -1286,12 +1286,18 @@ const ProjectComponent = {
     openTaskModal: (taskId = null) => {
         const modal = document.getElementById('task-modal');
         const title = document.getElementById('modal-title');
+        const form = document.getElementById('task-form');
+
+        if (!modal || !title || !form) {
+            console.warn('Task modal is not available yet.');
+            return false;
+        }
 
         ProjectComponent.editingSubtasks = [];
         ProjectComponent.currentAttachments = [];
 
         // Reset Form
-        document.getElementById('task-form').reset();
+        form.reset();
         document.getElementById('task-id').value = '';
         document.getElementById('task-time').value = '00:00'; // Default time
 
@@ -1376,6 +1382,7 @@ const ProjectComponent = {
         ProjectComponent.renderSubtasksEdit();
         ProjectComponent.renderAttachmentsPreview();
         modal.classList.remove('hidden');
+        return true;
     },
 
     handleTaskSubmit: async (e) => {

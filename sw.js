@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v36'; // Stats: exclude archived/hidden projects from dashboard counts
+const CACHE_NAME = 'nexus-flow-v37'; // Landing refresh
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

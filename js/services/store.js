@@ -561,9 +561,15 @@ const Store = {
 
         try {
             const ref = storage.ref(path);
+            const metadata = {
+                contentType: file.type || 'application/octet-stream',
+                customMetadata: {
+                    originalName: file.name
+                }
+            };
 
             // Upload
-            const snapshot = await ref.put(file);
+            const snapshot = await ref.put(file, metadata);
 
             // Get URL
             const url = await snapshot.ref.getDownloadURL();

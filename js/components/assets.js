@@ -543,7 +543,7 @@ const AssetsComponent = {
 
     getUploadContext: () => ({
         allowAnonymous: AssetsComponent.isShared,
-        fallbackToBase64: AssetsComponent.isShared,
+        fallbackToBase64: true,
         forceBase64: AssetsComponent.isShared,
         folder: `uploads/assets/${AssetsComponent.projectId}`
     }),

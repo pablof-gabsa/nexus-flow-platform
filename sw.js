@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v37'; // Landing refresh
+const CACHE_NAME = 'nexus-flow-v38'; // Attachment PDF fallback
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

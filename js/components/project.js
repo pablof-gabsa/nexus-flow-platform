@@ -1190,7 +1190,7 @@ const ProjectComponent = {
                 // Call Store to upload
                 const url = await Store.uploadFile(file, {
                     allowAnonymous: ProjectComponent.isShared,
-                    fallbackToBase64: ProjectComponent.isShared,
+                    fallbackToBase64: true,
                     forceBase64: ProjectComponent.isShared,
                     folder: `uploads/tasks/${ProjectComponent.projectId}`
                 });
@@ -1201,7 +1201,7 @@ const ProjectComponent = {
                     type: file.type
                 });
 
-                UI.showToast('Imagen subida correctamente', 'success');
+                UI.showToast(`${file.name} subido correctamente`, 'success');
 
             } catch (e) {
                 console.error(e);

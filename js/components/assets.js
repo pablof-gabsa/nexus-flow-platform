@@ -5,7 +5,9 @@ const AssetsComponent = {
     rubros: [],
     responsables: [],
     assetCategories: [],
+    assetSubcategories: {},
     categoryDraft: [],
+    subcategoryDraft: {},
     currentAssetAttachments: [],
     pendingDeletedFiles: [],
     editingAssetId: null,
@@ -118,6 +120,7 @@ const AssetsComponent = {
             'Red electrica',
             'Mobiliarios'
         ];
+        AssetsComponent.assetSubcategories = fullData.assetSubcategories || {};
     },
 
     refreshUI: async () => {
@@ -128,6 +131,10 @@ const AssetsComponent = {
 
     getTasksForAsset: (assetId) => {
         return AssetsComponent.tasks.filter(t => t.assetId === assetId);
+    },
+
+    getSubcategoriesForCategory: (category) => {
+        return AssetsComponent.assetSubcategories?.[category] || [];
     },
 
     renderAssetsGrid: () => {
@@ -203,6 +210,10 @@ const AssetsComponent = {
 
     openCategory: (category) => {
         const assets = AssetsComponent.assets.filter(asset => (asset.category || 'Sin categoria') === category);
+        const subcategories = [...new Set([
+            ...AssetsComponent.getSubcategoriesForCategory(category),
+            ...assets.map(asset => asset.subcategory || 'Sin subagrupador')
+        ])];
         const modalId = 'asset-category-detail-modal';
         let modal = document.getElementById(modalId);
 
@@ -222,8 +233,22 @@ const AssetsComponent = {
                     </div>
                     <button onclick="document.getElementById('${modalId}').remove()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white text-2xl">&times;</button>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    ${assets.map(asset => AssetsComponent.renderAssetCard(asset)).join('')}
+                <div class="space-y-8">
+                    ${subcategories.map(subcategory => {
+                        const list = assets.filter(asset => (asset.subcategory || 'Sin subagrupador') === subcategory);
+                        if (list.length === 0) return '';
+                        return `
+                            <section>
+                                <div class="flex items-center gap-3 mb-3">
+                                    <h4 class="font-bold text-gray-900 dark:text-white">${subcategory}</h4>
+                                    <span class="text-xs font-bold bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-300 rounded-full px-2 py-1">${list.length}</span>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    ${list.map(asset => AssetsComponent.renderAssetCard(asset)).join('')}
+                                </div>
+                            </section>
+                        `;
+                    }).join('')}
                 </div>
             </div>
         `;
@@ -259,6 +284,7 @@ const AssetsComponent = {
                             ${asset.serviceStatus || 'En servicio'}
                         </span>
                     </div>
+                    ${asset.subcategory ? `<p class="text-[10px] font-bold text-brand-500 dark:text-brand-400 uppercase tracking-wide mb-1">${asset.subcategory}</p>` : ''}
                     ${asset.description ? `<p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-3">${asset.description}</p>` : '<div class="mb-3"></div>'}
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex gap-3">
@@ -277,6 +303,7 @@ const AssetsComponent = {
         if (!AssetsComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
 
         AssetsComponent.categoryDraft = [...(AssetsComponent.assetCategories || [])];
+        AssetsComponent.subcategoryDraft = JSON.parse(JSON.stringify(AssetsComponent.assetSubcategories || {}));
         const modalId = 'asset-categories-modal';
         let modal = document.getElementById(modalId);
 
@@ -288,12 +315,12 @@ const AssetsComponent = {
         }
 
         modal.innerHTML = `
-            <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-scale-up">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl p-6 shadow-2xl animate-scale-up">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl font-bold dark:text-white">Agrupadores de Activos</h3>
                     <button onclick="document.getElementById('${modalId}').remove()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white text-2xl">&times;</button>
                 </div>
-                <div id="asset-categories-list" class="space-y-2 max-h-[55vh] overflow-y-auto mb-4"></div>
+                <div id="asset-categories-list" class="space-y-3 max-h-[55vh] overflow-y-auto mb-4"></div>
                 <div class="flex gap-2">
                     <input id="new-asset-category" class="input-primary flex-1 text-sm" placeholder="Nuevo agrupador">
                     <button onclick="AssetsComponent.addCategoryDraft()" class="btn-secondary px-4"><i class="fas fa-plus"></i></button>
@@ -312,18 +339,40 @@ const AssetsComponent = {
         const container = document.getElementById('asset-categories-list');
         if (!container) return;
 
-        container.innerHTML = AssetsComponent.categoryDraft.map((category, index) => `
-            <div class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-slate-700/40 rounded-lg">
-                <div class="flex flex-col gap-1">
-                    <button onclick="AssetsComponent.moveCategoryDraft(${index}, -1)" class="text-gray-400 hover:text-brand-500 ${index === 0 ? 'invisible' : ''}"><i class="fas fa-chevron-up text-xs"></i></button>
-                    <button onclick="AssetsComponent.moveCategoryDraft(${index}, 1)" class="text-gray-400 hover:text-brand-500 ${index === AssetsComponent.categoryDraft.length - 1 ? 'invisible' : ''}"><i class="fas fa-chevron-down text-xs"></i></button>
+        container.innerHTML = AssetsComponent.categoryDraft.map((category, index) => {
+            const subcategories = AssetsComponent.subcategoryDraft[category] || [];
+            return `
+            <div class="p-3 bg-gray-50 dark:bg-slate-700/40 rounded-lg border border-gray-100 dark:border-slate-600">
+                <div class="flex items-center gap-2">
+                    <div class="flex flex-col gap-1">
+                        <button onclick="AssetsComponent.moveCategoryDraft(${index}, -1)" class="text-gray-400 hover:text-brand-500 ${index === 0 ? 'invisible' : ''}"><i class="fas fa-chevron-up text-xs"></i></button>
+                        <button onclick="AssetsComponent.moveCategoryDraft(${index}, 1)" class="text-gray-400 hover:text-brand-500 ${index === AssetsComponent.categoryDraft.length - 1 ? 'invisible' : ''}"><i class="fas fa-chevron-down text-xs"></i></button>
+                    </div>
+                    <input id="asset-category-draft-${index}" value="${category}" class="input-primary text-sm flex-1">
+                    <button onclick="AssetsComponent.removeCategoryDraft(${index})" class="w-9 h-9 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Eliminar">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
                 </div>
-                <input id="asset-category-draft-${index}" value="${category}" class="input-primary text-sm flex-1">
-                <button onclick="AssetsComponent.removeCategoryDraft(${index})" class="w-9 h-9 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Eliminar">
-                    <i class="fas fa-trash-alt text-xs"></i>
-                </button>
+                <div class="mt-3 pl-8 space-y-2">
+                    <p class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Subagrupadores</p>
+                    <div class="space-y-2">
+                        ${subcategories.map((subcategory, subIndex) => `
+                            <div class="flex items-center gap-2">
+                                <input id="asset-subcategory-draft-${index}-${subIndex}" value="${subcategory}" class="input-primary text-xs flex-1" data-category-index="${index}">
+                                <button onclick="AssetsComponent.removeSubcategoryDraft(${index}, ${subIndex})" class="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" title="Eliminar subagrupador">
+                                    <i class="fas fa-times text-xs"></i>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="new-asset-subcategory-${index}" class="input-primary text-xs flex-1" placeholder="Nuevo subagrupador">
+                        <button onclick="AssetsComponent.addSubcategoryDraft(${index})" class="btn-secondary px-3 py-1 text-xs"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     },
 
     addCategoryDraft: () => {
@@ -332,12 +381,36 @@ const AssetsComponent = {
         if (!name) return;
         if (AssetsComponent.categoryDraft.includes(name)) return UI.showToast('Ese agrupador ya existe', 'warning');
         AssetsComponent.categoryDraft.push(name);
+        AssetsComponent.subcategoryDraft[name] = [];
         input.value = '';
         AssetsComponent.renderCategoryDraft();
     },
 
     removeCategoryDraft: (index) => {
+        const category = AssetsComponent.categoryDraft[index];
+        delete AssetsComponent.subcategoryDraft[category];
         AssetsComponent.categoryDraft.splice(index, 1);
+        AssetsComponent.renderCategoryDraft();
+    },
+
+    addSubcategoryDraft: (categoryIndex) => {
+        const category = AssetsComponent.categoryDraft[categoryIndex];
+        const input = document.getElementById(`new-asset-subcategory-${categoryIndex}`);
+        const name = input?.value.trim();
+        if (!category || !name) return;
+
+        const list = AssetsComponent.subcategoryDraft[category] || [];
+        if (list.includes(name)) return UI.showToast('Ese subagrupador ya existe', 'warning');
+
+        AssetsComponent.subcategoryDraft[category] = [...list, name];
+        input.value = '';
+        AssetsComponent.renderCategoryDraft();
+    },
+
+    removeSubcategoryDraft: (categoryIndex, subIndex) => {
+        const category = AssetsComponent.categoryDraft[categoryIndex];
+        if (!category || !AssetsComponent.subcategoryDraft[category]) return;
+        AssetsComponent.subcategoryDraft[category].splice(subIndex, 1);
         AssetsComponent.renderCategoryDraft();
     },
 
@@ -352,12 +425,23 @@ const AssetsComponent = {
         const oldCategories = [...(AssetsComponent.assetCategories || [])];
         const inputs = Array.from(document.querySelectorAll('[id^="asset-category-draft-"]'));
         const nextCategories = [...new Set(inputs.map(input => input.value.trim()).filter(Boolean))];
+        const nextSubcategories = {};
+
+        nextCategories.forEach((category, index) => {
+            const oldCategory = oldCategories[index] || AssetsComponent.categoryDraft[index] || category;
+            const subInputs = Array.from(document.querySelectorAll(`[id^="asset-subcategory-draft-${index}-"]`));
+            const typedSubcategories = subInputs.map(input => input.value.trim()).filter(Boolean);
+            const currentSubcategories = AssetsComponent.subcategoryDraft[oldCategory] || AssetsComponent.subcategoryDraft[category] || [];
+            nextSubcategories[category] = [...new Set(typedSubcategories.length > 0 ? typedSubcategories : currentSubcategories)];
+        });
 
         try {
             await Store.updateAssetCategories(AssetsComponent.projectId, nextCategories);
+            await Store.updateAssetSubcategories(AssetsComponent.projectId, nextSubcategories);
 
             const updates = AssetsComponent.assets.map(asset => {
                 const current = asset.category || 'Sin categoria';
+                const currentSubcategory = asset.subcategory || '';
                 const oldIndex = oldCategories.indexOf(current);
                 let nextCategory = current;
 
@@ -369,8 +453,13 @@ const AssetsComponent = {
                     nextCategory = 'Sin categoria';
                 }
 
-                return nextCategory !== current
-                    ? Store.updateAsset(AssetsComponent.projectId, asset.id, { category: nextCategory })
+                const validSubcategories = nextSubcategories[nextCategory] || [];
+                const nextSubcategory = currentSubcategory && validSubcategories.includes(currentSubcategory)
+                    ? currentSubcategory
+                    : '';
+
+                return nextCategory !== current || nextSubcategory !== currentSubcategory
+                    ? Store.updateAsset(AssetsComponent.projectId, asset.id, { category: nextCategory, subcategory: nextSubcategory })
                     : Promise.resolve();
             });
 
@@ -422,6 +511,7 @@ const AssetsComponent = {
             document.getElementById('asset-name').value = asset.name || '';
             document.getElementById('asset-description').value = asset.description || '';
             document.getElementById('asset-category').value = asset.category || 'Sin categoria';
+            AssetsComponent.syncAssetSubcategoryOptions(asset.subcategory || '');
             document.getElementById('asset-service-status').value = asset.serviceStatus || 'En servicio';
             if (asset.image) {
                 document.getElementById('asset-image-preview').innerHTML = AssetsComponent.renderImagePreview(asset.image);
@@ -431,12 +521,25 @@ const AssetsComponent = {
         } else {
             title.textContent = 'Nuevo Activo';
             document.getElementById('asset-category').value = AssetsComponent.assetCategories[0] || 'Sin categoria';
+            AssetsComponent.syncAssetSubcategoryOptions('');
             document.getElementById('asset-service-status').value = 'En servicio';
         }
 
         AssetsComponent.renderAssetDocsPreview();
         modal.classList.remove('hidden');
         return true;
+    },
+
+    syncAssetSubcategoryOptions: (selectedValue = '') => {
+        const category = document.getElementById('asset-category')?.value || 'Sin categoria';
+        const subcategorySelect = document.getElementById('asset-subcategory');
+        if (!subcategorySelect) return;
+
+        const subcategories = AssetsComponent.getSubcategoriesForCategory(category);
+        subcategorySelect.innerHTML = '<option value="">Sin subagrupador</option>' +
+            subcategories.map(subcategory => `<option value="${subcategory}">${subcategory}</option>`).join('');
+
+        subcategorySelect.value = subcategories.includes(selectedValue) ? selectedValue : '';
     },
 
     renderAssetModal: () => {
@@ -459,9 +562,15 @@ const AssetsComponent = {
 
                         <div>
                             <label class="block text-sm font-medium dark:text-gray-300">Agrupador</label>
-                            <select id="asset-category" class="input-primary mt-1">
+                            <select id="asset-category" class="input-primary mt-1" onchange="AssetsComponent.syncAssetSubcategoryOptions()">
                                 ${(AssetsComponent.assetCategories || []).map(category => `<option value="${category}">${category}</option>`).join('')}
                                 <option value="Sin categoria">Sin categoria</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium dark:text-gray-300">Subagrupador</label>
+                            <select id="asset-subcategory" class="input-primary mt-1">
+                                <option value="">Sin subagrupador</option>
                             </select>
                         </div>
                         <div>
@@ -598,6 +707,7 @@ const AssetsComponent = {
         const name = document.getElementById('asset-name').value.trim();
         const description = document.getElementById('asset-description').value.trim();
         const category = document.getElementById('asset-category').value || 'Sin categoria';
+        const subcategory = document.getElementById('asset-subcategory')?.value || '';
         const serviceStatus = document.getElementById('asset-service-status').value || 'En servicio';
         const imgPreview = document.getElementById('asset-image-preview');
         let image = imgPreview.dataset.url || '';
@@ -613,6 +723,7 @@ const AssetsComponent = {
             name,
             description,
             category,
+            subcategory,
             serviceStatus,
             image,
             documents: AssetsComponent.currentAssetAttachments
@@ -680,7 +791,9 @@ const AssetsComponent = {
                 <div>
                     <h3 class="text-2xl font-bold dark:text-white">${asset.name}</h3>
                     <div class="flex flex-wrap items-center gap-2 mt-2">
-                        <p class="text-xs text-brand-500 dark:text-brand-400 font-bold uppercase tracking-wide">${asset.category || 'Sin categoria'}</p>
+                        <p class="text-xs text-brand-500 dark:text-brand-400 font-bold uppercase tracking-wide">
+                            ${asset.category || 'Sin categoria'}${asset.subcategory ? ' / ' + asset.subcategory : ''}
+                        </p>
                         <span class="text-[10px] font-bold rounded-full px-2 py-1 ${isOutOfService ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}">
                             ${asset.serviceStatus || 'En servicio'}
                         </span>

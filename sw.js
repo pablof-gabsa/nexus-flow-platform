@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v39'; // Owner-only user management
+const CACHE_NAME = 'nexus-flow-v40'; // Asset subcategories
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

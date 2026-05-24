@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v38'; // Attachment PDF fallback
+const CACHE_NAME = 'nexus-flow-v39'; // Owner-only user management
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

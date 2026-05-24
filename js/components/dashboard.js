@@ -35,6 +35,10 @@ const DashboardComponent = {
         return DashboardComponent.projects.filter(p => DashboardComponent.isStatsProject(p));
     },
 
+    canManageUsers: () => {
+        return Store.currentContext && Store.currentContext.role === 'owner';
+    },
+
     isStatsTask: (task) => {
         if (!task || task.projectStatus === 'inactive') return false;
 
@@ -48,6 +52,10 @@ const DashboardComponent = {
         // Handle View Param
         if (params && params.get('view')) {
             DashboardComponent.currentView = params.get('view');
+        }
+
+        if (DashboardComponent.currentView === 'users' && !DashboardComponent.canManageUsers()) {
+            DashboardComponent.currentView = 'overview';
         }
 
         // Show loading state
@@ -69,7 +77,7 @@ const DashboardComponent = {
             const projectsToFetch = DashboardComponent.getStatsProjects();
 
             // Fetch Admins if needed for Users view
-            if (DashboardComponent.currentView === 'users' && (Store.currentContext.role === 'owner' || Store.currentContext.role === 'admin')) {
+            if (DashboardComponent.currentView === 'users' && DashboardComponent.canManageUsers()) {
                 try {
                     DashboardComponent.admins = await Store.getAdmins();
                 } catch (e) {
@@ -172,6 +180,10 @@ const DashboardComponent = {
     },
 
     switchView: (viewName) => {
+        if (viewName === 'users' && !DashboardComponent.canManageUsers()) {
+            UI.showToast("Solo el propietario puede administrar usuarios.", "warning");
+            viewName = 'overview';
+        }
         DashboardComponent.currentView = viewName;
         DashboardComponent.render(document.getElementById('main-content'));
     },
@@ -185,8 +197,8 @@ const DashboardComponent = {
             { id: 'integrations', icon: 'plug', label: 'Integraciones' },
         ];
 
-        // Add Admin view only if owner/admin
-        if (Store.currentContext.role === 'owner' || Store.currentContext.role === 'admin') {
+        // User management is owner-only. Delegated admins cannot invite other admins.
+        if (DashboardComponent.canManageUsers()) {
             views.push({ id: 'users', icon: 'users-cog', label: 'Usuarios' });
         }
 
@@ -514,7 +526,7 @@ const DashboardComponent = {
     },
 
     renderUserManagementView: () => {
-        if (Store.currentContext.role !== 'owner' && Store.currentContext.role !== 'admin') {
+        if (!DashboardComponent.canManageUsers()) {
             return `<div class="p-10 text-center text-red-500">Acceso Denegado</div>`;
         }
 

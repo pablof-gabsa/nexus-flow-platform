@@ -260,6 +260,21 @@ const ProjectComponent = {
                             <label class="block text-sm font-medium dark:text-gray-300">Descripción</label>
                             <textarea name="description" id="task-desc" rows="3" class="input-primary mt-1" placeholder="Detalles adicionales..."></textarea>
                         </div>
+
+                        ${!ProjectComponent.isShared ? `
+                        <label class="flex items-center justify-between gap-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-900/20 px-4 py-3 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors">
+                            <span class="flex items-center gap-3">
+                                <span class="w-9 h-9 rounded-lg bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-300 flex items-center justify-center shadow-sm">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <span>
+                                    <span class="block text-sm font-bold text-gray-800 dark:text-white">Tarea confidencial</span>
+                                    <span class="block text-xs text-gray-500 dark:text-gray-400">Oculta para invitados y colaboradores compartidos.</span>
+                                </span>
+                            </span>
+                            <input type="checkbox" name="confidential" id="task-confidential" class="w-5 h-5 rounded text-amber-600 focus:ring-amber-500 border-amber-300 dark:border-amber-700 dark:bg-slate-800">
+                        </label>
+                        ` : ''}
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -570,7 +585,8 @@ const ProjectComponent = {
         ProjectComponent.responsables = fullData.responsables || [];
 
         // Convert map to array
-        ProjectComponent.data = fullData.tasks ? Object.keys(fullData.tasks).map(k => ({ id: k, ...fullData.tasks[k] })) : [];
+        const tasks = fullData.tasks ? Object.keys(fullData.tasks).map(k => ({ id: k, ...fullData.tasks[k] })) : [];
+        ProjectComponent.data = Utils.filterSharedVisibleTasks(tasks, ProjectComponent.isShared);
 
         // Load assets from the already-fetched project data
         ProjectComponent.assets = fullData.assets ? Object.keys(fullData.assets).map(k => ({ id: k, ...fullData.assets[k] })) : [];
@@ -1009,6 +1025,7 @@ const ProjectComponent = {
                                     ${item.description ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-xl truncate">${item.description}</p>` : ''}
                                     ${isOverdue ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300">VENCIDA</span>' : ''}
                                     ${isLateStart ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100/80 text-red-500 dark:bg-red-900/40 dark:text-red-300" title="Fecha de inicio vencida">INICIO ATRASADO</span>' : ''}
+                                    ${item.confidential ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800" title="Tarea confidencial"><i class="fas fa-lock mr-1"></i>Confidencial</span>' : ''}
                                     ${item.prioridad === 'Crítico' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-red-600 text-white dark:bg-red-500 font-bold shadow-sm" title="Prioridad Crítica">CRÍTICO</span>' : ''}
                             ${item.prioridad === 'Alta' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800" title="Prioridad Alta">ALTA</span>' : ''}
                             ${item.prioridad === 'Media' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800" title="Prioridad Media">Med</span>' : ''}
@@ -1300,6 +1317,8 @@ const ProjectComponent = {
         form.reset();
         document.getElementById('task-id').value = '';
         document.getElementById('task-time').value = '00:00'; // Default time
+        const confidentialInput = document.getElementById('task-confidential');
+        if (confidentialInput) confidentialInput.checked = false;
 
         // Populate asset select (ensures it's always populated when modal opens)
         const assetSelect = document.getElementById('task-asset');
@@ -1317,6 +1336,7 @@ const ProjectComponent = {
 
             document.getElementById('task-req').value = task.requerimiento;
             document.getElementById('task-desc').value = task.description || '';
+            if (confidentialInput) confidentialInput.checked = !!task.confidential;
             document.getElementById('task-rubro').value = task.rubro;
             document.getElementById('task-resp').value = task.responsable;
             document.getElementById('task-prio').value = task.prioridad;
@@ -1431,6 +1451,7 @@ const ProjectComponent = {
             subtasks: ProjectComponent.editingSubtasks,
             attachments: ProjectComponent.currentAttachments,
             recurrence: recurrence,
+            confidential: !ProjectComponent.isShared && formData.get('confidential') === 'on',
             estado: id ? ProjectComponent.data.find(t => t.id === id).estado : 'Pendiente'
         };
 

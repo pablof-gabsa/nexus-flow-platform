@@ -108,7 +108,8 @@ const AssetsComponent = {
 
     applyProjectData: (fullData) => {
         AssetsComponent.assets = fullData.assets ? Object.keys(fullData.assets).map(k => ({ id: k, ...fullData.assets[k] })) : [];
-        AssetsComponent.tasks = fullData.tasks ? Object.keys(fullData.tasks).map(k => ({ id: k, ...fullData.tasks[k] })) : [];
+        const tasks = fullData.tasks ? Object.keys(fullData.tasks).map(k => ({ id: k, ...fullData.tasks[k] })) : [];
+        AssetsComponent.tasks = Utils.filterSharedVisibleTasks(tasks, AssetsComponent.isShared);
         AssetsComponent.rubros = fullData.rubros || [];
         AssetsComponent.responsables = fullData.responsables || [];
         AssetsComponent.assetCategories = fullData.assetCategories || [

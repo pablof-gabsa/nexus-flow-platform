@@ -98,6 +98,13 @@ const Utils = {
         });
     },
 
+    filterSharedVisibleTasks: (tasks, isShared) => {
+        if (!Array.isArray(tasks)) return [];
+        if (!isShared) return tasks;
+
+        return tasks.filter(task => !task.confidential);
+    },
+
     // Time & Resource Helpers
     isWeekday: (date) => {
         const day = date.getDay();

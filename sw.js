@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v41'; // Confidential tasks
+const CACHE_NAME = 'nexus-flow-v42'; // Attachment blob viewer
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

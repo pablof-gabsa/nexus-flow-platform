@@ -32,6 +32,7 @@ const ProjectComponent = {
 
     // Attachments State
     currentAttachments: [],
+    attachmentObjectUrls: [],
 
     // Export State
     isSelectionMode: false,
@@ -2695,9 +2696,43 @@ const ProjectComponent = {
         }
     },
 
+    closeAttachmentLightbox: () => {
+        document.getElementById('attachment-lightbox')?.classList.add('hidden');
+        ProjectComponent.releaseAttachmentObjectUrls();
+    },
+
+    releaseAttachmentObjectUrls: () => {
+        (ProjectComponent.attachmentObjectUrls || []).forEach(url => URL.revokeObjectURL(url));
+        ProjectComponent.attachmentObjectUrls = [];
+    },
+
+    dataUrlToBlob: (dataUrl) => {
+        const [header, base64] = dataUrl.split(',');
+        const mimeMatch = header.match(/^data:([^;]+);base64$/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+        const binary = atob(base64 || '');
+        const bytes = new Uint8Array(binary.length);
+
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+
+        return new Blob([bytes], { type: mimeType });
+    },
+
+    getAttachmentOpenUrl: (attachment) => {
+        const rawUrl = attachment?.data || '';
+        if (!rawUrl.startsWith('data:')) return rawUrl;
+
+        const objectUrl = URL.createObjectURL(ProjectComponent.dataUrlToBlob(rawUrl));
+        ProjectComponent.attachmentObjectUrls.push(objectUrl);
+        return objectUrl;
+    },
+
     viewAttachments: (taskId) => {
         const task = ProjectComponent.data.find(t => t.id === taskId);
         if (!task || !task.attachments || task.attachments.length === 0) return;
+        ProjectComponent.releaseAttachmentObjectUrls();
 
         // Create Lightbox
         const lightboxId = 'attachment-lightbox';
@@ -2710,28 +2745,30 @@ const ProjectComponent = {
         }
 
         lightbox.innerHTML = `
-            <button onclick="document.getElementById('${lightboxId}').classList.add('hidden')" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 z-50">&times;</button>
+            <button onclick="ProjectComponent.closeAttachmentLightbox()" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 z-50">&times;</button>
             <div class="flex flex-wrap justify-center gap-6 max-w-6xl p-4 overflow-y-auto max-h-screen">
                 ${task.attachments.map(att => {
-            const isImage = att.type.startsWith('image/');
-            const isPdf = att.type === 'application/pdf' || att.name.endsWith('.pdf');
-            const icon = ProjectComponent.getFileIcon(att.type, att.name);
+            const fileName = att.name || 'adjunto';
+            const mimeType = att.type || '';
+            const fileUrl = ProjectComponent.getAttachmentOpenUrl(att);
+            const isImage = mimeType.startsWith('image/');
+            const isPdf = mimeType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
+            const icon = ProjectComponent.getFileIcon(mimeType, fileName);
 
             if (isImage) {
                 return `
                         <div class="relative group">
-                            <img src="${att.data}" class="max-h-[80vh] max-w-full object-contain rounded shadow-xl border border-gray-800">
+                            <img src="${fileUrl}" class="max-h-[80vh] max-w-full object-contain rounded shadow-xl border border-gray-800">
                             <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                ${att.name}
+                                ${fileName}
                             </div>
                         </div>`;
             } else if (isPdf) {
-                // PDF: Open directly
                 return `
-                        <a href="${att.data}" target="_blank" class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col items-center gap-4 w-64 h-64 justify-center border border-gray-200 dark:border-slate-700 hover:scale-105 transition-transform group cursor-pointer">
+                        <a href="${fileUrl}" target="_blank" rel="noopener" class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col items-center gap-4 w-64 h-64 justify-center border border-gray-200 dark:border-slate-700 hover:scale-105 transition-transform group cursor-pointer">
                             <i class="${icon} text-6xl group-hover:text-red-600 transition-colors"></i>
                             <div class="text-center">
-                                <p class="font-bold text-gray-800 dark:text-white truncate max-w-full px-2 group-hover:text-brand-600 underline decoration-transparent group-hover:decoration-brand-600 transition-all" title="${att.name}">${att.name}</p>
+                                <p class="font-bold text-gray-800 dark:text-white truncate max-w-full px-2 group-hover:text-brand-600 underline decoration-transparent group-hover:decoration-brand-600 transition-all" title="${fileName}">${fileName}</p>
                                 <p class="text-xs text-gray-500 uppercase mt-1">Clic para abrir</p>
                             </div>
                         </a>`;
@@ -2741,11 +2778,11 @@ const ProjectComponent = {
                         <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col items-center gap-4 w-64 h-64 justify-center border border-gray-200 dark:border-slate-700">
                             <i class="${icon} text-6xl"></i>
                             <div class="text-center">
-                                <p class="font-bold text-gray-800 dark:text-white truncate max-w-full px-2" title="${att.name}">${att.name}</p>
-                                <p class="text-xs text-gray-500 uppercase mt-1">${att.name.split('.').pop()}</p>
+                                <p class="font-bold text-gray-800 dark:text-white truncate max-w-full px-2" title="${fileName}">${fileName}</p>
+                                <p class="text-xs text-gray-500 uppercase mt-1">${fileName.split('.').pop()}</p>
                             </div>
                             <div class="w-full mt-2">
-                                <a href="${att.data}" download="${att.name}" class="block w-full bg-brand-100 text-brand-700 hover:bg-brand-200 py-2 rounded-lg text-sm font-bold text-center transition-colors">
+                                <a href="${fileUrl}" download="${fileName}" class="block w-full bg-brand-100 text-brand-700 hover:bg-brand-200 py-2 rounded-lg text-sm font-bold text-center transition-colors">
                                     <i class="fas fa-download mr-1"></i> Descargar
                                 </a>
                             </div>

@@ -920,6 +920,28 @@ const ProjectComponent = {
         modal.classList.remove('hidden');
     },
 
+    sortTasks: (tasks) => {
+        return [...tasks].sort((a, b) => {
+            let res = 0;
+
+            if (ProjectComponent.sortBy === 'deadline') {
+                if (a.deadline && b.deadline) res = a.deadline.localeCompare(b.deadline);
+                else if (a.deadline && !b.deadline) res = -1;
+                else if (!a.deadline && b.deadline) res = 1;
+                else res = a.requerimiento.localeCompare(b.requerimiento);
+            } else if (ProjectComponent.sortBy === 'priority') {
+                const map = { 'Crítico': 4, 'Alta': 3, 'Media': 2, 'Baja': 1, 'Normal': 0 };
+                const pA = map[a.prioridad] || 0;
+                const pB = map[b.prioridad] || 0;
+                res = pB - pA; // Descending by default for priority (High first)
+            } else if (ProjectComponent.sortBy === 'name') {
+                res = a.requerimiento.localeCompare(b.requerimiento);
+            }
+
+            return ProjectComponent.sortOrder === 'asc' ? res : -res;
+        });
+    },
+
     renderChecklist: () => {
         const container = document.getElementById('checklist-container');
         if (!container) return;
@@ -931,28 +953,8 @@ const ProjectComponent = {
         }, {});
 
         container.innerHTML = ProjectComponent.rubros.map(rubro => {
-            let items = groups[rubro] || [];
+            const items = ProjectComponent.sortTasks(groups[rubro] || []);
 
-            // SORTING LOGIC:
-            items.sort((a, b) => {
-                let res = 0;
-
-                if (ProjectComponent.sortBy === 'deadline') {
-                    if (a.deadline && b.deadline) res = a.deadline.localeCompare(b.deadline);
-                    else if (a.deadline && !b.deadline) res = -1;
-                    else if (!a.deadline && b.deadline) res = 1;
-                    else res = a.requerimiento.localeCompare(b.requerimiento);
-                } else if (ProjectComponent.sortBy === 'priority') {
-                    const map = { 'Crítico': 4, 'Alta': 3, 'Media': 2, 'Baja': 1, 'Normal': 0 };
-                    const pA = map[a.prioridad] || 0;
-                    const pB = map[b.prioridad] || 0;
-                    res = pB - pA; // Descending by default for priority (High first)
-                } else if (ProjectComponent.sortBy === 'name') {
-                    res = a.requerimiento.localeCompare(b.requerimiento);
-                }
-
-                return ProjectComponent.sortOrder === 'asc' ? res : -res;
-            });
             // if (rubro === 'Eliminado' && items.length === 0) return ''; // Always show all rubros
             // if (rubro === 'Eliminado' && items.length === 0) return ''; // Always show all rubros
 
@@ -1891,7 +1893,7 @@ const ProjectComponent = {
         }
 
         rubrosToExport.forEach(rubro => {
-            const items = tasks.filter(t => t.rubro === rubro);
+            const items = ProjectComponent.sortTasks(tasks.filter(t => t.rubro === rubro));
             if (items.length === 0) return;
 
             // Page Break Check

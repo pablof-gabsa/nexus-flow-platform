@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v42'; // Attachment blob viewer
+const CACHE_NAME = 'nexus-flow-v43'; // PDF task ordering matches checklist
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

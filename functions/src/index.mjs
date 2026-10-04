@@ -14,7 +14,7 @@ export function productionApp() {
   return createApp(repo, { baseUrl: baseUrl.replace(/\/$/, ''), webUrl });
 }
 let app;
-export const nexusAssistants = onRequest({ region: 'us-central1', memory: '256MiB', timeoutSeconds: 60, maxInstances: 3, invoker: 'public' }, (req, res) => {
+export const nexusAssistants = onRequest({ region: 'us-central1', memory: '256MiB', timeoutSeconds: 60, maxInstances: 3, serviceAccount: 'nexus-assistants@nexus-flow-6dac7.iam.gserviceaccount.com', invoker: 'public' }, (req, res) => {
   app ||= productionApp();
   return app(req, res);
 });

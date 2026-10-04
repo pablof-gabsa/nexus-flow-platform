@@ -9,15 +9,15 @@
         if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !fields.includes(key))) throw new Error('Cada tarea debe contener sólo los campos del formato Nexus.');
         const task = {
             requerimiento: plain(input.requerimiento, 'Título', 300),
-            description: plain(input.description || '', 'Descripción', 10000),
-            rubro: plain(input.rubro || labels.defaultRubro || '', 'Rubro', 150),
-            responsable: plain(input.responsable || '', 'Responsable', 150),
+            description: plain(input.description === undefined ? '' : input.description, 'Descripción', 10000),
+            rubro: plain(input.rubro === undefined ? labels.defaultRubro || '' : input.rubro, 'Rubro', 150),
+            responsable: plain(input.responsable === undefined ? '' : input.responsable, 'Responsable', 150),
             prioridad: input.prioridad === undefined ? 'Media' : input.prioridad,
             deadline: input.deadline === undefined ? '' : input.deadline,
             confidential: input.confidential === undefined ? false : input.confidential
         };
         if (!task.requerimiento) throw new Error('Cada tarea necesita un título.');
-        if (!(labels.rubros || []).includes(task.rubro)) throw new Error(`Rubro no disponible: ${task.rubro || '(vacío)'}.`);
+        if (!(labels.rubros || []).includes(task.rubro) || ['Realizados', 'Eliminado'].includes(task.rubro)) throw new Error(`Rubro no disponible: ${task.rubro || '(vacío)'}.`);
         if (task.responsable && !(labels.responsables || []).includes(task.responsable)) throw new Error(`Responsable no disponible: ${task.responsable}.`);
         if (!['Baja', 'Media', 'Alta', 'Crítico'].includes(task.prioridad)) throw new Error('Prioridad no válida.');
         if (typeof task.confidential !== 'boolean') throw new Error('confidential debe ser true o false.');

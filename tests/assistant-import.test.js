@@ -19,3 +19,14 @@ test('browser import is atomic, repeatable and preserves unrelated tasks', async
 test('import rechecks delegated permissions and project ownership at save time', async () => { const { data, store } = fixture(); const tasks = format.parse(text, labels), batch = await format.digest(JSON.stringify(tasks)); delete data.admin_map['alice@example,com'].owner; await assert.rejects(store.importAssistantTasks('owner', 'project', tasks, batch), /acceso/); data.admin_map['alice@example,com'].owner = true; await assert.rejects(store.importAssistantTasks('owner', 'personal', tasks, batch), /proyecto activo/); assert.equal(Object.keys(data.project_data.project.tasks).length, 1); });
 test('modified batches cannot reuse an earlier preview identity', async () => { const { store } = fixture(); const tasks = format.parse(text, labels), batch = await format.digest(JSON.stringify(tasks)); tasks[0].requerimiento = 'Cambio'; await assert.rejects(store.importAssistantTasks('owner', 'project', tasks, batch), /carga cambió/); });
 test('workspace discovery ignores false and stale admin mappings', async () => { const { store, data } = fixture(); assert.equal((await store.getAssistantWorkspaces()).length, 2); data.admin_map['alice@example,com'].owner = false; assert.equal((await store.getAssistantWorkspaces()).length, 1); });
+
+test('incorrect optional values and reserved rubros are rejected instead of silently changed', () => {
+  for (const field of ['description', 'rubro', 'responsable']) {
+    for (const value of [false, 0, null]) {
+      assert.throws(() => format.parse(JSON.stringify({ format: 'nexus.tasks.v1', tasks: [{ requerimiento: 'Nueva', [field]: value }] }), labels));
+    }
+  }
+  for (const rubro of ['Eliminado', 'Realizados']) {
+    assert.throws(() => format.parse(JSON.stringify({ format: 'nexus.tasks.v1', tasks: [{ requerimiento: 'Nueva', rubro }] }), { ...labels, rubros: [...labels.rubros, rubro] }));
+  }
+});

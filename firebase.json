@@ -1,6 +1,6 @@
 {
   "functions": [{ "source": "functions", "codebase": "nexus-assistants", "ignore": ["node_modules", ".git", "*-debug.log", ".env*", "test"] }],
-  "firestore": [{ "database": "nexus-assistants", "rules": "firestore.assistants.rules" }],
+  "firestore": [{ "database": "nexus-assistants", "rules": "firestore.assistants.rules", "indexes": "firestore.assistants.indexes.json" }],
   "hosting": {
     "public": "functions/public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],

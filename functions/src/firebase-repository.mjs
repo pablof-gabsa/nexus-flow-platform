@@ -17,7 +17,7 @@ export class FirebaseRepository {
     });
   }
   async privateList(collection, uid) {
-    const snapshot = await this.firestore.collection(`nexus_assistant_${collection}`).where('uid', '==', uid).limit(100).get();
+    const snapshot = await this.firestore.collection(`nexus_assistant_${collection}`).where('uid', '==', uid).orderBy('createdAt', 'desc').limit(100).get();
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
   async throttle(key, limit, windowMs) {

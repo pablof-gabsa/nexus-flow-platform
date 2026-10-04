@@ -78,7 +78,7 @@ export class NexusService {
   }
   async validateLabels(projectId, task) {
     const data = await this.repo.get(`project_data/${projectId}`) || {};
-    if (task.rubro && !(data.rubros || []).includes(task.rubro)) throw new NexusError(400, 'unknown_rubro', 'Elegí un rubro existente del proyecto.');
+    if (task.rubro && (!(data.rubros || []).includes(task.rubro) || ['Realizados', 'Eliminado'].includes(task.rubro))) throw new NexusError(400, 'unknown_rubro', 'Elegí un rubro activo del proyecto.');
     if (task.responsable && !(data.responsables || []).includes(task.responsable)) throw new NexusError(400, 'unknown_responsable', 'Elegí un responsable existente del proyecto.');
   }
   async mutate(actor, workspaceId, projectId, requestId, operation, payload, change) {

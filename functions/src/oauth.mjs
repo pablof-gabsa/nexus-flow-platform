@@ -13,7 +13,7 @@ function scopes(value = 'tasks:read') {
 export function clientProvider(redirect) {
   let url;
   try { url = new URL(redirect); } catch { return null; }
-  if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.search) return null;
+  if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash || url.search) return null;
   if (url.hostname === 'chatgpt.com' && (/^\/connector\/oauth\/[A-Za-z0-9_-]+$/.test(url.pathname) || url.pathname === '/connector_platform_oauth_redirect')) return 'ChatGPT';
   if (url.hostname === 'claude.ai' && url.pathname === '/api/mcp/auth_callback') return 'Claude';
   if (url.hostname === 'gemini.google.com' && /^\/.*(?:oauth|auth_complete|callback)/.test(url.pathname)) return 'Gemini';

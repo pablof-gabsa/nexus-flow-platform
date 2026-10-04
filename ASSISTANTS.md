@@ -103,9 +103,10 @@ Proyecto existente: `nexus-flow-6dac7`. La dirección prevista del servicio es
    su plan y los costos de Cloud Functions, Hosting y Firestore antes de activar
    servicios o facturación. No es necesaria una clave de un proveedor de IA.
 2. Crear la base Firestore dedicada `nexus-assistants`, con ubicación elegida
-   por el propietario. Revisar IAM y desplegar `firestore.assistants.rules` sólo
-   en esa base. La cuenta de ejecución de la función requiere acceso a esa
-   base, a la Realtime Database existente y a Firebase Auth.
+   por el propietario. Revisar IAM y desplegar `firestore.assistants.rules` y
+   `firestore.assistants.indexes.json` sólo en esa base. La cuenta de ejecución de
+   la función requiere acceso a esa base, a la Realtime Database existente y a
+   Firebase Auth.
 3. Revisar las reglas de la Realtime Database existentes: propietarios y
    administradores autorizados deben poder consultar sus proyectos y usar la
    transacción de importación. No publicar reglas abiertas para solucionar
@@ -150,6 +151,11 @@ inicialización, herramientas, OAuth, permisos, revocación, reintentos,
 concurrencia y preservación de datos. No prueban todavía el proveedor de
 autenticación ni las reglas desplegadas de Firebase ni una conversación real
 con ChatGPT/Claude/Gemini. La publicación definitiva depende de esos controles.
+
+Se revisó la interfaz en Edge de escritorio y a 390 px de ancho, con datos de
+prueba: destino, vista previa, guardado, reintento, preservación de adjuntos,
+rechazo de HTML, revocación de acceso y consentimiento explícito. Esto no
+reemplaza la prueba con Firebase ni con cuentas reales de asistentes.
 
 ## Fuentes del protocolo
 

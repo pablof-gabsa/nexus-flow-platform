@@ -16,3 +16,25 @@ test('edits preserve attachments/comments and reject concurrent changes', async 
 test('outputs exclude sharing tokens and binary attachments; pagination is explicit', async () => { const { service, actor } = await setup(); const details = await service.details(actor, 'owner', 'maintenance'); const first = await service.tasks(actor, 'owner', 'maintenance', { limit: 1 }); assert.ok(!JSON.stringify({ details, first }).includes('NEVER-RETURN-THIS')); assert.ok(!JSON.stringify(first).includes('PRIVATE-BINARY')); assert.equal(first.nextCursor, null); await service.createTask(actor, 'owner', 'maintenance', { requerimiento: 'Otra', rubro: 'General' }, 'request-1234567890'); const page = await service.tasks(actor, 'owner', 'maintenance', { limit: 1 }); assert.ok(page.nextCursor); assert.equal((await service.tasks(actor, 'owner', 'maintenance', { cursor: page.nextCursor })).tasks.length, 1); });
 test('unknown labels, metadata injection, invalid dates and HTML are rejected', async () => { const { service, actor } = await setup(); for (const input of [{ requerimiento: 'Nueva', rubro: 'Inventado' }, { requerimiento: 'Nueva', rubro: 'General', responsable: 'Inventado' }, { requerimiento: 'Nueva', rubro: 'General', owner: 'bob' }, { requerimiento: 'Nueva', rubro: 'General', deadline: '2026-02-30' }, { requerimiento: '<img onerror=alert(1)>', rubro: 'General' }]) await assert.rejects(service.createTask(actor, 'owner', 'maintenance', input, 'request-1234567890'), { status: 400 }); assert.throws(() => parse(createTaskSchema, { requerimiento: 'Nueva', rubro: 'General', deadline: 'bad-date' })); });
 test('archived writes and recurring status changes fail without changing data', async () => { const { repo, service, actor } = await setup(); await assert.rejects(service.createTask(actor, 'owner', 'archived', { requerimiento: 'Nueva', rubro: 'General' }, 'request-1234567890'), { code: 'archived_project' }); repo.data.project_data.maintenance.tasks.existing.recurrence = { type: 'weekly' }; const task = await service.task(actor, 'owner', 'maintenance', 'existing'); await assert.rejects(service.updateTask(actor, 'owner', 'maintenance', 'existing', { estado: 'Realizado' }, task.version, 'request-1234567890'), { code: 'recurring_status_requires_nexus' }); assert.equal(repo.data.project_data.maintenance.tasks.existing.estado, 'Pendiente'); });
+
+test('reserved rubros cannot hide a task through ordinary creation or editing', async () => {
+  const { repo, service, actor } = await setup();
+  repo.data.project_data.maintenance.rubros.push('Eliminado', 'Realizados');
+  const before = await service.task(actor, 'owner', 'maintenance', 'existing');
+  for (const rubro of ['Eliminado', 'Realizados']) {
+    await assert.rejects(service.createTask(actor, 'owner', 'maintenance', { requerimiento: 'Nueva', rubro }, 'request-1234567890'), { code: 'unknown_rubro' });
+    await assert.rejects(service.updateTask(actor, 'owner', 'maintenance', 'existing', { rubro }, before.version, 'request-1234567890'), { code: 'unknown_rubro' });
+  }
+  assert.equal(repo.data.project_data.maintenance.tasks.existing.rubro, 'Seguridad');
+});
+
+test('simultaneous edits with the same version allow only one writer', async () => {
+  const { service, actor } = await setup();
+  const before = await service.task(actor, 'owner', 'maintenance', 'existing');
+  const results = await Promise.allSettled([
+    service.updateTask(actor, 'owner', 'maintenance', 'existing', { prioridad: 'Alta' }, before.version, 'parallel-request-one'),
+    service.updateTask(actor, 'owner', 'maintenance', 'existing', { prioridad: 'Baja' }, before.version, 'parallel-request-two')
+  ]);
+  assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+  assert.equal(results.find(result => result.status === 'rejected').reason.code, 'version_conflict');
+});

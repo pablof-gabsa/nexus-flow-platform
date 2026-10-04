@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v43'; // PDF task ordering matches checklist
+const CACHE_NAME = 'nexus-flow-v44'; // Universal assistant integration and task import
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -8,8 +8,12 @@ const ASSETS_TO_CACHE = [
     './js/services/firebase-config.js',
     './js/services/store.js',
     './js/services/auth.js',
+    './js/services/assistant-config.js',
+    './js/services/assistant-format.js',
+    './js/services/assistant-api.js',
     './js/components/ui.js',
     './js/components/integrations.js',
+    './js/components/assistants.js',
     './js/components/navbar.js',
     './js/components/landing.js',
     './js/components/login.js',

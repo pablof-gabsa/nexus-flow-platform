@@ -37,8 +37,10 @@ window.IntegrationsComponent = {
                     <h2 class="text-2xl font-bold dark:text-white">Integraciones</h2>
                 </div>
                 <p class="text-gray-500 dark:text-gray-400">Conecta Nexus Flow con otras plataformas.</p>
-
-                </div>
+                <a href="#/assistants" class="glass-card rounded-xl p-5 flex items-center justify-between gap-4 border border-gray-100 dark:border-slate-700">
+                    <div><h3 class="font-semibold dark:text-white">Asistentes de IA</h3><p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Conectá tu asistente o cargá tareas preparadas por ChatGPT, Claude, Gemini y otras IA.</p></div>
+                    <span class="text-brand-600 dark:text-brand-300 font-medium text-sm">Abrir</span>
+                </a>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <!-- Octavo Piso -->

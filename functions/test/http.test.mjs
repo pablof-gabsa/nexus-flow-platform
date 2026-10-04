@@ -1,0 +1,28 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { createApp } from '../src/app.mjs';
+import { linked } from './oauth-fixture.mjs';
+test('HTTP discovery, real SDK initialization, tools and REST share permissions', async t => {
+  const { repo, tokens } = await linked();
+  const app = createApp(repo, { baseUrl: 'https://nexus.example', webUrl: 'https://nexus.example/app/' });
+  const server = app.listen(0, '127.0.0.1'); await once(server, 'listening'); t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', Authorization: `Bearer ${tokens.access_token}` };
+  const invoke = async (id, method, params) => { const response = await fetch(`${base}/mcp`, { method: 'POST', headers, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) }); assert.equal(response.status, 200); return response.json(); };
+  assert.equal((await fetch(`${base}/health`)).status, 200);
+  const discovery = await fetch(`${base}/.well-known/oauth-protected-resource`); assert.equal((await discovery.json()).resource, 'https://nexus.example/mcp');
+  const unauthorized = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); assert.equal(unauthorized.status, 401); assert.ok(unauthorized.headers.get('www-authenticate').includes('resource_metadata'));
+  const initialize = await invoke(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'nexus-test', version: '1.0' } }); assert.equal(initialize.result.serverInfo.name, 'nexus');
+  const list = await invoke(2, 'tools/list', {}); assert.equal(list.result.tools.length, 8); assert.equal(list.result.tools.some(tool => /delete/.test(tool.name)), false);
+  const args = { workspaceId: 'owner', projectId: 'maintenance', task: { requerimiento: 'Prueba por MCP', rubro: 'General' }, requestId: 'request-http-123456' };
+  const first = await invoke(3, 'tools/call', { name: 'create_task', arguments: args }); assert.equal(first.result.structuredContent.saved, true);
+  const again = await invoke(4, 'tools/call', { name: 'create_task', arguments: args }); assert.equal(again.result.structuredContent.task.id, first.result.structuredContent.task.id);
+  const rest = await fetch(`${base}/v1/workspaces/owner/projects/maintenance/tasks`, { headers }); assert.equal((await rest.json()).tasks.length, 2);
+  delete repo.data.admin_map['alice@example,com'].owner;
+  const denied = await invoke(5, 'tools/call', { name: 'list_tasks', arguments: { workspaceId: 'owner', projectId: 'maintenance' } }); assert.equal(denied.result.isError, true); assert.equal(JSON.parse(denied.result.content[0].text).error, 'access_denied');
+  assert.equal((await fetch(`${base}/v1/workspaces/owner/projects/maintenance/tasks`, { headers })).status, 403);
+  assert.equal((await fetch(`${base}/v1/history`, { headers: { Authorization: 'Bearer firebase-alice-token-for-tests' } }).then(r => r.json())).history.length, 0);
+  assert.equal((await fetch(`${base}/v1/connections`, { headers: { Authorization: `Bearer ${tokens.access_token}` } })).status, 401);
+  assert.equal((await fetch(`${base}/health`, { headers: { Origin: 'https://attacker.example' } })).status, 403);
+});

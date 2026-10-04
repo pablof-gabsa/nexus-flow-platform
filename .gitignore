@@ -22,3 +22,13 @@ __pycache__/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Local runtimes and credentials
+node_modules/
+.env
+.env.*
+!.env.example
+*-debug.log
+.firebase/
+playwright-report/
+test-results/

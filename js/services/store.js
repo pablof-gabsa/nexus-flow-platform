@@ -450,6 +450,67 @@ const Store = {
         await db.ref(`project_data/${projectId}/tasks/${taskId}`).remove();
     },
 
+    selectAssistantWorkspace: async (workspaceId) => {
+        const spaces = await Store.getAssistantWorkspaces();
+        const selected = spaces.find(space => space.id === workspaceId);
+        if (!selected) throw new Error('No tenés acceso al espacio de este enlace.');
+        Store.currentContext = { ownerId: selected.id, role: selected.role, availableWorkspaces: spaces.map(space => ({ ownerId: space.id, name: space.name, type: space.role === 'owner' ? 'personal' : 'admin' })) };
+    },
+
+    getAssistantWorkspaces: async () => {
+        const user = Auth.getCurrentUser();
+        if (!user || user.isAnonymous || !user.emailVerified) throw new Error('Ingresá con una cuenta de Google verificada.');
+        const emailKey = user.email.replace(/\./g, ',');
+        const map = (await db.ref(`admin_map/${emailKey}`).once('value')).val() || {};
+        const ownerIds = typeof map.ownerId === 'string' ? [map.ownerId] : Object.keys(map).filter(id => map[id] === true);
+        const workspaces = [{ id: user.uid, name: 'Mi espacio personal', role: 'owner' }];
+        for (const ownerId of [...new Set(ownerIds)]) {
+            if (ownerId === user.uid || !/^[A-Za-z0-9_-]{1,128}$/.test(ownerId)) continue;
+            const [config, legacy] = await Promise.all([db.ref(`users/${ownerId}/config`).once('value'), db.ref(`users/${ownerId}/authorized_admins/${emailKey}`).once('value')]);
+            if (config.val()?.admins?.[emailKey] || legacy.val()) workspaces.push({ id: ownerId, name: config.val()?.companyName || 'Espacio compartido', role: 'admin' });
+        }
+        return workspaces;
+    },
+
+    importAssistantTasks: async (workspaceId, projectId, tasks, batchId) => {
+        const user = Auth.getCurrentUser();
+        if (!user || user.isAnonymous || !user.emailVerified) throw new Error('Ingresá con una cuenta de Google verificada.');
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(workspaceId) || !/^[A-Za-z0-9_-]{1,128}$/.test(projectId) || !/^[a-f0-9]{64}$/.test(batchId)) throw new Error('Destino de carga inválido.');
+        const emailKey = user.email.replace(/\./g, ',');
+        if (workspaceId !== user.uid) {
+            const [map, config, legacy] = await Promise.all([
+                db.ref(`admin_map/${emailKey}`).once('value'),
+                db.ref(`users/${workspaceId}/config/admins/${emailKey}`).once('value'),
+                db.ref(`users/${workspaceId}/authorized_admins/${emailKey}`).once('value')
+            ]);
+            if (!(map.val()?.[workspaceId] === true || map.val()?.ownerId === workspaceId) || !(config.val() || legacy.val())) throw new Error('Ya no tenés acceso a este espacio.');
+        }
+        const [projectSnapshot, dataSnapshot] = await Promise.all([
+            db.ref(`users/${workspaceId}/projects/${projectId}`).once('value'),
+            db.ref(`project_data/${projectId}`).once('value')
+        ]);
+        const project = projectSnapshot.val();
+        if (!project || project.owner !== workspaceId || project.status === 'inactive') throw new Error('Elegí un proyecto activo del espacio seleccionado.');
+        const data = dataSnapshot.val() || {};
+        if (!Array.isArray(tasks) || !tasks.length || tasks.length > 50) throw new Error('Carga inválida.');
+        const normalized = tasks.map(task => AssistantFormat.normalize(task, { rubros: data.rubros || [], responsables: data.responsables || [] }));
+        if (await AssistantFormat.digest(JSON.stringify(normalized)) !== batchId) throw new Error('La carga cambió. Revisá las tareas de nuevo antes de guardar.');
+        const batchHash = await AssistantFormat.digest(`${user.uid}:${workspaceId}:${projectId}:${batchId}`);
+        const createdAt = new Date().toISOString();
+        let inserted = 0;
+        const result = await db.ref(`project_data/${projectId}/tasks`).transaction(current => {
+            const next = { ...(current || {}) };
+            inserted = 0;
+            normalized.forEach((task, index) => {
+                const id = `ai_${batchHash}_${index}`;
+                if (!next[id]) { next[id] = { ...AssistantFormat.defaults(task), createdBy: user.email, createdAt, source: 'assistant_import', importBatch: batchHash }; inserted++; }
+            });
+            return next;
+        }, undefined, false);
+        if (!result.committed) throw new Error('No se pudo guardar la carga. Reintentá sin cambiar la respuesta.');
+        return { inserted, existing: normalized.length - inserted, projectId };
+    },
+
     // Config
     updateRubros: async (projectId, rubros) => {
         await db.ref(`project_data/${projectId}/rubros`).set(rubros);

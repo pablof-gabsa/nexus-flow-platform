@@ -96,7 +96,7 @@ const App = {
         const params = new URLSearchParams(hash.split('?')[1]); // Get query params
 
         // Check if route is public
-        const publicRoutes = ['#/', '#/login', '#/help'];
+        const publicRoutes = ['#/', '#/login', '#/help', '#/assistants/authorize'];
         const isPublic = publicRoutes.includes(route) || route.startsWith('#/share/');
 
         // redirect to login if not public and not logged in
@@ -118,6 +118,9 @@ const App = {
         window.scrollTo(0, 0);
 
         try {
+            if (route.startsWith('#/project/') && params.get('workspace')) {
+                await Store.selectAssistantWorkspace(params.get('workspace'));
+            }
             if (route === '#/') {
                 if (typeof LandingComponent !== 'undefined') await LandingComponent.render(main);
                 else main.innerHTML = '<p class="p-10 text-center">Landing Component Not Loaded</p>';
@@ -161,6 +164,12 @@ const App = {
                 const projectId = route.replace('#/share/', '');
                 if (typeof SharedComponent !== 'undefined') await SharedComponent.render(main, projectId, params);
                 else main.innerHTML = '<p class="p-10 text-center">Shared Component Not Loaded</p>';
+            }
+            else if (route === '#/assistants') {
+                await AssistantsComponent.render(main);
+            }
+            else if (route === '#/assistants/authorize') {
+                await AssistantsComponent.authorize(main, params.get('request'));
             }
             else if (route === '#/help') {
                 if (typeof HelpComponent !== 'undefined') await HelpComponent.render(main);

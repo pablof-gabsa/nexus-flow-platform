@@ -9,57 +9,18 @@ const Store = {
         availableWorkspaces: [] // Array of { ownerId, name (opt) }
     },
 
-    // Init Logic to Detect Role
+    // Resolve current permissions before offering delegated spaces.
     initContext: async (user) => {
         Store.currentContext = {
             ownerId: user.uid,
             role: 'owner',
-            availableWorkspaces: [{ ownerId: user.uid, type: 'personal' }] // Always have my own
+            availableWorkspaces: [{ ownerId: user.uid, type: 'personal' }]
         };
-
-        // Check if I am an admin for others (Multi-Tenant)
-        const emailKey = user.email.replace(/\./g, ',');
-        try {
-            const adminMapRef = await db.ref(`admin_map/${emailKey}`).once('value');
-            const mapData = adminMapRef.val();
-
-            if (mapData) {
-                // mapData is now like { "ownerUid1": true, "ownerUid2": true }
-                // OR legacy { ownerId: "..." } -> Support migration on fly if possible, or just overwrite
-
-                // Handle Legacy vs New Schema
-                let ownerIds = [];
-                if (typeof mapData === 'object' && mapData.ownerId) {
-                    // Legacy single mode
-                    ownerIds.push(mapData.ownerId);
-                } else {
-                    // Multi mode
-                    ownerIds = Object.keys(mapData);
-                }
-
-                // Add these to available workspaces
-                const workspacePromises = ownerIds.map(async oid => {
-                    let name = 'Empresa ' + oid.slice(0, 4);
-                    try {
-                        const snap = await db.ref(`users/${oid}/config/companyName`).once('value');
-                        name = snap.val() || name;
-                    } catch (e) { console.warn('Error fetching name for ' + oid); }
-
-                    return {
-                        ownerId: oid,
-                        type: 'admin',
-                        name: name
-                    };
-                });
-
-                const workspaces = await Promise.all(workspacePromises);
-                Store.currentContext.availableWorkspaces.push(...workspaces);
-
-                console.log(`Loaded ${workspaces.length} admin workspaces with names.`);
-            }
-        } catch (e) {
-            console.error("Error loading admin map", e);
-        }
+        if (!user.email || !user.emailVerified || user.isAnonymous) return;
+        const spaces = await Store.getAssistantWorkspaces();
+        Store.currentContext.availableWorkspaces = spaces.map(space => ({
+            ownerId: space.id, name: space.name, type: space.role === 'owner' ? 'personal' : 'admin'
+        }));
     },
 
     switchContext: (targetOwnerId) => {

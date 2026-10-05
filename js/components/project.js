@@ -42,12 +42,13 @@ const ProjectComponent = {
     render: async (container, projectId, options = {}) => {
         ProjectComponent.projectId = projectId;
         ProjectComponent.isShared = !!options.isShared;
-        ProjectComponent.isEditable = options.isEditable !== false;
+        ProjectComponent.isEditable = !ProjectComponent.isShared && options.isEditable !== false;
+        ProjectComponent.shareToken = ProjectComponent.isShared ? options.params?.get('t') : null;
 
         // Preserve sharing query params for navigation
         if (ProjectComponent.isShared && options.params) {
             const parts = [];
-            if (options.params.get('mode')) parts.push('mode=' + options.params.get('mode'));
+            parts.push('mode=readonly');
             if (options.params.get('t')) parts.push('t=' + options.params.get('t'));
             ProjectComponent.shareParams = parts.length > 0 ? '?' + parts.join('&') : '';
         } else {
@@ -76,24 +77,9 @@ const ProjectComponent = {
         // If Shared, we bypass the secure Store.getProject and go straight to public data
         let projectInfo;
         if (ProjectComponent.isShared) {
-            const data = await Store.getProjectData(projectId);
-
-            // SECURITY: Validate Token
-            const token = options.params ? options.params.get('t') : null;
-            if (!data.sharingToken || data.sharingToken !== token) {
-                container.innerHTML = `
-                    <div class="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-                        <div class="bg-red-50 dark:bg-red-900/20 p-8 rounded-2xl border border-red-100 dark:border-red-900/30 max-w-sm">
-                            <i class="fas fa-link-slash text-5xl text-red-500 mb-4"></i>
-                            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Enlace expirado o inválido</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">El propietario ha cambiado el enlace de acceso o este ya no es válido.</p>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            // Create dummy project info from public data
+            let data;
+            try { data = await Store.getSharedProjectData(projectId, ProjectComponent.shareToken); }
+            catch (error) { SharedComponent.unavailable(container, error); return; }
             projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido', ...data };
         } else {
             projectInfo = await Store.getProject(projectId);
@@ -481,11 +467,12 @@ const ProjectComponent = {
     renderMetrics: async (container, projectId, options = {}) => {
         ProjectComponent.projectId = projectId;
         ProjectComponent.isShared = !!options.isShared;
-        ProjectComponent.isEditable = options.isEditable !== false;
+        ProjectComponent.isEditable = !ProjectComponent.isShared && options.isEditable !== false;
+        ProjectComponent.shareToken = ProjectComponent.isShared ? options.params?.get('t') : null;
 
         if (ProjectComponent.isShared && options.params) {
             const parts = [];
-            if (options.params.get('mode')) parts.push('mode=' + options.params.get('mode'));
+            parts.push('mode=readonly');
             if (options.params.get('t')) parts.push('t=' + options.params.get('t'));
             ProjectComponent.shareParams = parts.length > 0 ? '?' + parts.join('&') : '';
         } else {
@@ -494,20 +481,9 @@ const ProjectComponent = {
 
         let projectInfo;
         if (ProjectComponent.isShared) {
-            const data = await Store.getProjectData(projectId);
-            const token = options.params ? options.params.get('t') : null;
-            if (!data.sharingToken || data.sharingToken !== token) {
-                container.innerHTML = `
-                    <div class="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-                        <div class="bg-red-50 dark:bg-red-900/20 p-8 rounded-2xl border border-red-100 dark:border-red-900/30 max-w-sm">
-                            <i class="fas fa-link-slash text-5xl text-red-500 mb-4"></i>
-                            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Enlace expirado o invalido</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">El propietario ha cambiado el enlace de acceso o este ya no es valido.</p>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
+            let data;
+            try { data = await Store.getSharedProjectData(projectId, ProjectComponent.shareToken); }
+            catch (error) { SharedComponent.unavailable(container, error); return; }
             projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido', ...data };
         } else {
             projectInfo = await Store.getProject(projectId);
@@ -580,7 +556,9 @@ const ProjectComponent = {
     },
 
     refreshData: async () => {
-        const fullData = await Store.getProjectData(ProjectComponent.projectId);
+        const fullData = ProjectComponent.isShared
+            ? await Store.getSharedProjectData(ProjectComponent.projectId, ProjectComponent.shareToken)
+            : await Store.getProjectData(ProjectComponent.projectId);
 
         ProjectComponent.rubros = fullData.rubros || [];
         ProjectComponent.responsables = fullData.responsables || [];
@@ -1615,6 +1593,7 @@ const ProjectComponent = {
 
         const data = await Store.getProjectData(ProjectComponent.projectId);
         const token = data.sharingToken || '';
+        if (!token) { UI.showToast('El propietario debe activar el enlace desde su cuenta.', 'info'); return; }
 
         // Base URL logic: remove query params and ensure we point to #/share/ID
         const baseUrl = window.location.href.split('?')[0].replace('#/dashboard', '').replace('#/project/', '#/share/');
@@ -1631,20 +1610,6 @@ const ProjectComponent = {
                 </div>
 
                 <div class="space-y-4">
-                    <!-- Edit Option -->
-                    <div class="glass-card p-4 rounded-xl border border-blue-100 dark:border-blue-900 hover:border-blue-300 transition-colors cursor-pointer group" onclick="ProjectComponent.copyLink('${projectUrl}?mode=edit&t=${token}')">
-                        <div class="flex items-center gap-4">
-                            <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-full text-blue-600 dark:text-blue-300">
-                                <i class="fas fa-edit text-xl"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-gray-800 dark:text-white">Colaborador</h4>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">Permite editar tareas, estados y añadir notas.</p>
-                            </div>
-                            <i class="fas fa-chevron-right ml-auto text-gray-300 group-hover:text-brand-500"></i>
-                        </div>
-                    </div>
-
                     <!-- Read Only Option -->
                     <div class="glass-card p-4 rounded-xl border border-green-100 dark:border-green-900 hover:border-green-300 transition-colors cursor-pointer group" onclick="ProjectComponent.copyLink('${projectUrl}?mode=readonly&t=${token}')">
                         <div class="flex items-center gap-4">

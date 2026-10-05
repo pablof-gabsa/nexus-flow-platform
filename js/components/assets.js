@@ -19,12 +19,13 @@ const AssetsComponent = {
     render: async (container, projectId, options = {}) => {
         AssetsComponent.projectId = projectId;
         AssetsComponent.isShared = !!options.isShared;
-        AssetsComponent.isEditable = options.isEditable !== false;
+        AssetsComponent.isEditable = !AssetsComponent.isShared && options.isEditable !== false;
+        AssetsComponent.shareToken = AssetsComponent.isShared ? options.params?.get('t') : null;
 
         // Preserve sharing query params for navigation
         if (AssetsComponent.isShared && options.params) {
             const parts = [];
-            if (options.params.get('mode')) parts.push('mode=' + options.params.get('mode'));
+            parts.push('mode=readonly');
             if (options.params.get('t')) parts.push('t=' + options.params.get('t'));
             AssetsComponent.shareParams = parts.length > 0 ? '?' + parts.join('&') : '';
         } else {
@@ -36,22 +37,9 @@ const AssetsComponent = {
             projectInfo = await Store.getProject(projectId);
             await AssetsComponent.refreshData();
         } else {
-            const data = await Store.getProjectData(projectId);
-            const token = options.params ? options.params.get('t') : null;
-
-            if (!data.sharingToken || data.sharingToken !== token) {
-                container.innerHTML = `
-                    <div class="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-                        <div class="bg-red-50 dark:bg-red-900/20 p-8 rounded-2xl border border-red-100 dark:border-red-900/30 max-w-sm">
-                            <i class="fas fa-link-slash text-5xl text-red-500 mb-4"></i>
-                            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Enlace expirado o invalido</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">El propietario ha cambiado el enlace de acceso o este ya no es valido.</p>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
+            let data;
+            try { data = await Store.getSharedProjectData(projectId, AssetsComponent.shareToken); }
+            catch (error) { SharedComponent.unavailable(container, error); return; }
             AssetsComponent.applyProjectData(data);
             projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido' };
         }
@@ -102,7 +90,9 @@ const AssetsComponent = {
     },
 
     refreshData: async () => {
-        const fullData = await Store.getProjectData(AssetsComponent.projectId);
+        const fullData = AssetsComponent.isShared
+            ? await Store.getSharedProjectData(AssetsComponent.projectId, AssetsComponent.shareToken)
+            : await Store.getProjectData(AssetsComponent.projectId);
         AssetsComponent.applyProjectData(fullData);
     },
 

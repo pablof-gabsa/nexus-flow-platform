@@ -87,6 +87,10 @@ export function canonical(value) {
   return JSON.stringify(value);
 }
 export function version(task) { return hash(canonical(task)); }
+export function assertResultSize(result) {
+  // Firestore audit documents must remain below 1 MiB, including metadata.
+  if (Buffer.byteLength(JSON.stringify(result), 'utf8') > 900 * 1024) throw new NexusError(413, 'task_result_too_large', 'El checklist y los datos visibles son demasiado extensos para registrar la operación. Reducí su tamaño. No se guardó ningún cambio.');
+}
 export function publicTask(id, task, webUrl, projectId, workspaceId) {
   const fields = Object.keys(taskFields).filter(key => key !== 'attachments');
   const files = (task.attachments || []).map((file, existingIndex) => ({ existingIndex, name: file.name || `Adjunto ${existingIndex + 1}`, type: file.type || 'application/octet-stream' }));

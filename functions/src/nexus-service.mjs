@@ -1,4 +1,4 @@
-import { parse, idSchema, createTaskSchema, updateTaskSchema, NexusError, hash, canonical, publicTask, version } from './validation.mjs';
+import { parse, idSchema, createTaskSchema, updateTaskSchema, NexusError, hash, canonical, publicTask, version, assertResultSize } from './validation.mjs';
 import { taskChanges, nextOccurrence } from './task-model.mjs';
 
 export class NexusService {
@@ -111,7 +111,9 @@ export class NexusService {
       const value = { ...defaults, ...taskChanges(defaults, task, now), createdBy: user.email, createdAt: now.toISOString(), source: 'assistant', _assistantOperation: { id: opId, fingerprint } };
       const saved = await this.repo.taskTransaction(projectId, id, current => {
         if (current && current._assistantOperation?.fingerprint !== fingerprint) throw new NexusError(409, 'task_conflict', 'La tarea ya existe con otros datos.');
-        return current || value;
+        const chosen = current || value;
+        assertResultSize({ task: publicTask(id, chosen, this.webUrl, projectId, workspaceId), saved: true });
+        return chosen;
       });
       return { task: publicTask(id, saved, this.webUrl, projectId, workspaceId), saved: true };
     });
@@ -129,7 +131,9 @@ export class NexusService {
         if (!current) throw new NexusError(404, 'task_not_found', 'Tarea no encontrada.');
         if (current._assistantOperation?.id === opId && current._assistantOperation.fingerprint === fingerprint) return current;
         if (version(current) !== expectedVersion) throw new NexusError(409, 'version_conflict', 'La tarea cambió. Consultala de nuevo antes de editarla.');
-        return { ...current, ...taskChanges(current, changes, now), updatedAt: now.toISOString(), _assistantOperation: { id: opId, fingerprint } };
+        const value = { ...current, ...taskChanges(current, changes, now), updatedAt: now.toISOString(), _assistantOperation: { id: opId, fingerprint } };
+        assertResultSize({ task: publicTask(taskId, value, this.webUrl, projectId, workspaceId), saved: true });
+        return value;
       };
       let saved, next;
       if (changes.estado === 'Realizado') {
@@ -144,6 +148,7 @@ export class NexusService {
             value._assistantNextTaskId = successorId;
           }
           tasks[taskId] = value;
+          assertResultSize({ task: publicTask(taskId, value, this.webUrl, projectId, workspaceId), ...(value._assistantNextTaskId === successorId && tasks[successorId] ? { nextTask: publicTask(successorId, tasks[successorId], this.webUrl, projectId, workspaceId) } : {}), saved: true });
           return tasks;
         });
         saved = tasks[taskId];

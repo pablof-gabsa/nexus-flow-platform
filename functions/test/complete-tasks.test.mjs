@@ -144,6 +144,20 @@ test('recurrence follows calendar boundaries, weekdays, last weekday and complet
   ]) assert.equal(nextOccurrence({ deadline, recurrence }, now).deadline, expected);
 });
 
+test('oversized audit results are rejected before creating, editing or scheduling tasks', async () => {
+  const { repo, service, actor } = await setup();
+  const subtasks = Array.from({ length: 500 }, () => ({ text: '😀'.repeat(1000), done: false }));
+  await assert.rejects(service.createTask(actor, 'owner', 'maintenance', { requerimiento: 'Demasiado extensa', rubro: 'General', subtasks }, 'large-create-123456'), { code: 'task_result_too_large' });
+  const original = await service.task(actor, 'owner', 'maintenance', 'existing');
+  await assert.rejects(service.updateTask(actor, 'owner', 'maintenance', 'existing', { subtasks }, original.version, 'large-update-123456'), { code: 'task_result_too_large' });
+  assert.equal((await service.task(actor, 'owner', 'maintenance', 'existing')).version, original.version);
+  assert.equal(Object.keys(repo.data.project_data.maintenance.tasks).length, 1);
+  const recurring = await service.createTask(actor, 'owner', 'maintenance', { requerimiento: 'Resultado doble', rubro: 'General', recurrence: { type: 'daily' }, subtasks: subtasks.slice(0, 130) }, 'large-recurring-123456');
+  await assert.rejects(service.updateTask(actor, 'owner', 'maintenance', recurring.task.id, { estado: 'Realizado' }, recurring.task.version, 'large-complete-123456'), { code: 'task_result_too_large' });
+  assert.equal((await service.task(actor, 'owner', 'maintenance', recurring.task.id)).estado, 'Pendiente');
+  assert.equal(Object.keys(repo.data.project_data.maintenance.tasks).length, 2);
+});
+
 test('real MCP exposes and saves every field, including attachments larger than the previous body limit', async t => {
   const { repo, tokens } = await linked();
   repo.data.project_data.maintenance.assets = { pump: { name: 'Bomba 1' } };

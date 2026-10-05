@@ -31,12 +31,25 @@ export class FirebaseRepository {
     });
   }
   async taskTransaction(projectId, taskId, update) {
-    let rejected;
-    const result = await this.database.ref(`project_data/${projectId}/tasks/${taskId}`).transaction(current => {
-      try { return update(current); } catch (error) { rejected = error; return; }
-    }, undefined, false);
-    if (rejected) throw rejected;
-    if (!result.committed) throw new Error('No se pudo guardar la tarea.');
-    return result.snapshot.val();
+    const ref = this.database.ref(`project_data/${projectId}/tasks/${taskId}`);
+    let listener;
+    try {
+      // A cold transaction starts with null even for an existing task. Keep the
+      // initial value subscribed until completion so absence checks use data.
+      await new Promise((resolve, reject) => {
+        listener = snapshot => resolve(snapshot);
+        ref.on('value', listener, reject);
+      });
+      let rejected;
+      const result = await ref.transaction(current => {
+        rejected = undefined;
+        try { return update(current); } catch (error) { rejected = error; return; }
+      }, undefined, false);
+      if (rejected) throw rejected;
+      if (!result.committed) throw new Error('No se pudo guardar la tarea.');
+      return result.snapshot.val();
+    } finally {
+      if (listener) ref.off('value', listener);
+    }
   }
 }

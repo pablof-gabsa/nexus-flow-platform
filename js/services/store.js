@@ -447,7 +447,7 @@ const Store = {
         if (!user || user.isAnonymous || !user.emailVerified) throw new Error('Ingresá con una cuenta de Google verificada.');
         const emailKey = user.email.replace(/\./g, ',');
         const map = (await db.ref(`admin_map/${emailKey}`).once('value')).val() || {};
-        const ownerIds = typeof map.ownerId === 'string' ? [map.ownerId] : Object.keys(map).filter(id => map[id] === true);
+        const ownerIds = [...(typeof map.ownerId === 'string' ? [map.ownerId] : []), ...Object.keys(map).filter(id => map[id] === true)];
         const workspaces = [{ id: user.uid, name: 'Mi espacio personal', role: 'owner' }];
         for (const ownerId of [...new Set(ownerIds)]) {
             if (ownerId === user.uid || !/^[A-Za-z0-9_-]{1,128}$/.test(ownerId)) continue;

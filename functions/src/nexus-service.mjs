@@ -11,7 +11,7 @@ export class NexusService {
     const user = await this.user(uid);
     const emailKey = user.email.replace(/\./g, ',');
     const map = await this.repo.get(`admin_map/${emailKey}`) || {};
-    const candidates = typeof map.ownerId === 'string' ? [map.ownerId] : Object.keys(map).filter(id => map[id] === true);
+    const candidates = [...(typeof map.ownerId === 'string' ? [map.ownerId] : []), ...Object.keys(map).filter(id => map[id] === true)];
     const spaces = [{ id: uid, name: 'Mi espacio personal', role: 'owner' }];
     for (const ownerId of [...new Set(candidates)]) {
       if (ownerId === uid || !idSchema.safeParse(ownerId).success) continue;

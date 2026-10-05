@@ -172,8 +172,9 @@ git diff --check
 
 Las pruebas HTTP usan el SDK MCP real y datos simulados. Cubren descubrimiento,
 inicialización, herramientas, OAuth, permisos, revocación, reintentos,
-concurrencia y preservación de datos. La validación incluye pruebas del servidor, consulta compartida y reglas con
-el emulador real, además de las regresiones de PDF y confidencialidad. Las reglas incluyen accesos
+concurrencia y preservación de datos. La validación incluye pruebas del servidor,
+consulta compartida y reglas con el emulador real, además de las regresiones de
+PDF y confidencialidad. Las reglas incluyen accesos
 anónimos y ajenos, autoasignación de permisos, revocación, titularidad inmutable,
 creación atómica personal y delegada, y preservación de adjuntos.
 

@@ -2,7 +2,7 @@ window.AssistantAPI = {
     base: () => (window.NEXUS_ASSISTANTS_CONFIG?.apiBaseUrl || '').replace(/\/$/, ''),
     publicRequest: async (path, options = {}) => {
         const base = AssistantAPI.base();
-        if (!base) throw new Error('La conexión directa todavía no está activada. Podés usar la carga desde cualquier IA.');
+        if (!base) throw new Error('La conexión directa todavía no está activada.');
         const response = await fetch(`${base}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers }, cache: 'no-store' });
         if (response.status === 204) return null;
         const result = await response.json();

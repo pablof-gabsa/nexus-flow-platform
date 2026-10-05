@@ -1,4 +1,61 @@
 const UI = {
+    textTooltip: null,
+    textTooltipTarget: null,
+    textTooltipTimer: null,
+    textTooltipEvents: null,
+
+    showTextTooltip: (target) => {
+        UI.hideTextTooltip(true);
+        if (target.scrollWidth <= target.clientWidth) return;
+
+        const tooltip = document.createElement('div');
+        tooltip.id = 'task-text-tooltip';
+        tooltip.className = 'task-text-tooltip';
+        tooltip.setAttribute('role', 'tooltip');
+        tooltip.textContent = target.textContent;
+        document.body.appendChild(tooltip);
+        target.setAttribute('aria-describedby', tooltip.id);
+        UI.textTooltip = tooltip;
+        UI.textTooltipTarget = target;
+
+        const anchor = target.getBoundingClientRect();
+        const bounds = tooltip.getBoundingClientRect();
+        const left = Math.max(16, Math.min(anchor.left, window.innerWidth - bounds.width - 16));
+        const below = anchor.bottom + 8;
+        const top = below + bounds.height <= window.innerHeight - 16 ? below :
+            Math.max(16, anchor.top - bounds.height - 8);
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+
+        // Allow the pointer to move into the preview to read or scroll it.
+        tooltip.onmouseenter = () => clearTimeout(UI.textTooltipTimer);
+        tooltip.onmouseleave = () => UI.hideTextTooltip();
+        UI.textTooltipEvents = new AbortController();
+        const options = { signal: UI.textTooltipEvents.signal };
+        window.addEventListener('resize', () => UI.hideTextTooltip(true), options);
+        window.addEventListener('hashchange', () => UI.hideTextTooltip(true), options);
+        document.addEventListener('scroll', event => {
+            if (!tooltip.contains(event.target)) UI.hideTextTooltip(true);
+        }, { ...options, capture: true });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') UI.hideTextTooltip(true);
+        }, options);
+    },
+
+    hideTextTooltip: (immediate = false) => {
+        clearTimeout(UI.textTooltipTimer);
+        const close = () => {
+            UI.textTooltipTarget?.removeAttribute('aria-describedby');
+            UI.textTooltip?.remove();
+            UI.textTooltipEvents?.abort();
+            UI.textTooltip = null;
+            UI.textTooltipTarget = null;
+            UI.textTooltipEvents = null;
+        };
+        if (immediate) close();
+        else UI.textTooltipTimer = setTimeout(close, 180);
+    },
+
     // Toast Notification
     showToast: (message, type = 'info') => {
         const container = document.getElementById('toast-container');

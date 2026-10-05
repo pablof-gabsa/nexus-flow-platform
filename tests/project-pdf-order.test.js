@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const checklist = { innerHTML: '' };
 let printed = [];
 const context = {
+    UI: { hideTextTooltip: () => {} },
     document: {
         getElementById: id => id === 'checklist-container' ? checklist : {
             innerText: 'Proyecto', textContent: 'Empresa'

@@ -66,6 +66,9 @@ test('admins cannot self-grant memberships or modify owner permissions and shari
 test('stale, false or forged maps do not grant membership and revocation takes effect immediately', async () => {
   for (const change of [
     { [`admin_map/${emailKey}/owner`]: false },
+    { [`users/owner/config/admins/${emailKey}`]: false },
+    { [`users/owner/config/admins/${emailKey}`]: 0 },
+    { [`users/owner/config/admins/${emailKey}`]: '' },
     { [`users/owner/config/admins/${emailKey}`]: null },
     { [`admin_map/${emailKey}/owner`]: null }
   ]) {
@@ -110,4 +113,15 @@ test('atomic project creation works for personal and delegated spaces and reject
     'project_data/forged': { sharingToken: 'forged-token-123' }
   }));
   await assertFails(set(ref(user(), 'project_owners/standalone'), { ownerUid: 'admin' }));
+});
+
+test('guest identities retain their own personal projects without gaining delegated access', async () => {
+  const db = user('guest', { email: null, email_verified: false });
+  await assertSucceeds(update(ref(db), {
+    'users/guest/projects/guestproject': { name: 'Personal guest project', owner: 'guest' },
+    'project_owners/guestproject': { ownerUid: 'guest' },
+    'project_data/guestproject': { name: 'Personal guest project', sharingToken: 'guest-token-123' }
+  }));
+  await assertSucceeds(get(ref(db, 'project_data/guestproject')));
+  await assertFails(get(ref(db, 'project_data/shared')));
 });

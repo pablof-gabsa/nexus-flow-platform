@@ -18,6 +18,12 @@ jobs:
       - run: npm ci --prefix functions --no-fund
       - run: npm test --prefix functions
       - run: node --test tests/assistant-import.test.js
+      - run: node --test tests/shared-security.test.js
       - run: node tests/project-pdf-order.test.js
       - run: node tests/project-confidential.test.js
       - run: npm audit --prefix functions --omit=dev
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npx --yes firebase-tools@15.32.1 emulators:exec --project demo-nexus-security --config firebase.security-test.json --only database "node --test tests/database-rules.test.mjs"

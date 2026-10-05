@@ -150,13 +150,13 @@ const App = {
             }
             else if (route.match(/^#\/share\/.+\/metrics$/)) {
                 const projectId = route.replace('#/share/', '').replace('/metrics', '');
-                const isEditable = params.get('mode') === 'edit';
+                const isEditable = false;
                 if (typeof ProjectComponent !== 'undefined') await ProjectComponent.renderMetrics(main, projectId, { isShared: true, isEditable: isEditable, params: params });
                 else main.innerHTML = '<p class="p-10 text-center">Project Component Not Loaded</p>';
             }
             else if (route.match(/^#\/share\/.+\/assets$/)) {
                 const projectId = route.replace('#/share/', '').replace('/assets', '');
-                const isEditable = params.get('mode') === 'edit';
+                const isEditable = false;
                 if (typeof AssetsComponent !== 'undefined') await AssetsComponent.render(main, projectId, { isShared: true, isEditable: isEditable, params: params });
                 else main.innerHTML = '<p class="p-10 text-center">Assets Component Not Loaded</p>';
             }

@@ -70,6 +70,11 @@ const Utils = {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
     },
 
+    generateSharingToken: () => {
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    },
+
     // Debounce function
     debounce: (func, wait) => {
         let timeout;

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v44'; // Universal assistant integration and task import
+const CACHE_NAME = 'nexus-flow-v45'; // Protected projects and shared links in read-only mode
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

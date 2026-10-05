@@ -183,9 +183,14 @@ const Store = {
         await db.ref(`admin_map/${emailKey}/${user.uid}`).remove();
 
         // Legacy structure cleanup: if the map has a direct 'ownerId' field matching this owner
-        const legacySnap = await db.ref(`admin_map/${emailKey}/ownerId`).once('value');
-        if (legacySnap.val() === user.uid) {
-            await db.ref(`admin_map/${emailKey}`).remove();
+        let legacyOwnerId = null;
+        try {
+            legacyOwnerId = (await db.ref(`admin_map/${emailKey}/ownerId`).once('value')).val();
+        } catch (error) {
+            if (!Store.isPermissionDenied(error)) throw error;
+        }
+        if (legacyOwnerId === user.uid) {
+            await db.ref(`admin_map/${emailKey}/ownerId`).remove();
         }
 
         // 2. Remove from both new and legacy structures in owner's tree to be safe
@@ -195,7 +200,7 @@ const Store = {
 
     rotateSharingToken: async (projectId) => {
         if (Store.currentContext.role !== 'owner') throw new Error("Acción restringida");
-        const newToken = Utils.generateId().slice(0, 8);
+        const newToken = Utils.generateSharingToken();
         await db.ref(`project_data/${projectId}/sharingToken`).set(newToken);
         return newToken;
     },
@@ -214,13 +219,18 @@ const Store = {
             createdBy: user.email, // Audit
             status: 'active'
         };
-        await newRef.set(project);
-
         const projectId = newRef.key;
-        const sharingToken = Utils.generateId(8);
-        await Store.initializeProjectDefaults(projectId, projectData.rubros, projectData.responsables);
-        await db.ref(`project_data/${projectId}/name`).set(projectData.name);
-        await db.ref(`project_data/${projectId}/sharingToken`).set(sharingToken);
+        const sharingToken = Utils.generateSharingToken();
+        await db.ref().update({
+            [`users/${ownerId}/projects/${projectId}`]: project,
+            [`project_owners/${projectId}`]: { ownerUid: ownerId },
+            [`project_data/${projectId}`]: {
+                name: projectData.name,
+                sharingToken,
+                rubros: projectData.rubros || ['Area 1', 'Area 2', 'Realizados', 'Eliminado'],
+                responsables: projectData.responsables || ['Administrador', 'Colaborador 1']
+            }
+        });
 
         return { id: projectId, ...project };
     },
@@ -290,14 +300,28 @@ const Store = {
         if (!val) return { tasks: {}, rubros: [], responsables: [], name: 'Proyecto Compartido', sharingToken: '' };
 
         // Lazy initialization for existing projects
-        if (!val.sharingToken) {
-            const token = Utils.generateId(8);
+        if (!val.sharingToken && Store.currentContext.role === 'owner') {
+            const token = Utils.generateSharingToken();
             await db.ref(`project_data/${projectId}/sharingToken`).set(token);
             val.sharingToken = token;
         }
 
         return val;
     },
+
+    getSharedProjectData: async (projectId, token) => {
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(projectId || '') || !/^[A-Za-z0-9_-]{8,128}$/.test(token || '')) {
+            const error = new Error('El enlace expiró o no es válido.');
+            error.status = 404;
+            throw error;
+        }
+        const result = await AssistantAPI.publicRequest('/v1/shared-project', {
+            method: 'POST', body: JSON.stringify({ projectId, token })
+        });
+        return result.data;
+    },
+
+    isPermissionDenied: error => ['PERMISSION_DENIED', 'permission-denied', 'database/permission-denied'].includes(error?.code),
 
     // Tasks
     addTask: async (projectId, taskData) => {
@@ -466,8 +490,12 @@ const Store = {
         const workspaces = [{ id: user.uid, name: 'Mi espacio personal', role: 'owner' }];
         for (const ownerId of [...new Set(ownerIds)]) {
             if (ownerId === user.uid || !/^[A-Za-z0-9_-]{1,128}$/.test(ownerId)) continue;
-            const [config, legacy] = await Promise.all([db.ref(`users/${ownerId}/config`).once('value'), db.ref(`users/${ownerId}/authorized_admins/${emailKey}`).once('value')]);
-            if (config.val()?.admins?.[emailKey] || legacy.val()) workspaces.push({ id: ownerId, name: config.val()?.companyName || 'Espacio compartido', role: 'admin' });
+            try {
+                const [config, legacy] = await Promise.all([db.ref(`users/${ownerId}/config`).once('value'), db.ref(`users/${ownerId}/authorized_admins/${emailKey}`).once('value')]);
+                if (config.val()?.admins?.[emailKey] || legacy.val()) workspaces.push({ id: ownerId, name: config.val()?.companyName || 'Espacio compartido', role: 'admin' });
+            } catch (error) {
+                if (!Store.isPermissionDenied(error)) throw error;
+            }
         }
         return workspaces;
     },

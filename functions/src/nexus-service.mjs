@@ -1,4 +1,5 @@
-import { parse, idSchema, createTaskSchema, updateTaskSchema, NexusError, hash, canonical, publicTask, version } from './validation.mjs';
+import { parse, idSchema, createTaskSchema, updateTaskSchema, NexusError, hash, canonical, publicTask, version, assertResultSize } from './validation.mjs';
+import { taskChanges, nextOccurrence } from './task-model.mjs';
 
 export class NexusService {
   constructor(repo, webUrl, now = () => new Date()) { this.repo = repo; this.webUrl = webUrl; this.now = now; }
@@ -61,7 +62,7 @@ export class NexusService {
   async details(actor, workspaceId, projectId) {
     const project = await this.project(actor, workspaceId, projectId);
     const data = await this.repo.get(`project_data/${projectId}`) || {};
-    return { id: projectId, name: project.name, rubros: data.rubros || [], responsables: data.responsables || [] };
+    return { id: projectId, name: project.name, rubros: data.rubros || [], responsables: data.responsables || [], assets: Object.entries(data.assets || {}).map(([id, asset]) => ({ id, name: asset.name || id })) };
   }
   async tasks(actor, workspaceId, projectId, { cursor = '', limit = 50, query = '', estado = '' } = {}) {
     await this.project(actor, workspaceId, projectId);
@@ -82,6 +83,7 @@ export class NexusService {
     const data = await this.repo.get(`project_data/${projectId}`) || {};
     if (task.rubro && (!(data.rubros || []).includes(task.rubro) || ['Realizados', 'Eliminado'].includes(task.rubro))) throw new NexusError(400, 'unknown_rubro', 'Elegí un rubro activo del proyecto.');
     if (task.responsable && !(data.responsables || []).includes(task.responsable)) throw new NexusError(400, 'unknown_responsable', 'Elegí un responsable existente del proyecto.');
+    if (task.assetId && !data.assets?.[task.assetId]) throw new NexusError(400, 'unknown_asset', 'Elegí un activo existente de este proyecto.');
   }
   async mutate(actor, workspaceId, projectId, requestId, operation, payload, change) {
     if (typeof requestId !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(requestId)) throw new NexusError(400, 'request_id_required', 'Se requiere requestId estable para evitar duplicados.');
@@ -104,10 +106,14 @@ export class NexusService {
     return this.mutate(actor, workspaceId, projectId, requestId, 'create_task', task, async (opId, fingerprint) => {
       const id = `ai_${opId}`;
       const user = await this.user(actor.uid);
-      const value = { ...task, estado: 'Pendiente', recurrence: { type: 'none' }, subtasks: [], attachments: [], resources: 1, hh_estimated: 0, hh_executed: 0, start_date: '', real_start_date: '', end_date: '', createdBy: user.email, createdAt: this.now().toISOString(), source: 'assistant', _assistantOperation: { id: opId, fingerprint } };
+      const now = this.now();
+      const defaults = { estado: 'Pendiente', recurrence: { type: 'none' }, subtasks: [], attachments: [], resources: 1, costo: 0, assetId: '', hh_estimated: 0, hh_executed: 0, start_date: '', start_time: '', time: '', real_start_date: '', end_date: '' };
+      const value = { ...defaults, ...taskChanges(defaults, task, now), createdBy: user.email, createdAt: now.toISOString(), source: 'assistant', _assistantOperation: { id: opId, fingerprint } };
       const saved = await this.repo.taskTransaction(projectId, id, current => {
         if (current && current._assistantOperation?.fingerprint !== fingerprint) throw new NexusError(409, 'task_conflict', 'La tarea ya existe con otros datos.');
-        return current || value;
+        const chosen = current || value;
+        assertResultSize({ task: publicTask(id, chosen, this.webUrl, projectId, workspaceId), saved: true });
+        return chosen;
       });
       return { task: publicTask(id, saved, this.webUrl, projectId, workspaceId), saved: true };
     });
@@ -119,33 +125,36 @@ export class NexusService {
     await this.project(actor, workspaceId, projectId, true);
     await this.validateLabels(projectId, changes);
     return this.mutate(actor, workspaceId, projectId, requestId, 'update_task', { taskId, changes, expectedVersion }, async (opId, fingerprint) => {
-      const saved = await this.repo.taskTransaction(projectId, taskId, current => {
+      const now = this.now();
+      const successorId = `ai_next_${opId}`;
+      const apply = current => {
         if (!current) throw new NexusError(404, 'task_not_found', 'Tarea no encontrada.');
         if (current._assistantOperation?.id === opId && current._assistantOperation.fingerprint === fingerprint) return current;
         if (version(current) !== expectedVersion) throw new NexusError(409, 'version_conflict', 'La tarea cambió. Consultala de nuevo antes de editarla.');
-        if (changes.estado && current.recurrence?.type && current.recurrence.type !== 'none') throw new NexusError(409, 'recurring_status_requires_nexus', 'Cambiá el estado de esta tarea recurrente desde Nexus para conservar su próxima ejecución.');
-        const extra = {};
-        const day = this.now().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-        if (changes.estado === 'En Proceso' && !current.real_start_date) extra.real_start_date = day;
-        if (changes.estado === 'Realizado') {
-          extra.end_date = day;
-          if (current.real_start_date) extra.hh_executed = businessHours(current.real_start_date, day) * (current.resources || 1);
-        }
-        else if (changes.estado && current.estado === 'Realizado') { extra.end_date = ''; extra.hh_executed = 0; }
-        return { ...current, ...changes, ...extra, updatedAt: this.now().toISOString(), _assistantOperation: { id: opId, fingerprint } };
-      });
-      return { task: publicTask(taskId, saved, this.webUrl, projectId, workspaceId), saved: true };
+        const value = { ...current, ...taskChanges(current, changes, now), updatedAt: now.toISOString(), _assistantOperation: { id: opId, fingerprint } };
+        assertResultSize({ task: publicTask(taskId, value, this.webUrl, projectId, workspaceId), saved: true });
+        return value;
+      };
+      let saved, next;
+      if (changes.estado === 'Realizado') {
+        // Complete and schedule together; retries cannot create another occurrence.
+        const tasks = await this.repo.tasksTransaction(projectId, currentTasks => {
+          const tasks = { ...(currentTasks || {}) };
+          const current = tasks[taskId];
+          const value = apply(current);
+          if (current.estado !== 'Realizado' && value.recurrence?.type && value.recurrence.type !== 'none') {
+            if (tasks[successorId]) throw new NexusError(409, 'task_conflict', 'La próxima ejecución ya existe con otros datos.');
+            tasks[successorId] = { ...nextOccurrence(value, now), createdAt: now.toISOString(), updatedAt: now.toISOString(), _assistantOperation: { id: opId, fingerprint } };
+            value._assistantNextTaskId = successorId;
+          }
+          tasks[taskId] = value;
+          assertResultSize({ task: publicTask(taskId, value, this.webUrl, projectId, workspaceId), ...(value._assistantNextTaskId === successorId && tasks[successorId] ? { nextTask: publicTask(successorId, tasks[successorId], this.webUrl, projectId, workspaceId) } : {}), saved: true });
+          return tasks;
+        });
+        saved = tasks[taskId];
+        if (saved._assistantNextTaskId === successorId) next = tasks[successorId];
+      } else saved = await this.repo.taskTransaction(projectId, taskId, apply);
+      return { task: publicTask(taskId, saved, this.webUrl, projectId, workspaceId), ...(next ? { nextTask: publicTask(successorId, next, this.webUrl, projectId, workspaceId) } : {}), saved: true };
     });
   }
-}
-
-// Same inclusive 8h Monday-Friday convention used by Utils.calculateBusinessHours.
-function businessHours(start, end) {
-  const first = new Date(`${start}T12:00:00Z`), last = new Date(`${end}T12:00:00Z`);
-  if (Number.isNaN(first.getTime()) || Number.isNaN(last.getTime()) || first > last) return 0;
-  const days = Math.round((last - first) / 86400_000) + 1;
-  if (days === 1) return 8;
-  let weekdays = Math.floor(days / 7) * 5;
-  for (let offset = 0; offset < days % 7; offset++) { const day = (first.getUTCDay() + offset) % 7; if (day !== 0 && day !== 6) weekdays++; }
-  return weekdays * 8;
 }

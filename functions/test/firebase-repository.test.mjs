@@ -48,3 +48,22 @@ test('missing tasks and failed writes leave no active task subscription', async 
     assert.equal(database.listeners.size, 0);
   }
 });
+
+test('project transaction completes and schedules together while preserving unrelated tasks', async () => {
+  const database = coldDatabase({ first: { estado: 'Pendiente' }, other: { attachments: [{ name: 'Keep' }] } });
+  const repo = new FirebaseRepository(database);
+  const saved = await repo.tasksTransaction('project', tasks => ({ ...tasks, first: { estado: 'Realizado' }, next: { estado: 'Pendiente' } }));
+  assert.equal(saved.first.estado, 'Realizado');
+  assert.equal(saved.next.estado, 'Pendiente');
+  assert.equal(saved.other.attachments[0].name, 'Keep');
+  assert.equal(database.listeners.size, 0);
+});
+
+test('oversized project transactions are rejected before saving any change', async () => {
+  const original = { first: { estado: 'Pendiente' } };
+  const database = coldDatabase(original);
+  const repo = new FirebaseRepository(database);
+  await assert.rejects(repo.tasksTransaction('project', tasks => ({ ...tasks, first: { estado: 'Realizado' }, next: { data: 'A'.repeat(15 * 1024 * 1024) } })), { code: 'task_data_too_large' });
+  assert.deepEqual(database.value(), original);
+  assert.equal(database.listeners.size, 0);
+});

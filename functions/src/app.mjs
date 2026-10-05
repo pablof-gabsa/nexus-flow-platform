@@ -23,7 +23,9 @@ export function createApp(repo, config) {
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
   });
-  app.use(express.json({ limit: '128kb' }));
+  const smallJson = express.json({ limit: '128kb' });
+  const taskJson = express.json({ limit: '30mb' });
+  app.use((req, res, next) => (req.path === '/mcp' || /^\/v1\/workspaces\/[^/]+\/projects\/[^/]+\/tasks(?:\/[^/]+)?$/.test(req.path) ? taskJson : smallJson)(req, res, next));
   app.use(express.urlencoded({ extended: false, limit: '16kb' }));
   const bearer = req => {
     const match = /^Bearer ([A-Za-z0-9_.-]{20,4096})$/.exec(req.get('authorization') || '');
@@ -44,7 +46,7 @@ export function createApp(repo, config) {
   app.get('/health', async (req, res) => {
     await repo.privateGet('health', 'readiness');
     await repo.get('nexus_assistant_health');
-    res.json({ ok: true, apiVersion: '1.0', transport: 'streamable-http' });
+    res.json({ ok: true, apiVersion: '1.1', transport: 'streamable-http' });
   });
   app.get('/.well-known/oauth-authorization-server', (req, res) => res.json(oauth.metadata()));
   app.get('/openapi.json', (req, res) => res.json(openapi(config.baseUrl)));

@@ -163,12 +163,14 @@ const ProjectComponent = {
                                         <i class="fas fa-sun hidden dark:inline text-yellow-500"></i>
                                     </button>
 
+                                    ${ProjectComponent.isEditable ? `
                                     <button onclick="ProjectComponent.importFromExcel()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2">
                                         <i class="fas fa-file-excel mr-2 text-emerald-600 w-5 text-center"></i> Importar Excel
                                     </button>
                                     <button onclick="ProjectComponent.downloadExampleTemplate()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2">
                                         <i class="fas fa-download mr-2 text-gray-500 w-5 text-center"></i> Descargar Plantilla
                                     </button>
+                                    ` : ''}
 
                                     <div class="my-1 border-t border-gray-100 dark:border-slate-700"></div>
 
@@ -200,12 +202,14 @@ const ProjectComponent = {
                                     <div class="my-1 border-t border-gray-100 dark:border-slate-700"></div>
 
                                     <!-- Management -->
+                                    ${ProjectComponent.isEditable ? `
                                     <button onclick="ProjectComponent.manageRubros()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">
                                         <i class="fas fa-folder mr-2 text-blue-500 w-5 text-center"></i> Areas
                                     </button>
                                     <button onclick="ProjectComponent.manageResponsables()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">
                                         <i class="fas fa-users mr-2 text-green-500 w-5 text-center"></i> Responsables
                                     </button>
+                                    ` : ''}
                                 </div>
                             </div>
                         </div>
@@ -1097,6 +1101,7 @@ const ProjectComponent = {
     },
 
     toggleSubtaskCheck: async (taskId, index) => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         const task = ProjectComponent.data.find(t => t.id === taskId);
         if (!task || !task.subtasks) return;
 
@@ -1282,6 +1287,7 @@ const ProjectComponent = {
 
     // Actions
     openTaskModal: (taskId = null) => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         const modal = document.getElementById('task-modal');
         const title = document.getElementById('modal-title');
         const form = document.getElementById('task-form');
@@ -1388,6 +1394,7 @@ const ProjectComponent = {
 
     handleTaskSubmit: async (e) => {
         e.preventDefault();
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         const formData = new FormData(e.target);
         const id = document.getElementById('task-id').value;
         const recType = document.getElementById('task-recurrence').value;
@@ -1453,6 +1460,7 @@ const ProjectComponent = {
     },
 
     updateStatus: async (taskId, newStatus) => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         try {
             const task = ProjectComponent.data.find(t => t.id === taskId);
             if (!task) return;
@@ -1644,6 +1652,7 @@ const ProjectComponent = {
     },
 
     rotateLink: async () => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         if (!await UI.confirm("¿Seguro que querés cambiar el enlace? Los links compartidos dejarán de funcionar.")) return;
 
         try {
@@ -1674,6 +1683,7 @@ const ProjectComponent = {
     movingTaskId: null,
 
     openMoveModal: (taskId) => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         ProjectComponent.movingTaskId = taskId;
         const modalId = 'move-task-modal';
         let modal = document.getElementById(modalId);
@@ -1708,6 +1718,7 @@ const ProjectComponent = {
     },
 
     confirmMoveTask: async () => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         const modal = document.getElementById('move-task-modal');
         const select = document.getElementById('move-rubro-select');
         const newRubro = select.value;
@@ -2192,6 +2203,7 @@ const ProjectComponent = {
 
     // Management Actions
     manageRubros: () => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         ProjectComponent.openManageModal('Gestionar Areas', ProjectComponent.rubros, async (newList) => {
             // Protect 'Realizados' and 'Eliminado'
             if (!newList.includes('Realizados')) newList.push('Realizados');
@@ -2206,6 +2218,7 @@ const ProjectComponent = {
     },
 
     manageResponsables: () => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         ProjectComponent.openManageModal('Gestionar Responsables', ProjectComponent.responsables, async (newList, oldList) => {
             // Detect Renames to update Tasks
             if (oldList) {
@@ -2235,6 +2248,7 @@ const ProjectComponent = {
     },
 
     openManageModal: (title, currentList, onSave) => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         const modalId = 'manage-modal';
         let modal = document.getElementById(modalId);
 
@@ -2356,6 +2370,7 @@ const ProjectComponent = {
 
 
         document.getElementById('save-manage').onclick = () => {
+            if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
             // Final read of order just in case
             const listContainer = document.getElementById('manage-list-items');
             if (listContainer) {
@@ -2578,6 +2593,7 @@ const ProjectComponent = {
     },
 
     editProjectName: async () => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         const span = document.getElementById('project-name-display');
         const currentName = span.textContent.trim();
 
@@ -2762,6 +2778,7 @@ const ProjectComponent = {
     },
 
     saveAsTaskTemplate: async () => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         const req = document.getElementById('task-req').value;
         if (!req) return UI.showToast('La tarea debe tener una descripción', 'warning');
 
@@ -2784,6 +2801,7 @@ const ProjectComponent = {
     },
 
     deleteTaskTemplate: async (id) => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         if (confirm("¿Seguro que deseas eliminar esta plantilla?")) {
             try {
                 await Store.deleteTaskTemplate(id);
@@ -2798,6 +2816,7 @@ const ProjectComponent = {
 
     // --- Excel Import ---
     importFromExcel: () => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         // Create hidden file input
         const input = document.createElement('input');
         input.type = 'file';
@@ -2832,6 +2851,7 @@ const ProjectComponent = {
     },
 
     handleExcelFile: (file) => {
+        if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         if (!window.XLSX) {
             UI.showToast('Librería Excel no cargada. Recarga la página.', 'error');
             return;
@@ -2839,6 +2859,7 @@ const ProjectComponent = {
 
         const reader = new FileReader();
         reader.onload = async (e) => {
+            if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });

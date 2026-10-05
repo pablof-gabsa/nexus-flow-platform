@@ -1125,7 +1125,7 @@ const DashboardComponent = {
             stContainer.innerHTML = task.subtasks.map((st, idx) => `
                 <label class="flex items-center gap-2 p-1 hover:bg-white dark:hover:bg-slate-800 rounded cursor-pointer">
                     <input type="checkbox" class="qe-subtask-check rounded text-brand-600 focus:ring-brand-500" ${st.done ? 'checked' : ''} data-idx="${idx}">
-                    <span class="text-xs text-gray-700 dark:text-gray-300 select-none ${st.done ? 'line-through opacity-60' : ''}">${st.text}</span>
+                    <span class="text-xs text-gray-700 dark:text-gray-300 select-none ${st.done ? 'line-through opacity-60' : ''}">${Utils.escapeHTML(st.text)}</span>
                 </label>
             `).join('');
             stContainer.parentElement.classList.remove('hidden');

@@ -47,14 +47,16 @@ export class NexusService {
     parse(idSchema, projectId);
     await this.access(actor, workspaceId, write);
     const project = await this.repo.get(`users/${workspaceId}/projects/${projectId}`);
-    if (!project || project.owner !== workspaceId) throw new NexusError(404, 'project_not_found', 'El proyecto no pertenece al espacio seleccionado.');
+    const owner = await this.repo.get(`project_owners/${projectId}`);
+    if (!project || project.owner !== workspaceId || owner?.ownerUid !== workspaceId) throw new NexusError(404, 'project_not_found', 'El proyecto no pertenece al espacio seleccionado.');
     if (write && project.status === 'inactive') throw new NexusError(409, 'archived_project', 'Abrí el proyecto archivado en Nexus antes de modificarlo.');
     return project;
   }
   async projects(actor, workspaceId) {
     await this.access(actor, workspaceId);
     const projects = await this.repo.get(`users/${workspaceId}/projects`) || {};
-    return { projects: Object.entries(projects).filter(([, p]) => p.owner === workspaceId).map(([id, p]) => ({ id, name: p.name, status: p.status, url: `${this.webUrl}#/project/${encodeURIComponent(id)}?workspace=${encodeURIComponent(workspaceId)}` })) };
+    const rows = await Promise.all(Object.entries(projects).filter(([, p]) => p.owner === workspaceId).map(async ([id, p]) => (await this.repo.get(`project_owners/${id}`))?.ownerUid === workspaceId ? { id, name: p.name, status: p.status, url: `${this.webUrl}#/project/${encodeURIComponent(id)}?workspace=${encodeURIComponent(workspaceId)}` } : null));
+    return { projects: rows.filter(Boolean) };
   }
   async details(actor, workspaceId, projectId) {
     const project = await this.project(actor, workspaceId, projectId);

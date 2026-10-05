@@ -2,6 +2,7 @@ import { NexusError } from '../src/validation.mjs';
 export class MemoryRepository {
   constructor() {
     this.data = { admin_map: { 'alice@example,com': { owner: true } }, users: { alice: { projects: { personal: { owner: 'alice', name: 'Personal', status: 'active' } } }, bob: { projects: { bobproject: { owner: 'bob', name: 'Privado', status: 'active' } } }, owner: { config: { companyName: 'GABSA', admins: { 'alice@example,com': { email: 'alice@example.com' } } }, projects: { maintenance: { owner: 'owner', name: 'Mantenimiento', status: 'active' }, archived: { owner: 'owner', status: 'inactive' } } } }, project_data: { maintenance: { rubros: ['Seguridad', 'General'], responsables: ['Pablo'], sharingToken: 'NEVER-RETURN-THIS', tasks: { existing: { requerimiento: 'Preservar adjuntos', description: '', rubro: 'Seguridad', responsable: 'Pablo', prioridad: 'Media', estado: 'Pendiente', attachments: [{ content: 'PRIVATE-BINARY' }], comments: [{ text: 'Conservar' }], recurrence: { type: 'none' } } } }, personal: { rubros: ['General'], responsables: [], tasks: {} }, bobproject: { tasks: {} } } };
+    this.data.project_owners = { maintenance: { ownerUid: 'owner' }, archived: { ownerUid: 'owner' }, personal: { ownerUid: 'alice' }, bobproject: { ownerUid: 'bob' } };
     this.users = new Map(['alice', 'bob', 'owner'].map(uid => [uid, { uid, email: `${uid}@example.com`, emailVerified: true, disabled: false }]));
     this.documents = new Map();
   }

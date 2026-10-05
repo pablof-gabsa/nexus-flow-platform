@@ -5,6 +5,7 @@ import { NexusOAuth } from './oauth.mjs';
 import { handleMcp } from './mcp.mjs';
 import { NexusError, parse, idSchema } from './validation.mjs';
 import { openapi } from './openapi.mjs';
+import { sharedProject, sharedProjectSchema } from './shared-project.mjs';
 
 export function createApp(repo, config) {
   const app = express();
@@ -47,6 +48,7 @@ export function createApp(repo, config) {
   });
   app.get('/.well-known/oauth-authorization-server', (req, res) => res.json(oauth.metadata()));
   app.get('/openapi.json', (req, res) => res.json(openapi(config.baseUrl)));
+  app.post('/v1/shared-project', throttled('shared-project', 60), async (req, res) => res.json(await sharedProject(repo, parse(sharedProjectSchema, req.body))));
   app.get(['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp'], (req, res) => res.json(oauth.resourceMetadata()));
   app.post('/oauth/register', throttled('registration', 20), async (req, res) => res.status(201).json(await oauth.register(req.body)));
   app.get('/oauth/authorize', throttled('authorize', 30), async (req, res) => res.redirect(await oauth.begin(req.query)));

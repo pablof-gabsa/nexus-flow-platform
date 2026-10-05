@@ -9,57 +9,18 @@ const Store = {
         availableWorkspaces: [] // Array of { ownerId, name (opt) }
     },
 
-    // Init Logic to Detect Role
+    // Resolve current permissions before offering delegated spaces.
     initContext: async (user) => {
         Store.currentContext = {
             ownerId: user.uid,
             role: 'owner',
-            availableWorkspaces: [{ ownerId: user.uid, type: 'personal' }] // Always have my own
+            availableWorkspaces: [{ ownerId: user.uid, type: 'personal' }]
         };
-
-        // Check if I am an admin for others (Multi-Tenant)
-        const emailKey = user.email.replace(/\./g, ',');
-        try {
-            const adminMapRef = await db.ref(`admin_map/${emailKey}`).once('value');
-            const mapData = adminMapRef.val();
-
-            if (mapData) {
-                // mapData is now like { "ownerUid1": true, "ownerUid2": true }
-                // OR legacy { ownerId: "..." } -> Support migration on fly if possible, or just overwrite
-
-                // Handle Legacy vs New Schema
-                let ownerIds = [];
-                if (typeof mapData === 'object' && mapData.ownerId) {
-                    // Legacy single mode
-                    ownerIds.push(mapData.ownerId);
-                } else {
-                    // Multi mode
-                    ownerIds = Object.keys(mapData);
-                }
-
-                // Add these to available workspaces
-                const workspacePromises = ownerIds.map(async oid => {
-                    let name = 'Empresa ' + oid.slice(0, 4);
-                    try {
-                        const snap = await db.ref(`users/${oid}/config/companyName`).once('value');
-                        name = snap.val() || name;
-                    } catch (e) { console.warn('Error fetching name for ' + oid); }
-
-                    return {
-                        ownerId: oid,
-                        type: 'admin',
-                        name: name
-                    };
-                });
-
-                const workspaces = await Promise.all(workspacePromises);
-                Store.currentContext.availableWorkspaces.push(...workspaces);
-
-                console.log(`Loaded ${workspaces.length} admin workspaces with names.`);
-            }
-        } catch (e) {
-            console.error("Error loading admin map", e);
-        }
+        if (!user.email || !user.emailVerified || user.isAnonymous) return;
+        const spaces = await Store.getAssistantWorkspaces();
+        Store.currentContext.availableWorkspaces = spaces.map(space => ({
+            ownerId: space.id, name: space.name, type: space.role === 'owner' ? 'personal' : 'admin'
+        }));
     },
 
     switchContext: (targetOwnerId) => {
@@ -183,9 +144,14 @@ const Store = {
         await db.ref(`admin_map/${emailKey}/${user.uid}`).remove();
 
         // Legacy structure cleanup: if the map has a direct 'ownerId' field matching this owner
-        const legacySnap = await db.ref(`admin_map/${emailKey}/ownerId`).once('value');
-        if (legacySnap.val() === user.uid) {
-            await db.ref(`admin_map/${emailKey}`).remove();
+        let legacyOwnerId = null;
+        try {
+            legacyOwnerId = (await db.ref(`admin_map/${emailKey}/ownerId`).once('value')).val();
+        } catch (error) {
+            if (!Store.isPermissionDenied(error)) throw error;
+        }
+        if (legacyOwnerId === user.uid) {
+            await db.ref(`admin_map/${emailKey}/ownerId`).remove();
         }
 
         // 2. Remove from both new and legacy structures in owner's tree to be safe
@@ -195,7 +161,7 @@ const Store = {
 
     rotateSharingToken: async (projectId) => {
         if (Store.currentContext.role !== 'owner') throw new Error("Acción restringida");
-        const newToken = Utils.generateId().slice(0, 8);
+        const newToken = Utils.generateSharingToken();
         await db.ref(`project_data/${projectId}/sharingToken`).set(newToken);
         return newToken;
     },
@@ -214,13 +180,18 @@ const Store = {
             createdBy: user.email, // Audit
             status: 'active'
         };
-        await newRef.set(project);
-
         const projectId = newRef.key;
-        const sharingToken = Utils.generateId(8);
-        await Store.initializeProjectDefaults(projectId, projectData.rubros, projectData.responsables);
-        await db.ref(`project_data/${projectId}/name`).set(projectData.name);
-        await db.ref(`project_data/${projectId}/sharingToken`).set(sharingToken);
+        const sharingToken = Utils.generateSharingToken();
+        await db.ref().update({
+            [`users/${ownerId}/projects/${projectId}`]: project,
+            [`project_owners/${projectId}`]: { ownerUid: ownerId },
+            [`project_data/${projectId}`]: {
+                name: projectData.name,
+                sharingToken,
+                rubros: projectData.rubros || ['Area 1', 'Area 2', 'Realizados', 'Eliminado'],
+                responsables: projectData.responsables || ['Administrador', 'Colaborador 1']
+            }
+        });
 
         return { id: projectId, ...project };
     },
@@ -290,14 +261,28 @@ const Store = {
         if (!val) return { tasks: {}, rubros: [], responsables: [], name: 'Proyecto Compartido', sharingToken: '' };
 
         // Lazy initialization for existing projects
-        if (!val.sharingToken) {
-            const token = Utils.generateId(8);
+        if (!val.sharingToken && Store.currentContext.role === 'owner') {
+            const token = Utils.generateSharingToken();
             await db.ref(`project_data/${projectId}/sharingToken`).set(token);
             val.sharingToken = token;
         }
 
         return val;
     },
+
+    getSharedProjectData: async (projectId, token) => {
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(projectId || '') || !/^[A-Za-z0-9_-]{8,128}$/.test(token || '')) {
+            const error = new Error('El enlace expiró o no es válido.');
+            error.status = 404;
+            throw error;
+        }
+        const result = await AssistantAPI.publicRequest('/v1/shared-project', {
+            method: 'POST', body: JSON.stringify({ projectId, token })
+        });
+        return result.data;
+    },
+
+    isPermissionDenied: error => ['PERMISSION_DENIED', 'permission-denied', 'database/permission-denied'].includes(error?.code),
 
     // Tasks
     addTask: async (projectId, taskData) => {
@@ -448,6 +433,71 @@ const Store = {
 
     deleteTask: async (projectId, taskId) => {
         await db.ref(`project_data/${projectId}/tasks/${taskId}`).remove();
+    },
+
+    selectAssistantWorkspace: async (workspaceId) => {
+        const spaces = await Store.getAssistantWorkspaces();
+        const selected = spaces.find(space => space.id === workspaceId);
+        if (!selected) throw new Error('No tenés acceso al espacio de este enlace.');
+        Store.currentContext = { ownerId: selected.id, role: selected.role, availableWorkspaces: spaces.map(space => ({ ownerId: space.id, name: space.name, type: space.role === 'owner' ? 'personal' : 'admin' })) };
+    },
+
+    getAssistantWorkspaces: async () => {
+        const user = Auth.getCurrentUser();
+        if (!user || user.isAnonymous || !user.emailVerified) throw new Error('Ingresá con una cuenta de Google verificada.');
+        const emailKey = user.email.replace(/\./g, ',');
+        const map = (await db.ref(`admin_map/${emailKey}`).once('value')).val() || {};
+        const ownerIds = [...(typeof map.ownerId === 'string' ? [map.ownerId] : []), ...Object.keys(map).filter(id => map[id] === true)];
+        const workspaces = [{ id: user.uid, name: 'Mi espacio personal', role: 'owner' }];
+        for (const ownerId of [...new Set(ownerIds)]) {
+            if (ownerId === user.uid || !/^[A-Za-z0-9_-]{1,128}$/.test(ownerId)) continue;
+            try {
+                const [config, legacy] = await Promise.all([db.ref(`users/${ownerId}/config`).once('value'), db.ref(`users/${ownerId}/authorized_admins/${emailKey}`).once('value')]);
+                if (config.val()?.admins?.[emailKey] || legacy.val()) workspaces.push({ id: ownerId, name: config.val()?.companyName || 'Espacio compartido', role: 'admin' });
+            } catch (error) {
+                if (!Store.isPermissionDenied(error)) throw error;
+            }
+        }
+        return workspaces;
+    },
+
+    importAssistantTasks: async (workspaceId, projectId, tasks, batchId) => {
+        const user = Auth.getCurrentUser();
+        if (!user || user.isAnonymous || !user.emailVerified) throw new Error('Ingresá con una cuenta de Google verificada.');
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(workspaceId) || !/^[A-Za-z0-9_-]{1,128}$/.test(projectId) || !/^[a-f0-9]{64}$/.test(batchId)) throw new Error('Destino de carga inválido.');
+        const emailKey = user.email.replace(/\./g, ',');
+        if (workspaceId !== user.uid) {
+            const [map, config, legacy] = await Promise.all([
+                db.ref(`admin_map/${emailKey}`).once('value'),
+                db.ref(`users/${workspaceId}/config/admins/${emailKey}`).once('value'),
+                db.ref(`users/${workspaceId}/authorized_admins/${emailKey}`).once('value')
+            ]);
+            if (!(map.val()?.[workspaceId] === true || map.val()?.ownerId === workspaceId) || !(config.val() || legacy.val())) throw new Error('Ya no tenés acceso a este espacio.');
+        }
+        const [projectSnapshot, dataSnapshot] = await Promise.all([
+            db.ref(`users/${workspaceId}/projects/${projectId}`).once('value'),
+            db.ref(`project_data/${projectId}`).once('value')
+        ]);
+        const project = projectSnapshot.val();
+        if (!project || project.owner !== workspaceId || project.status === 'inactive') throw new Error('Elegí un proyecto activo del espacio seleccionado.');
+        const data = dataSnapshot.val() || {};
+        if (!Array.isArray(tasks) || !tasks.length || tasks.length > 50) throw new Error('Carga inválida.');
+        const normalized = tasks.map(task => AssistantFormat.normalize(task, { rubros: data.rubros || [], responsables: data.responsables || [] }));
+        if (await AssistantFormat.digest(JSON.stringify(normalized)) !== batchId) throw new Error('La carga cambió. Revisá las tareas de nuevo antes de guardar.');
+        const batchHash = await AssistantFormat.digest(`${user.uid}:${workspaceId}:${projectId}:${batchId}`);
+        const createdAt = new Date().toISOString();
+        let inserted = 0;
+        const result = await db.ref(`project_data/${projectId}/tasks`).transaction(current => {
+            const next = { ...(current || {}) };
+            inserted = 0;
+            normalized.forEach((task, index) => {
+                const id = `ai_${batchHash}_${index}`;
+                if (!next[id]) { next[id] = { ...AssistantFormat.defaults(task), createdBy: user.email, createdAt, source: 'assistant_import', importBatch: batchHash }; inserted++; }
+            });
+            return next;
+        }, undefined, false);
+        if (!result.committed) throw new Error('No se pudo guardar la carga. Reintentá sin cambiar la respuesta.');
+        return { inserted, existing: normalized.length - inserted, projectId };
     },
 
     // Config

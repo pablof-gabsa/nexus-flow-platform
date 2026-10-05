@@ -1,0 +1,33 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const format = require('../js/services/assistant-format.js');
+const labels = { rubros: ['General', 'Seguridad'], responsables: ['Pablo'], defaultRubro: 'General' };
+const text = JSON.stringify({ format: 'nexus.tasks.v1', tasks: [{ requerimiento: 'Pedir presupuesto', responsable: 'Pablo', deadline: '2026-10-09' }] });
+test('portable format accepts fenced JSON and preserves dates, priorities and confidentiality', () => { const tasks = format.parse('```json\n' + text + '\n```', labels); assert.equal(tasks[0].deadline, '2026-10-09'); assert.equal(tasks[0].rubro, 'General'); assert.equal(tasks[0].prioridad, 'Media'); assert.equal(tasks[0].confidential, false); });
+test('malformed JSON, invalid dates, HTML, extra metadata and unknown labels fail', () => { for (const task of [{ requerimiento: '<script>alert(1)</script>' }, { requerimiento: 'X', deadline: '2026-02-30' }, { requerimiento: 'X', owner: 'otro' }, { requerimiento: 'X', responsable: 'Inventado' }, { requerimiento: 'X', rubro: 'Inventado' }]) assert.throws(() => format.parse(JSON.stringify({ format: 'nexus.tasks.v1', tasks: [task] }), labels)); assert.throws(() => format.parse('{}', labels)); assert.throws(() => format.parse('respuesta no JSON', labels)); });
+function fixture() {
+  const data = { admin_map: { 'alice@example,com': { owner: true } }, users: { alice: { projects: { personal: { owner: 'alice', status: 'active' } } }, owner: { config: { companyName: 'GABSA', admins: { 'alice@example,com': true } }, projects: { project: { owner: 'owner', status: 'active' } } } }, project_data: { project: { ...labels, tasks: { old: { requerimiento: 'Conservar', attachments: [{ name: 'documento' }] } } }, personal: { ...labels, tasks: {} } } };
+  const get = path => path.split('/').reduce((value, key) => value?.[key], data) ?? null;
+  const db = { ref: path => ({ once: async () => ({ val: () => structuredClone(get(path)) }), transaction: async change => { const keys = path.split('/'), key = keys.pop(), parent = keys.reduce((value, next) => value[next], data); parent[key] = change(structuredClone(parent[key])); return { committed: true, snapshot: { val: () => structuredClone(parent[key]) } }; } }) };
+  const user = { uid: 'alice', email: 'alice@example.com', emailVerified: true, isAnonymous: false };
+  const context = { db, Auth: { getCurrentUser: () => user }, AssistantFormat: format, crypto: globalThis.crypto, TextEncoder, console }; vm.createContext(context); vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../js/services/store.js'), 'utf8') + '\nglobalThis.Store = Store;', context);
+  return { data, store: context.Store, user };
+}
+test('browser import is atomic, repeatable and preserves unrelated tasks', async () => { const { data, store } = fixture(); const tasks = format.parse(text, labels), batch = await format.digest(JSON.stringify(tasks)); const first = await store.importAssistantTasks('owner', 'project', tasks, batch); assert.equal(first.inserted, 1); const second = await store.importAssistantTasks('owner', 'project', tasks, batch); assert.equal(second.inserted, 0); assert.equal(second.existing, 1); assert.equal(Object.keys(data.project_data.project.tasks).length, 2); assert.equal(data.project_data.project.tasks.old.attachments[0].name, 'documento'); });
+test('import rechecks delegated permissions and project ownership at save time', async () => { const { data, store } = fixture(); const tasks = format.parse(text, labels), batch = await format.digest(JSON.stringify(tasks)); delete data.admin_map['alice@example,com'].owner; await assert.rejects(store.importAssistantTasks('owner', 'project', tasks, batch), /acceso/); data.admin_map['alice@example,com'].owner = true; await assert.rejects(store.importAssistantTasks('owner', 'personal', tasks, batch), /proyecto activo/); assert.equal(Object.keys(data.project_data.project.tasks).length, 1); });
+test('modified batches cannot reuse an earlier preview identity', async () => { const { store } = fixture(); const tasks = format.parse(text, labels), batch = await format.digest(JSON.stringify(tasks)); tasks[0].requerimiento = 'Cambio'; await assert.rejects(store.importAssistantTasks('owner', 'project', tasks, batch), /carga cambió/); });
+test('workspace discovery ignores false and stale admin mappings', async () => { const { store, data } = fixture(); assert.equal((await store.getAssistantWorkspaces()).length, 2); data.admin_map['alice@example,com'].owner = false; assert.equal((await store.getAssistantWorkspaces()).length, 1); });
+test('historical membership keeps other authorized spaces visible and can be revoked independently', async () => { const { store, data } = fixture(); data.admin_map['alice@example,com'].ownerId = 'legacy'; data.users.legacy = { authorized_admins: { 'alice@example,com': true } }; assert.deepEqual(Array.from((await store.getAssistantWorkspaces()).map(space => space.id)), ['alice', 'legacy', 'owner']); delete data.users.legacy.authorized_admins['alice@example,com']; assert.deepEqual(Array.from((await store.getAssistantWorkspaces()).map(space => space.id)), ['alice', 'owner']); });
+
+test('incorrect optional values and reserved rubros are rejected instead of silently changed', () => {
+  for (const field of ['description', 'rubro', 'responsable']) {
+    for (const value of [false, 0, null]) {
+      assert.throws(() => format.parse(JSON.stringify({ format: 'nexus.tasks.v1', tasks: [{ requerimiento: 'Nueva', [field]: value }] }), labels));
+    }
+  }
+  for (const rubro of ['Eliminado', 'Realizados']) {
+    assert.throws(() => format.parse(JSON.stringify({ format: 'nexus.tasks.v1', tasks: [{ requerimiento: 'Nueva', rubro }] }), { ...labels, rubros: [...labels.rubros, rubro] }));
+  }
+});

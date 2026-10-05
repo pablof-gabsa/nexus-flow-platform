@@ -1,0 +1,10 @@
+{
+  "functions": [{ "source": "functions", "codebase": "nexus-assistants", "ignore": ["node_modules", ".git", "*-debug.log", ".env*", "test"] }],
+  "firestore": [{ "database": "nexus-assistants", "rules": "firestore.assistants.rules", "indexes": "firestore.assistants.indexes.json" }],
+  "database": [{ "instance": "nexus-flow-6dac7-default-rtdb", "rules": "database.rules.json" }],
+  "hosting": {
+    "public": "functions/public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{ "source": "**", "function": { "functionId": "nexusAssistants", "region": "us-central1" } }]
+  }
+}

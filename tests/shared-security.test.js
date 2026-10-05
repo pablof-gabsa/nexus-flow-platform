@@ -9,6 +9,35 @@ function load(files, options = {}) {
   for (const [file, symbol] of files) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8') + `\nglobalThis.${symbol} = ${symbol};`, context);
   return context;
 }
+
+test('checklist editing preserves quotes as text without creating input attributes', () => {
+  const container = { innerHTML: '' };
+  const context = load([['js/utils.js', 'Utils'], ['js/components/project.js', 'ProjectComponent']], {
+    document: { getElementById: () => container }, Sortable: class { destroy() {} }
+  });
+  const text = 'Revisar "A & B" y O\'Connor; " autofocus onfocus="alert(1)';
+  context.ProjectComponent.editingSubtasks = [{ text, done: true }];
+  context.ProjectComponent.renderSubtasksEdit();
+  const input = container.innerHTML.match(/<input\b[^>]+>/)[0];
+  const value = input.match(/\bvalue="([^"]*)"/)[1];
+  assert.ok(value.includes('&quot;A &amp; B&quot;'));
+  assert.ok(value.includes('O&#39;Connor'));
+  assert.ok(!/\b(?:autofocus|onfocus)=/.test(input.replace(/\bvalue="[^"]*"/, '')));
+  assert.equal(context.ProjectComponent.editingSubtasks[0].text, text);
+  assert.equal(context.ProjectComponent.editingSubtasks[0].done, true);
+});
+
+test('attachment previews preserve quoted names and URLs as attribute values', () => {
+  const container = { innerHTML: '' };
+  const context = load([['js/utils.js', 'Utils'], ['js/components/project.js', 'ProjectComponent']], { document: { getElementById: () => container } });
+  const file = { name: 'Foto "Bomba 1"', type: 'image/png', data: 'https://files.example/image?name="bomba"&size=1' };
+  context.ProjectComponent.currentAttachments = [file];
+  context.ProjectComponent.renderAttachmentsPreview();
+  assert.ok(container.innerHTML.includes('title="Foto &quot;Bomba 1&quot;"'));
+  const image = container.innerHTML.match(/<img\b[^>]+>/)[0];
+  assert.equal(image.match(/\bsrc="([^"]*)"/)[1], 'https://files.example/image?name=&quot;bomba&quot;&amp;size=1');
+  assert.equal(context.ProjectComponent.currentAttachments[0].data, file.data);
+});
 test('shared data is obtained through the public service without any database read', async () => {
   const calls = [];
   const context = load([['js/services/store.js', 'Store']], {

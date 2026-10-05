@@ -1,4 +1,6 @@
 const Utils = {
+    escapeHTML: (value) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+
     // Format currency
     formatMoney: (amount) => {
         return new Intl.NumberFormat('es-AR', {

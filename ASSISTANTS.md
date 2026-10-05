@@ -80,11 +80,66 @@ enlaces nuevos usan 32 bytes aleatorios. No existe una operación pública de ed
 - La API devuelve éxito sólo después de guardar la tarea y su auditoría.
 - Los adjuntos, comentarios y campos no solicitados se preservan. Los binarios
   y tokens de enlaces compartidos no se incluyen en las respuestas del asistente.
-- Los cambios de estado de tareas recurrentes se realizan por ahora desde
-  Nexus, para conservar la generación de la próxima ejecución. Sus restantes
-  campos sí pueden editarse desde la integración.
+- Al completar una tarea recurrente, el servidor guarda la finalización y la
+  próxima ejecución en una sola transacción. Devuelve `nextTask` junto con la
+  tarea completada. Un reintento no genera otra ejecución. La nueva tarea
+  conserva su configuración y adjuntos, desplaza las fechas previstas y
+  reinicia el checklist, las fechas reales y las horas ejecutadas.
 - Los enlaces de resultados incluyen el espacio y vuelven a comprobar el acceso
   cuando el usuario los abre en Nexus.
+
+## Campos completos de tareas (1.1.0)
+
+MCP y REST comparten el mismo contrato. `create_task` y `update_task` aceptan
+los 21 campos que guarda el formulario; `get_task` y `list_tasks` los devuelven.
+`get_project` incluye los IDs y nombres de los activos del proyecto.
+
+| Datos del formulario | Campos de la integración |
+| --- | --- |
+| Título y descripción | `requerimiento`, `description` |
+| Área, responsable, prioridad y confidencialidad | `rubro`, `responsable`, `prioridad`, `confidential` |
+| Estado y activo | `estado`, `assetId` |
+| Inicio previsto y hora | `start_date`, `start_time` |
+| Vencimiento y hora | `deadline`, `time` |
+| Inicio y fin reales | `real_start_date`, `end_date` |
+| Recursos, costo y horas de trabajo | `resources`, `costo`, `hh_estimated`, `hh_executed` |
+| Checklist, adjuntos y repetición | `subtasks`, `attachments`, `recurrence` |
+
+Las fechas usan `YYYY-MM-DD`, las horas `HH:MM`; una cadena vacía retira una
+fecha, hora o activo. Los recursos aceptan enteros no negativos, incluido 0.
+Costos y horas aceptan números no negativos. Los valores de horas o fechas
+reales indicados expresamente prevalecen sobre los cálculos automáticos.
+Las horas previstas se recalculan si se cambian fechas previstas o recursos
+y existen ambas fechas. Las ejecutadas se calculan con las fechas reales.
+Se conserva la convención existente de ocho horas por día hábil inclusive.
+
+`subtasks` es la lista completa y ordenada de objetos `{text, done}`. Omitir el
+campo conserva la lista; `[]` la vacía. Al añadir un punto hay que conservar
+los existentes y sus marcas de completado. La repetición admite `none`,
+`daily`, `weekly`, `monthly`, `yearly` y `periodic`; en días semanales 0 es lunes
+y 6 domingo, y la semana mensual 5 significa la última. La repetición semanal
+requiere al menos un día. Una configuración histórica incompleta debe
+corregirse antes de completar la tarea; se puede editar el resto de sus campos.
+Una creación con estado `Realizado` carga un registro terminado; la siguiente
+ejecución se genera al pasar una tarea existente a ese estado.
+
+`attachments` también reemplaza la lista completa. Un archivo nuevo usa
+`{name, type, data}`, donde `data` es un enlace HTTPS o un data URL base64.
+Las consultas devuelven nombre, tipo y `existingIndex` sin incluir contenido
+binario ni enlaces con tokens de descarga. Al editar, los objetos devueltos
+sirven como referencias para conservar o reordenar archivos. Omitir el campo
+conserva todos; `[]` retira las referencias de la tarea sin borrar los archivos.
+Los adjuntos inline admiten 7 MB por archivo y 10 MB nuevos por pedido; para
+archivos mayores se usan enlaces HTTPS. Estos límites y el control del tamaño
+de la transacción evitan superar los límites de cadenas y escrituras del SDK
+de [Realtime Database](https://firebase.google.com/docs/database/usage/limits).
+
+Los permisos, espacios autorizados, versiones y requestId se conservan. Los
+metadatos internos de auditoría y titularidad no son campos editables. Las
+pruebas comparan el contrato con los campos que guarda el formulario y cubren
+una creación completa, edición parcial, preservación de archivos, referencias
+inválidas, calendarios de repetición, escrituras concurrentes y recuperación
+tras una falla de auditoría.
 
 ## Uso de conexiones
 

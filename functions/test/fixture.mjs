@@ -14,6 +14,7 @@ export class MemoryRepository {
   async privateConsume(collection, id, predicate) { const key = `${collection}/${id}`, data = this.documents.get(key); if (!data || !predicate(data)) return null; this.documents.delete(key); return structuredClone(data); }
   async privateList(collection, uid) { return [...this.documents].filter(([key, value]) => key.startsWith(`${collection}/`) && value.uid === uid).map(([key, value]) => ({ id: key.split('/')[1], ...structuredClone(value) })); }
   async taskTransaction(projectId, taskId, change) { const tasks = this.data.project_data[projectId].tasks ||= {}; const value = change(structuredClone(tasks[taskId] || null)); tasks[taskId] = structuredClone(value); return structuredClone(value); }
+  async tasksTransaction(projectId, change) { const value = change(structuredClone(this.data.project_data[projectId].tasks || {})); this.data.project_data[projectId].tasks = structuredClone(value); return structuredClone(value); }
 }
 export const config = { baseUrl: 'https://nexus.example', webUrl: 'https://nexus.example/app/' };
 export async function grant(repo, { uid = 'alice', workspaceIds = ['owner'], scopes = ['tasks:read', 'tasks:write'], id = 'grant-test' } = {}) { await repo.privatePut('grants', id, { uid, workspaceIds, scopes, expiresAt: Date.now() + 86400_000 }); return { uid, grantId: id, scopes }; }

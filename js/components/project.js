@@ -1037,7 +1037,7 @@ const ProjectComponent = {
                                                 onchange="ProjectComponent.toggleSubtaskCheck('${item.id}', ${idx})"
                                                 class="mt-0.5 rounded text-brand-600 focus:ring-brand-500 bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-gray-600 ${!ProjectComponent.isEditable ? 'opacity-50 cursor-not-allowed' : ''}">
                                             <span class="text-xs ${st.done ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300'} ${ProjectComponent.isEditable ? 'group-hover/st:text-brand-600' : ''} transition-colors">
-                                                ${st.text}
+                                                ${Utils.escapeHTML(st.text)}
                                             </span>
                                         </label>
                                     `).join('')}
@@ -1146,7 +1146,7 @@ const ProjectComponent = {
         container.innerHTML = ProjectComponent.editingSubtasks.map((st, i) => `
             <div class="flex items-center gap-2 bg-gray-50 dark:bg-slate-700/50 p-2 rounded group" data-id="${i}">
                  <i class="fas fa-grip-vertical text-gray-400 cursor-move hover:text-gray-600"></i>
-                 <input type="text" value="${st.text}" onchange="ProjectComponent.updateSubtaskText(${i}, this.value)" class="flex-1 bg-transparent border-none focus:ring-0 p-0 text-sm text-gray-800 dark:text-gray-200">
+                 <input type="text" value="${Utils.escapeHTML(st.text)}" onchange="ProjectComponent.updateSubtaskText(${i}, this.value)" class="flex-1 bg-transparent border-none focus:ring-0 p-0 text-sm text-gray-800 dark:text-gray-200">
                 <button type="button" onclick="ProjectComponent.removeSubtask(${i})" class="text-red-500 hover:text-red-700">&times;</button>
             </div>
         `).join('');
@@ -1231,9 +1231,9 @@ const ProjectComponent = {
             const icon = ProjectComponent.getFileIcon(att.type, att.name);
 
             return `
-            <div class="relative group w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-slate-600 flex items-center justify-center bg-gray-50 dark:bg-slate-700" title="${att.name}">
+            <div class="relative group w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-slate-600 flex items-center justify-center bg-gray-50 dark:bg-slate-700" title="${Utils.escapeHTML(att.name)}">
                 ${isImage
-                    ? `<img src="${att.data}" class="w-full h-full object-cover">`
+                    ? `<img src="${Utils.escapeHTML(att.data)}" class="w-full h-full object-cover">`
                     : `<i class="${icon} text-2xl text-gray-500 dark:text-gray-400"></i>`
                 }
                 <button type="button" onclick="ProjectComponent.removeAttachment(${i})" class="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2731,9 +2731,9 @@ const ProjectComponent = {
             <button onclick="ProjectComponent.closeAttachmentLightbox()" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 z-50">&times;</button>
             <div class="flex flex-wrap justify-center gap-6 max-w-6xl p-4 overflow-y-auto max-h-screen">
                 ${task.attachments.map(att => {
-            const fileName = att.name || 'adjunto';
+            const fileName = Utils.escapeHTML(att.name || 'adjunto');
             const mimeType = att.type || '';
-            const fileUrl = ProjectComponent.getAttachmentOpenUrl(att);
+            const fileUrl = Utils.escapeHTML(ProjectComponent.getAttachmentOpenUrl(att));
             const isImage = mimeType.startsWith('image/');
             const isPdf = mimeType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
             const icon = ProjectComponent.getFileIcon(mimeType, fileName);

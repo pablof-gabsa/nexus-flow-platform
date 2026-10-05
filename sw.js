@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v45'; // Protected projects and shared links in read-only mode
+const CACHE_NAME = 'nexus-flow-v46'; // Read-only shared menus and protected projects
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

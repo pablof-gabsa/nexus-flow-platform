@@ -45,3 +45,21 @@ test('old edit links always render as read-only and unavailable service is not r
   context.SharedComponent.unavailable(container, { status: 404 });
   assert(container.innerHTML.includes('Enlace expirado o inválido'));
 });
+
+test('read-only views reject management, import and task edits before touching data or opening editors', async () => {
+  let warnings=0, prevented=false;
+  const context=load([['js/components/project.js','ProjectComponent']], {
+    UI: { showToast(message) { assert.match(message,/solo lectura/); warnings++; } },
+    document: new Proxy({}, { get() { throw new Error('A read-only action opened an editor'); } }),
+    Store: new Proxy({}, { get() { throw new Error('A read-only action accessed a mutation'); } })
+  });
+  const component=context.ProjectComponent;
+  component.isShared=true; component.isEditable=false;
+  component.data=[{id:'existing',estado:'Pendiente',subtasks:[{text:'Preserve',done:false}]}];
+  await component.toggleSubtaskCheck('existing',0);
+  await component.updateStatus('existing','Realizado');
+  await component.handleTaskSubmit({preventDefault(){prevented=true;}});
+  for(const action of ['openTaskModal','openMoveModal','confirmMoveTask','manageRubros','manageResponsables','openManageModal','editProjectName','rotateLink','saveAsTaskTemplate','deleteTaskTemplate','importFromExcel','handleExcelFile']) await component[action]();
+  assert.equal(warnings,15); assert.equal(prevented,true);
+  assert.equal(component.data[0].estado,'Pendiente'); assert.equal(component.data[0].subtasks[0].done,false);
+});

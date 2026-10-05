@@ -13,8 +13,9 @@ asistente que eligió cada persona.
   atómico y protección contra reintentos duplicados.
 - La interfaz tiene configurado el servicio publicado. Falta conectar y probar
   las aplicaciones reales de ChatGPT y Claude con las cuentas de sus usuarios.
-- Los permisos de Realtime Database están versionados y probados con el
-  emulador real. Cada proyecto tiene un propietario canónico; los enlaces
+- La interfaz y los permisos de Realtime Database están publicados. Las reglas
+  coinciden con el repositorio y pasaron pruebas en el emulador y en Firebase.
+  Cada proyecto tiene un propietario canónico; los enlaces
   compartidos consultan un servicio que valida el token y devuelve sólo datos
   públicos en modo lectura.
 - Gemini está preparado como cliente MCP; falta comprobar su callback real y
@@ -189,7 +190,7 @@ git diff --check
 
 Las pruebas HTTP usan el SDK MCP real y datos simulados. Cubren descubrimiento,
 inicialización, herramientas, OAuth, permisos, revocación, reintentos,
-concurrencia y preservación de datos. Pasan 30 pruebas del servidor, 11 de
+concurrencia y preservación de datos. Pasan 30 pruebas del servidor, 12 de
 formato, importación y enlaces, y nueve de reglas con el emulador real, además
 de las regresiones de PDF y confidencialidad. Las reglas incluyen accesos
 anónimos y ajenos, autoasignación de permisos, revocación, titularidad inmutable,
@@ -203,6 +204,18 @@ preservación de adjuntos y comentarios, ocho herramientas MCP, auditoría,
 índices privados, bloqueo del acceso cliente a Firestore, pérdida inmediata de
 pertenencia, renovación de un uso y revocación. Se eliminaron los datos y cuentas
 de prueba y el permiso temporal usado para firmar sus sesiones.
+
+Tras publicar las reglas, una segunda prueba en Firebase confirmó el bloqueo
+de lecturas y escrituras sin sesión, acceso ajeno, autoasignación de permisos,
+cambio de titularidad y rotación de tokens por administradores. Confirmó acceso
+del propietario y del administrador, creación atómica delegada y revocación.
+El servicio compartido excluyó tareas y activos confidenciales, rechazó tokens
+incorrectos y dejó de aceptar el enlace al rotarlo. Se conservaron los 55
+proyectos y sus 55 tokens existentes. En Chrome se verificaron las vistas
+publicadas de tareas, métricas y activos, incluido el detalle de un activo,
+mediante un enlace antiguo con `mode=edit` y datos sintéticos. Sus opciones de
+importación y administración quedan ocultas y los manejadores de edición
+rechazan acciones en la vista de consulta. Todos los datos temporales se retiraron.
 
 Una reproducción con el SDK real detectó que una edición podía interpretar la
 caché inicial vacía como una tarea inexistente. El repositorio ahora espera el

@@ -14,11 +14,74 @@ window.AssistantsComponent = {
             <div><a href="#/dashboard" class="text-sm text-brand-600 dark:text-brand-300">Volver a mi trabajo</a><h1 class="text-3xl font-bold dark:text-white mt-3">Asistentes</h1><p class="text-gray-500 dark:text-gray-400 mt-2">Conectá tu asistente para consultar y gestionar tareas en tus espacios de Nexus.</p></div>
             <section class="glass-card rounded-xl p-5 sm:p-6 space-y-4"><div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-lg font-semibold dark:text-white">Conexiones</h2><span class="text-xs rounded-full px-3 py-1 bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200">${api ? 'Servicio configurado' : 'Conexión directa pendiente de activación'}</span></div><p class="text-sm text-gray-600 dark:text-gray-400">Cada conexión utiliza tu cuenta y los espacios que autorices.</p>
             ${api ? '<button id="ai-copy-url" class="btn-secondary">Copiar dirección de conexión</button>' : '<p class="text-sm text-gray-500">La conexión directa estará disponible cuando se active el servicio.</p>'}
-            <details class="text-sm"><summary class="cursor-pointer font-medium text-brand-700 dark:text-brand-300">Cómo conectar mi asistente</summary><div class="mt-3 space-y-3 text-gray-600 dark:text-gray-400"><p><strong>ChatGPT:</strong> agregá Nexus como conexión personalizada desde sus ajustes de plugins y autorizá tu cuenta.</p><p><strong>Claude:</strong> agregá un conector personalizado desde Conectores y autorizá tu cuenta.</p><p><strong>Gemini:</strong> agregá una aplicación personalizada desde Aplicaciones conectadas, cuando esté disponible para tu cuenta y país. <a class="underline" href="https://support.google.com/gemini/answer/17209137" target="_blank" rel="noopener noreferrer">Consultar disponibilidad</a>.</p><p>Nexus comprueba tus permisos en cada pedido. Podés desconectar el asistente cuando quieras.</p></div></details>
+            ${AssistantsComponent.connectionGuides(api)}
             <div id="ai-connections" class="text-sm text-gray-500" aria-live="polite">${api ? 'Cargando conexiones…' : 'El servicio necesita activarse antes de vincular cuentas.'}</div>
             <p id="ai-message" class="text-sm text-gray-600 dark:text-gray-400" role="status" aria-live="polite"></p></section>
             ${api ? '<section class="glass-card rounded-xl p-5 sm:p-6"><h2 class="text-lg font-semibold dark:text-white">Cambios desde mis asistentes</h2><div id="ai-history" class="mt-4 text-sm text-gray-500" aria-live="polite">Cargando historial…</div></section>' : ''}</div>`;
         if (api) { container.querySelector('#ai-copy-url').onclick = () => AssistantsComponent.copy(`${api}/mcp`); void AssistantsComponent.loadConnections(); }
+    },
+    connectionGuides: api => {
+        const e = AssistantsComponent.escape;
+        const address = api ? `<code class="block mt-2 p-3 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200 break-all select-all">${e(api)}/mcp</code>` : '<span class="block mt-2">La dirección estará disponible cuando se active el servicio.</span>';
+        const consent = '<strong>Autorizá en Nexus:</strong> ingresá con la cuenta de Google que usás para tus proyectos, elegí los espacios y, si querés agregar o editar tareas, marcá <strong>Permitir crear y modificar tareas</strong> cuando aparezca. Confirmá con <strong>Autorizar conexión</strong>.';
+        const link = (url, text) => `<a class="underline text-brand-700 dark:text-brand-300" href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+        const listClass = 'list-decimal pl-5 space-y-3';
+        return `<details id="ai-connection-help" class="text-sm">
+            <summary class="cursor-pointer font-medium text-brand-700 dark:text-brand-300">Cómo conectar mi asistente</summary>
+            <div class="mt-4 space-y-4 text-gray-600 dark:text-gray-400">
+                <p>Elegí tu asistente y seguí su guía desde el navegador. Cada persona conecta su propia cuenta de Nexus.</p>
+                <details id="ai-guide-chatgpt" name="assistant-guide" class="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+                    <summary class="cursor-pointer font-semibold text-gray-900 dark:text-white">ChatGPT · Guía paso a paso</summary>
+                    <div class="mt-4 space-y-4">
+                        <ol class="${listClass}">
+                            <li>En Nexus, usá <strong>Copiar dirección de conexión</strong>, arriba de esta guía.</li>
+                            <li>Abrí ChatGPT y entrá en <strong>Configuración → Seguridad e inicio de sesión</strong>. Activá <strong>Modo desarrollador</strong>.</li>
+                            <li>Abrí ${link('https://chatgpt.com/plugins', 'Plugins de ChatGPT')}, presioná <strong>+</strong> y elegí una conexión con dirección pública. Usá el nombre <strong>Nexus</strong> y una descripción como “Consultar y gestionar mis tareas de Nexus”. Pegá esta dirección en el campo del servidor MCP:${address}</li>
+                            <li>Creá la conexión. ${consent}</li>
+                            <li>En ${link('https://chatgpt.com/plugins?view=personal', 'tus plugins')}, abrí Nexus e instalalo con <strong>+</strong>.</li>
+                            <li>Abrí un chat nuevo en <strong>Work</strong>, escribí <strong>@</strong> y seleccioná <strong>Nexus</strong>. Probá la consulta indicada al final de estas guías.</li>
+                        </ol>
+                        <p class="text-xs">Si no aparece Modo desarrollador, su disponibilidad depende de tu cuenta y de las políticas de tu espacio de ChatGPT. ${link('https://developers.openai.com/plugins/deploy/connect-chatgpt', 'Consultar requisitos')}.</p>
+                        <p>${link('https://developers.openai.com/plugins/quickstart', 'Guía oficial de OpenAI')}</p>
+                    </div>
+                </details>
+                <details id="ai-guide-claude" name="assistant-guide" class="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+                    <summary class="cursor-pointer font-semibold text-gray-900 dark:text-white">Claude · Guía paso a paso</summary>
+                    <div class="mt-4 space-y-4">
+                        <ol class="${listClass}">
+                            <li>En Nexus, usá <strong>Copiar dirección de conexión</strong>.</li>
+                            <li>En tu cuenta personal de Claude, abrí <strong>Personalizar → Conectores → + Añadir → Añadir conector personalizado</strong>.</li>
+                            <li>Poné el nombre <strong>Nexus</strong>, pegá la dirección del servidor MCP y continuá:${address}</li>
+                            <li>Revisá la autenticación detectada. Si aparecen estas opciones, elegí <strong>Iniciar sesión ahora</strong> y, en <strong>Cliente OAuth</strong>, <strong>Registrarse automáticamente</strong>. Terminá de agregar el conector.</li>
+                            <li>Presioná <strong>Conectar</strong> si Claude lo solicita. ${consent}</li>
+                            <li>En un chat nuevo, abrí <strong>+ → Conectores</strong> y habilitá Nexus. Probá la consulta indicada al final de estas guías.</li>
+                        </ol>
+                        <p class="text-xs"><strong>Team o Enterprise:</strong> un propietario de la organización, o un rol habilitado en Enterprise, debe agregar primero Nexus desde los conectores de la organización, usando la opción personalizada web. Después cada miembro conecta su cuenta desde Personalizar → Conectores.</p>
+                        <p>${link('https://support.claude.com/es/articles/11175166-comienza-con-conectores-personalizados-usando-mcp-remoto', 'Guía oficial de Claude')}</p>
+                    </div>
+                </details>
+                <details id="ai-guide-gemini" name="assistant-guide" class="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+                    <summary class="cursor-pointer font-semibold text-gray-900 dark:text-white">Gemini · Guía y disponibilidad</summary>
+                    <div class="mt-4 space-y-4">
+                        <p class="rounded-lg p-3 bg-amber-50 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"><strong>Disponibilidad limitada:</strong> Google indica que las aplicaciones personalizadas requieren una cuenta personal, 18 años o más, estar en Estados Unidos, usar inglés y tener Guardar actividad activado. Según esos requisitos, la opción todavía no está habilitada en Argentina.</p>
+                        <ol class="${listClass}">
+                            <li>Si tu cuenta cumple los requisitos, abrí Gemini en el navegador y usá <strong>Copiar dirección de conexión</strong> en Nexus.</li>
+                            <li>En Gemini, entrá en <strong>Settings → Connected Apps</strong>. Si no aparece, buscá la sección dentro de <strong>Personal Intelligence</strong>.</li>
+                            <li>En <strong>Custom apps</strong>, elegí <strong>Add a custom app</strong> y pegá la dirección del servidor MCP:${address}</li>
+                            <li>Presioná <strong>Next</strong> y seguí el ingreso que se abra. ${consent}</li>
+                            <li>Volvé a Gemini, escribí <strong>@</strong> y seleccioná Nexus para probar la consulta indicada abajo.</li>
+                        </ol>
+                        <p>${link('https://support.google.com/gemini/answer/17209137?hl=en-ID', 'Guía oficial y requisitos de Google')}</p>
+                    </div>
+                </details>
+                <div class="rounded-lg p-4 bg-brand-50 dark:bg-brand-950/50 text-brand-800 dark:text-brand-200 space-y-2">
+                    <p class="font-semibold">Probá la conexión</p>
+                    <p>Con Nexus seleccionado en tu asistente, pedile: <strong>“Mostrame los espacios y proyectos de Nexus a los que tengo acceso”.</strong></p>
+                    <p>Después podés pedirle que agregue una tarea indicando el espacio y el proyecto. Comprobá el resultado en Nexus.</p>
+                </div>
+                <p class="text-xs">Podés retirar el acceso desde <strong>Conexiones → Desconectar</strong>. Los permisos de cada pedido dependen de tu acceso vigente a los espacios autorizados.</p>
+            </div>
+        </details>`;
     },
     element: id => AssistantsComponent.state?.container.querySelector(`#${id}`),
     active: s => s === AssistantsComponent.state && window.location.hash.split('?')[0] === '#/assistants' && !!s.container.querySelector('#ai-connections'),

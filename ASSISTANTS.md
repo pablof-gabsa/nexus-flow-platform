@@ -11,10 +11,12 @@ asistente que eligió cada persona.
   en Firebase con cuentas y proyectos de prueba aislados.
 - Carga desde cualquier IA implementada con vista previa, validación, guardado
   atómico y protección contra reintentos duplicados.
-- La interfaz está en la rama de integración, pendiente de publicación y de
-  revisión de los permisos existentes de Nexus. Falta conectar las aplicaciones
-  reales de ChatGPT y Claude. `js/services/assistant-config.js` permanece sin
-  endpoint activo hasta completar la activación.
+- La interfaz tiene configurado el servicio publicado. Falta conectar y probar
+  las aplicaciones reales de ChatGPT y Claude con las cuentas de sus usuarios.
+- Los permisos de Realtime Database están versionados y probados con el
+  emulador real. Cada proyecto tiene un propietario canónico; los enlaces
+  compartidos consultan un servicio que valida el token y devuelve sólo datos
+  públicos en modo lectura.
 - Gemini está preparado como cliente MCP; falta comprobar su callback real y
   disponibilidad para las cuentas de los usuarios. Google actualmente restringe
   sus aplicaciones personalizadas a cuentas personales en EE. UU. y uso en inglés.
@@ -26,6 +28,8 @@ asistente que eligió cada persona.
   PKCE S256, códigos de un uso, renovación rotativa y revocación.
 - `functions/src/mcp.mjs`: herramientas comunes para los asistentes.
 - `functions/src/app.mjs`: rutas HTTP y descubrimiento OAuth.
+- `functions/src/shared-project.mjs`: validación y filtrado de enlaces compartidos.
+- `database.rules.json`: aislamiento de proyectos, espacios personales y administradores.
 - `functions/src/openapi.mjs`: contrato OpenAPI 3.1 servido en `/openapi.json`.
 - `js/components/assistants.js`: conexiones, consentimiento e importación.
 - `js/services/assistant-format.js`: formato portable `nexus.tasks.v1`.
@@ -34,9 +38,8 @@ Los proyectos y tareas permanecen en la Realtime Database existente. Las
 autorizaciones, hashes de tokens, clientes, límites y auditoría se guardan en una
 base Firestore dedicada llamada `nexus-assistants`. Las reglas impiden el acceso
 directo desde clientes; el servidor y la administración acceden mediante IAM.
-Las reglas suministradas
-corresponden exclusivamente a esa base y no reemplazan las reglas de los datos
-actuales de Nexus.
+`firestore.assistants.rules` corresponde exclusivamente a esa base privada.
+`database.rules.json` protege la Realtime Database existente de Nexus.
 
 La publicación de GitHub Pages copia solamente `index.html`, `manifest.json`,
 `sw.js`, `assets`, `css` y `js`. El servidor y archivos locales de configuración
@@ -49,6 +52,21 @@ conexión y los permisos actuales del usuario. Los administradores delegados
 deben existir tanto en el índice `admin_map` como en la lista del propietario
 (`config/admins` o su lista histórica). Un índice obsoleto no concede acceso.
 La pertenencia del proyecto al espacio se comprueba antes de leer o escribir.
+El índice `project_owners/<projectId>/ownerUid` debe coincidir con los metadatos
+del proyecto. La creación normal guarda ambos y los datos en una sola operación.
+Los clientes no pueden reasignar ese índice. Una transferencia de titularidad
+requiere una operación administrativa específica; todavía no está implementada.
+Ser propietario de un espacio de Nexus no concede roles en la consola Firebase.
+
+Los administradores deben tener correo verificado y autorización vigente en
+ambos registros. Sólo el propietario modifica administradores y tokens de
+compartición. Los invitados anónimos conservan acceso a su propio espacio.
+
+Los enlaces existentes se conservan, incluso si incluían `mode=edit`, pero se
+abren en modo lectura. `/v1/shared-project` valida el token en el servidor antes
+de consultar el proyecto y excluye tareas y activos confidenciales, metadatos
+internos y el propio token. Rotar el token invalida el enlace anterior. Los
+enlaces nuevos usan 32 bytes aleatorios. No existe una operación pública de edición.
 
 - `tasks:read`: listar espacios autorizados, proyectos, rubros, responsables y tareas.
 - `tasks:write`: crear o editar tareas, dentro de esos mismos espacios.
@@ -110,9 +128,9 @@ de lectura a Firebase Auth, administración de Realtime Database y acceso a
 Firestore limitado mediante IAM a la base dedicada. No se creó una clave
 privada de esa cuenta. La retención de imágenes de compilación es de siete días.
 
-Los siguientes pasos sirven para reproducir el despliegue y completar la
-activación de la interfaz; el despliegue del servidor y la base dedicada ya
-está realizado.
+Los siguientes pasos sirven para reproducir el despliegue y conectar los
+asistentes. Conservar copias de las reglas y revisar el índice de propietarios
+antes de cambiar los permisos de una instalación existente.
 
 1. Autenticar Firebase CLI con una cuenta autorizada para el proyecto. Comprobar
    su plan y los costos de Cloud Functions, Hosting y Firestore antes de activar
@@ -122,10 +140,10 @@ está realizado.
    `firestore.assistants.indexes.json` sólo en esa base. La cuenta de ejecución de
    la función requiere acceso a esa base, a la Realtime Database existente y a
    Firebase Auth.
-3. Revisar las reglas de la Realtime Database existentes: propietarios y
-   administradores autorizados deben poder consultar sus proyectos y usar la
-   transacción de importación. No publicar reglas abiertas para solucionar
-   problemas de acceso.
+3. Construir `project_owners` desde `users/<uid>/projects`, comprobando que cada
+   ID tenga un solo propietario y datos existentes. Detenerse ante duplicados,
+   propietarios inválidos o datos sin metadatos. La activación inicial revisó
+   55 proyectos sin anomalías y añadió únicamente ese índice.
 4. Publicar `functions:nexus-assistants`, Hosting y las reglas de la base dedicada
    mediante `firebase.json`. Confirmar que el dominio previsto no aloje otro
    servicio antes de publicar sus rewrites. Si el análisis inicial excede el
@@ -137,6 +155,10 @@ está realizado.
    comprueba conexión con las dos bases sin escribir datos de trabajo.
 6. Configurar `apiBaseUrl` en `js/services/assistant-config.js` con la dirección
    comprobada y publicar la interfaz. No ingresar tokens ni claves en ese archivo.
+   Verificar la publicación y los enlaces compartidos antes de desplegar
+   `database.rules.json` en `nexus-flow-6dac7-default-rtdb`. Reconciliar nuevamente
+   el índice de propietarios para incluir altas ocurridas durante el despliegue.
+   Mantener denegado el acceso público directo a la base.
 7. Conectar ChatGPT y Claude mediante la URL terminada en `/mcp`. El cliente
    debe usar OAuth público con PKCE y registro dinámico (DCR). El consentimiento
    se abre en Nexus y requiere elegir espacios; el permiso de edición empieza
@@ -157,7 +179,8 @@ no depende de la limpieza porque comprueba la fecha en cada uso.
 ```powershell
 npm ci --prefix functions
 npm test --prefix functions
-node --test tests/assistant-import.test.js
+node --test tests/assistant-import.test.js tests/shared-security.test.js
+npx --yes firebase-tools@15.32.1 emulators:exec --project demo-nexus-security --config firebase.security-test.json --only database "node --test tests/database-rules.test.mjs"
 node tests/project-pdf-order.test.js
 node tests/project-confidential.test.js
 npm audit --prefix functions --omit=dev
@@ -166,8 +189,11 @@ git diff --check
 
 Las pruebas HTTP usan el SDK MCP real y datos simulados. Cubren descubrimiento,
 inicialización, herramientas, OAuth, permisos, revocación, reintentos,
-concurrencia y preservación de datos. Pasan 25 pruebas del servidor y siete de
-formato e importación, además de las regresiones de PDF y confidencialidad.
+concurrencia y preservación de datos. Pasan 30 pruebas del servidor, 11 de
+formato, importación y enlaces, y nueve de reglas con el emulador real, además
+de las regresiones de PDF y confidencialidad. Las reglas incluyen accesos
+anónimos y ajenos, autoasignación de permisos, revocación, titularidad inmutable,
+creación atómica personal y delegada, y preservación de adjuntos.
 
 La prueba del servicio publicado usó cuentas Firebase verificadas y proyectos
 temporales. Confirmó autenticación, OAuth con PKCE y consentimiento por espacios,
@@ -184,8 +210,8 @@ primer valor y conserva la suscripción durante la transacción; libera esa
 suscripción tanto al guardar como ante un error.
 
 Estas pruebas no conectaron las aplicaciones reales de ChatGPT, Claude o
-Gemini, ni reemplazan la revisión de las reglas existentes de Realtime Database.
-La publicación definitiva de la interfaz depende de completar esos controles.
+Gemini. Sus callbacks y la disponibilidad por cuenta requieren una prueba en
+cada aplicación antes de anunciar compatibilidad operativa.
 
 Se revisó la interfaz en Edge de escritorio y a 390 px de ancho, con datos de
 prueba: destino, vista previa, guardado, reintento, preservación de adjuntos,

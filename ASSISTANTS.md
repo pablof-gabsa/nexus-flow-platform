@@ -7,12 +7,14 @@ asistente que eligió cada persona.
 
 ## Estado de esta entrega
 
-- API, OAuth, MCP y pantalla de autorización implementados y probados localmente.
+- API, OAuth y MCP publicados en `https://nexus-flow-6dac7.web.app` y probados
+  en Firebase con cuentas y proyectos de prueba aislados.
 - Carga desde cualquier IA implementada con vista previa, validación, guardado
   atómico y protección contra reintentos duplicados.
-- Conexión directa pendiente de publicación en Firebase y prueba real con
-  ChatGPT y Claude. `js/services/assistant-config.js` permanece sin endpoint
-  activo hasta completar esa verificación.
+- La interfaz está en la rama de integración, pendiente de publicación y de
+  revisión de los permisos existentes de Nexus. Falta conectar las aplicaciones
+  reales de ChatGPT y Claude. `js/services/assistant-config.js` permanece sin
+  endpoint activo hasta completar la activación.
 - Gemini está preparado como cliente MCP; falta comprobar su callback real y
   disponibilidad para las cuentas de los usuarios. Google actualmente restringe
   sus aplicaciones personalizadas a cuentas personales en EE. UU. y uso en inglés.
@@ -30,8 +32,9 @@ asistente que eligió cada persona.
 
 Los proyectos y tareas permanecen en la Realtime Database existente. Las
 autorizaciones, hashes de tokens, clientes, límites y auditoría se guardan en una
-base Firestore dedicada llamada `nexus-assistants`. Esta base es privada: sólo
-la identidad del servidor puede acceder mediante IAM. Las reglas suministradas
+base Firestore dedicada llamada `nexus-assistants`. Las reglas impiden el acceso
+directo desde clientes; el servidor y la administración acceden mediante IAM.
+Las reglas suministradas
 corresponden exclusivamente a esa base y no reemplazan las reglas de los datos
 actuales de Nexus.
 
@@ -96,8 +99,20 @@ datos. La carga no modifica tareas existentes.
 
 ## Activación en Firebase
 
-Proyecto existente: `nexus-flow-6dac7`. La dirección prevista del servicio es
-`https://nexus-flow-6dac7.web.app`; no se considera activa hasta verificarla.
+Proyecto existente: `nexus-flow-6dac7`. El servicio se publicó y verificó el
+4 de octubre de 2026 en `https://nexus-flow-6dac7.web.app`. La base de proyectos
+y tareas conserva su dirección y sus datos.
+
+La función `nexusAssistants` y la base privada `nexus-assistants` están en
+`us-central1`. La base tiene protección contra borrado. El servidor usa la cuenta
+dedicada `nexus-assistants@nexus-flow-6dac7.iam.gserviceaccount.com`, con acceso
+de lectura a Firebase Auth, administración de Realtime Database y acceso a
+Firestore limitado mediante IAM a la base dedicada. No se creó una clave
+privada de esa cuenta. La retención de imágenes de compilación es de siete días.
+
+Los siguientes pasos sirven para reproducir el despliegue y completar la
+activación de la interfaz; el despliegue del servidor y la base dedicada ya
+está realizado.
 
 1. Autenticar Firebase CLI con una cuenta autorizada para el proyecto. Comprobar
    su plan y los costos de Cloud Functions, Hosting y Firestore antes de activar
@@ -113,7 +128,10 @@ Proyecto existente: `nexus-flow-6dac7`. La dirección prevista del servicio es
    problemas de acceso.
 4. Publicar `functions:nexus-assistants`, Hosting y las reglas de la base dedicada
    mediante `firebase.json`. Confirmar que el dominio previsto no aloje otro
-   servicio antes de publicar sus rewrites.
+   servicio antes de publicar sus rewrites. Si el análisis inicial excede el
+   tiempo predeterminado, usar `FUNCTIONS_DISCOVERY_TIMEOUT=60`. La identidad
+   usada para compilar necesita el rol de compilación de Cloud Build; no es la
+   cuenta dedicada que ejecuta la función.
 5. Verificar `/health`, `/.well-known/oauth-protected-resource`,
    `/.well-known/oauth-authorization-server` y `/openapi.json`. `/health`
    comprueba conexión con las dos bases sin escribir datos de trabajo.
@@ -148,9 +166,26 @@ git diff --check
 
 Las pruebas HTTP usan el SDK MCP real y datos simulados. Cubren descubrimiento,
 inicialización, herramientas, OAuth, permisos, revocación, reintentos,
-concurrencia y preservación de datos. No prueban todavía el proveedor de
-autenticación ni las reglas desplegadas de Firebase ni una conversación real
-con ChatGPT/Claude/Gemini. La publicación definitiva depende de esos controles.
+concurrencia y preservación de datos. Pasan 25 pruebas del servidor y siete de
+formato e importación, además de las regresiones de PDF y confidencialidad.
+
+La prueba del servicio publicado usó cuentas Firebase verificadas y proyectos
+temporales. Confirmó autenticación, OAuth con PKCE y consentimiento por espacios,
+propietario, administrador delegado, espacio personal, lectura sin edición,
+aislamiento, creación sin duplicados, edición, rechazo de versiones obsoletas,
+preservación de adjuntos y comentarios, ocho herramientas MCP, auditoría,
+índices privados, bloqueo del acceso cliente a Firestore, pérdida inmediata de
+pertenencia, renovación de un uso y revocación. Se eliminaron los datos y cuentas
+de prueba y el permiso temporal usado para firmar sus sesiones.
+
+Una reproducción con el SDK real detectó que una edición podía interpretar la
+caché inicial vacía como una tarea inexistente. El repositorio ahora espera el
+primer valor y conserva la suscripción durante la transacción; libera esa
+suscripción tanto al guardar como ante un error.
+
+Estas pruebas no conectaron las aplicaciones reales de ChatGPT, Claude o
+Gemini, ni reemplazan la revisión de las reglas existentes de Realtime Database.
+La publicación definitiva de la interfaz depende de completar esos controles.
 
 Se revisó la interfaz en Edge de escritorio y a 390 px de ancho, con datos de
 prueba: destino, vista previa, guardado, reintento, preservación de adjuntos,

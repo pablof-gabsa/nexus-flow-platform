@@ -35,13 +35,11 @@ window.AssistantsComponent = {
                     <div class="mt-4 space-y-4">
                         <ol class="${listClass}">
                             <li>En Nexus, usá <strong>Copiar dirección de conexión</strong>, arriba de esta guía.</li>
-                            <li>Abrí ChatGPT y entrá en <strong>Configuración → Seguridad e inicio de sesión</strong>. Activá <strong>Modo desarrollador</strong>.</li>
                             <li>Abrí ${link('https://chatgpt.com/plugins', 'Plugins de ChatGPT')}, presioná <strong>+</strong> y elegí una conexión con dirección pública. Usá el nombre <strong>Nexus</strong> y una descripción como “Consultar y gestionar mis tareas de Nexus”. Pegá esta dirección en el campo del servidor MCP:${address}</li>
                             <li>Creá la conexión. ${consent}</li>
                             <li>En ${link('https://chatgpt.com/plugins?view=personal', 'tus plugins')}, abrí Nexus e instalalo con <strong>+</strong>.</li>
                             <li>Abrí un chat nuevo en <strong>Work</strong>, escribí <strong>@</strong> y seleccioná <strong>Nexus</strong>. Probá la consulta indicada al final de estas guías.</li>
                         </ol>
-                        <p class="text-xs">Si no aparece Modo desarrollador, su disponibilidad depende de tu cuenta y de las políticas de tu espacio de ChatGPT. ${link('https://developers.openai.com/plugins/deploy/connect-chatgpt', 'Consultar requisitos')}.</p>
                         <p>${link('https://developers.openai.com/plugins/quickstart', 'Guía oficial de OpenAI')}</p>
                     </div>
                 </details>
@@ -61,17 +59,16 @@ window.AssistantsComponent = {
                     </div>
                 </details>
                 <details id="ai-guide-gemini" name="assistant-guide" class="border border-gray-200 dark:border-slate-700 rounded-lg p-4">
-                    <summary class="cursor-pointer font-semibold text-gray-900 dark:text-white">Gemini · Guía y disponibilidad</summary>
+                    <summary class="cursor-pointer font-semibold text-gray-900 dark:text-white">Gemini · Guía paso a paso</summary>
                     <div class="mt-4 space-y-4">
-                        <p class="rounded-lg p-3 bg-amber-50 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"><strong>Disponibilidad limitada:</strong> Google indica que las aplicaciones personalizadas requieren una cuenta personal, 18 años o más, estar en Estados Unidos, usar inglés y tener Guardar actividad activado. Según esos requisitos, la opción todavía no está habilitada en Argentina.</p>
                         <ol class="${listClass}">
-                            <li>Si tu cuenta cumple los requisitos, abrí Gemini en el navegador y usá <strong>Copiar dirección de conexión</strong> en Nexus.</li>
+                            <li>Abrí Gemini en el navegador y usá <strong>Copiar dirección de conexión</strong> en Nexus.</li>
                             <li>En Gemini, entrá en <strong>Settings → Connected Apps</strong>. Si no aparece, buscá la sección dentro de <strong>Personal Intelligence</strong>.</li>
                             <li>En <strong>Custom apps</strong>, elegí <strong>Add a custom app</strong> y pegá la dirección del servidor MCP:${address}</li>
                             <li>Presioná <strong>Next</strong> y seguí el ingreso que se abra. ${consent}</li>
                             <li>Volvé a Gemini, escribí <strong>@</strong> y seleccioná Nexus para probar la consulta indicada abajo.</li>
                         </ol>
-                        <p>${link('https://support.google.com/gemini/answer/17209137?hl=en-ID', 'Guía oficial y requisitos de Google')}</p>
+                        <p>${link('https://support.google.com/gemini/answer/17209137?hl=en-ID', 'Guía oficial de Google')}</p>
                     </div>
                 </details>
                 <div class="rounded-lg p-4 bg-brand-50 dark:bg-brand-950/50 text-brand-800 dark:text-brand-200 space-y-2">

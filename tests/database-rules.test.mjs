@@ -69,7 +69,10 @@ test('stale, false or forged maps do not grant membership and revocation takes e
     { [`users/owner/config/admins/${emailKey}`]: null },
     { [`admin_map/${emailKey}/owner`]: null }
   ]) {
-    await environment.withSecurityRulesDisabled(async context => update(ref(context.database()), { ...fixture(), ...change }));
+    await environment.withSecurityRulesDisabled(async context => {
+      await set(ref(context.database()), fixture());
+      await update(ref(context.database()), change);
+    });
     await assertFails(get(ref(user(), 'users/owner')));
     await assertFails(set(ref(user(), 'project_data/shared/tasks/new'), { requerimiento: 'Denied' }));
   }

@@ -31,7 +31,13 @@ export class FirebaseRepository {
     });
   }
   async taskTransaction(projectId, taskId, update) {
-    const ref = this.database.ref(`project_data/${projectId}/tasks/${taskId}`);
+    return this.transaction(`project_data/${projectId}/tasks/${taskId}`, update);
+  }
+  async tasksTransaction(projectId, update) {
+    return this.transaction(`project_data/${projectId}/tasks`, update);
+  }
+  async transaction(path, update) {
+    const ref = this.database.ref(path);
     let listener;
     try {
       // A cold transaction starts with null even for an existing task. Keep the
@@ -43,7 +49,11 @@ export class FirebaseRepository {
       let rejected;
       const result = await ref.transaction(current => {
         rejected = undefined;
-        try { return update(current); } catch (error) { rejected = error; return; }
+        try {
+          const value = update(current);
+          if (Buffer.byteLength(JSON.stringify(value), 'utf8') > 15 * 1024 * 1024) throw new NexusError(413, 'task_data_too_large', 'Los datos superan el tamaño de una escritura. Usá enlaces HTTPS para los adjuntos grandes. No se guardó ningún cambio.');
+          return value;
+        } catch (error) { rejected = error; return; }
       }, undefined, false);
       if (rejected) throw rejected;
       if (!result.committed) throw new Error('No se pudo guardar la tarea.');

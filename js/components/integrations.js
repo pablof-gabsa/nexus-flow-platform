@@ -38,7 +38,7 @@ window.IntegrationsComponent = {
                 </div>
                 <p class="text-gray-500 dark:text-gray-400">Conecta Nexus Flow con otras plataformas.</p>
                 <a href="#/assistants" class="glass-card rounded-xl p-5 flex items-center justify-between gap-4 border border-gray-100 dark:border-slate-700">
-                    <div><h3 class="font-semibold dark:text-white">Asistentes de IA</h3><p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Conectá tu asistente o cargá tareas preparadas por ChatGPT, Claude, Gemini y otras IA.</p></div>
+                    <div><h3 class="font-semibold dark:text-white">Asistentes de IA</h3><p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Conectá tu asistente para consultar y gestionar tareas en los espacios que autorices.</p></div>
                     <span class="text-brand-600 dark:text-brand-300 font-medium text-sm">Abrir</span>
                 </a>
 

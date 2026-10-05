@@ -9,10 +9,10 @@ asistente que eligió cada persona.
 
 - API, OAuth y MCP publicados en `https://nexus-flow-6dac7.web.app` y probados
   en Firebase con cuentas y proyectos de prueba aislados.
-- Carga desde cualquier IA implementada con vista previa, validación, guardado
-  atómico y protección contra reintentos duplicados.
-- La interfaz tiene configurado el servicio publicado. Falta conectar y probar
-  las aplicaciones reales de ChatGPT y Claude con las cuentas de sus usuarios.
+- Pantalla dedicada a conexiones, permisos por espacio y cambios de los asistentes.
+- ChatGPT conectado con una cuenta real: se verificaron perfil, dos espacios
+  y sus 29 proyectos. La creación y edición desde ese cliente, y la conexión
+  real de Claude y Gemini, todavía requieren una prueba específica.
 - La interfaz y los permisos de Realtime Database están publicados. Las reglas
   coinciden con el repositorio y pasaron pruebas en el emulador y en Firebase.
   Cada proyecto tiene un propietario canónico; los enlaces
@@ -32,8 +32,7 @@ asistente que eligió cada persona.
 - `functions/src/shared-project.mjs`: validación y filtrado de enlaces compartidos.
 - `database.rules.json`: aislamiento de proyectos, espacios personales y administradores.
 - `functions/src/openapi.mjs`: contrato OpenAPI 3.1 servido en `/openapi.json`.
-- `js/components/assistants.js`: conexiones, consentimiento e importación.
-- `js/services/assistant-format.js`: formato portable `nexus.tasks.v1`.
+- `js/components/assistants.js`: conexiones, consentimiento e historial de cambios.
 
 Los proyectos y tareas permanecen en la Realtime Database existente. Las
 autorizaciones, hashes de tokens, clientes, límites y auditoría se guardan en una
@@ -87,34 +86,16 @@ enlaces nuevos usan 32 bytes aleatorios. No existe una operación pública de ed
 - Los enlaces de resultados incluyen el espacio y vuelven a comprobar el acceso
   cuando el usuario los abre en Nexus.
 
-## Carga desde cualquier IA
+## Uso de conexiones
 
-Abrir **Integraciones → Asistentes de IA**, elegir espacio, proyecto y rubro,
-copiar las instrucciones y pegar la respuesta del asistente. La vista previa
-valida hasta 50 tareas y 128 KB de texto plano. Los responsables y rubros deben
-existir en el proyecto; no se inventan vencimientos.
+Abrir **Integraciones → Asistentes de IA** para copiar la dirección de conexión
+terminada en `/mcp`, consultar la ayuda de cada asistente y ver las conexiones
+vigentes. Cada usuario autoriza sus espacios y el permiso de modificación desde
+el consentimiento de Nexus. Puede retirar una conexión con **Desconectar**.
 
-```json
-{
-  "format": "nexus.tasks.v1",
-  "tasks": [
-    {
-      "requerimiento": "Pedir presupuesto del portón",
-      "description": "Consultar al proveedor habitual.",
-      "rubro": "Seguridad",
-      "responsable": "",
-      "prioridad": "Media",
-      "deadline": "",
-      "confidential": false
-    }
-  ]
-}
-```
-
-Se revalidan los permisos y el destino al guardar. Repetir la misma carga en el
-mismo proyecto con la misma cuenta no crea duplicados. Para crear una nueva
-tarea similar intencionalmente, usar la creación normal de Nexus o cambiar sus
-datos. La carga no modifica tareas existentes.
+Las tareas se consultan y gestionan desde el asistente conectado. El historial
+de Nexus muestra sus creaciones y modificaciones. La pantalla no ofrece carga
+manual de respuestas ni importación de tareas preparadas por una IA.
 
 ## Activación en Firebase
 
@@ -180,7 +161,8 @@ no depende de la limpieza porque comprueba la fecha en cada uso.
 ```powershell
 npm ci --prefix functions
 npm test --prefix functions
-node --test tests/assistant-import.test.js tests/shared-security.test.js
+node --check js/components/assistants.js
+node --test tests/shared-security.test.js
 npx --yes firebase-tools@15.32.1 emulators:exec --project demo-nexus-security --config firebase.security-test.json --only database "node --test tests/database-rules.test.mjs"
 node tests/project-pdf-order.test.js
 node tests/project-confidential.test.js
@@ -190,9 +172,8 @@ git diff --check
 
 Las pruebas HTTP usan el SDK MCP real y datos simulados. Cubren descubrimiento,
 inicialización, herramientas, OAuth, permisos, revocación, reintentos,
-concurrencia y preservación de datos. Pasan 30 pruebas del servidor, 12 de
-formato, importación y enlaces, y nueve de reglas con el emulador real, además
-de las regresiones de PDF y confidencialidad. Las reglas incluyen accesos
+concurrencia y preservación de datos. La validación incluye pruebas del servidor, consulta compartida y reglas con
+el emulador real, además de las regresiones de PDF y confidencialidad. Las reglas incluyen accesos
 anónimos y ajenos, autoasignación de permisos, revocación, titularidad inmutable,
 creación atómica personal y delegada, y preservación de adjuntos.
 
@@ -227,14 +208,13 @@ caché inicial vacía como una tarea inexistente. El repositorio ahora espera el
 primer valor y conserva la suscripción durante la transacción; libera esa
 suscripción tanto al guardar como ante un error.
 
-Estas pruebas no conectaron las aplicaciones reales de ChatGPT, Claude o
-Gemini. Sus callbacks y la disponibilidad por cuenta requieren una prueba en
-cada aplicación antes de anunciar compatibilidad operativa.
+Las pruebas sintéticas se complementaron con una conexión real de ChatGPT y
+consultas de perfil, espacios y proyectos. La escritura desde ChatGPT y la
+conexión de Claude y Gemini requieren validación específica por aplicación.
 
-Se revisó la interfaz en Edge de escritorio y a 390 px de ancho, con datos de
-prueba: destino, vista previa, guardado, reintento, preservación de adjuntos,
-rechazo de HTML, revocación de acceso y consentimiento explícito. Esto no
-reemplaza la prueba con Firebase ni con cuentas reales de asistentes.
+La revisión inicial de la interfaz en Edge de escritorio y a 390 px de ancho
+incluyó consentimiento y revocación, además del formulario manual que se
+retiró posteriormente para centrar la pantalla en la integración directa.
 
 ## Fuentes del protocolo
 

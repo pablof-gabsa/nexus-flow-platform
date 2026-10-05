@@ -927,6 +927,7 @@ const ProjectComponent = {
     renderChecklist: () => {
         const container = document.getElementById('checklist-container');
         if (!container) return;
+        UI.hideTextTooltip(true);
 
         const filtered = ProjectComponent.getFilteredData();
         const groups = filtered.reduce((acc, item) => {
@@ -998,16 +999,24 @@ const ProjectComponent = {
         return `
                     <li id="task-row-${item.id}" class="p-4 hover:bg-white dark:hover:bg-slate-700/50 transition-colors group ${overdueClass}">
                         <div class="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                            <div class="flex-1 flex items-center gap-3">
+                            <div class="task-row-details flex-1 min-w-0 w-full">
+                                <div class="flex items-center gap-3 min-w-0">
                                 ${ProjectComponent.isSelectionMode ? `
                                     <input type="checkbox"
-                                        class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                        class="w-5 h-5 shrink-0 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                                         ${ProjectComponent.selectedTasks.has(item.id) ? 'checked' : ''}
                                         onchange="ProjectComponent.toggleTaskSelection('${item.id}', this.checked)">
                                 ` : ''}
-                                <div class="flex items-center gap-2">
-                                    <p class="font-medium ${statusTextColor}">${item.requerimiento}</p>
-                                    ${item.description ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-xl truncate">${item.description}</p>` : ''}
+                                <div class="task-row-summary">
+                                    <div class="task-row-text">
+                                        <p class="task-text-preview font-medium ${statusTextColor}" tabindex="0"
+                                           onmouseenter="UI.showTextTooltip(this)" onmouseleave="UI.hideTextTooltip()"
+                                           onfocus="UI.showTextTooltip(this)" onblur="UI.hideTextTooltip(true)">${Utils.escapeHTML(item.requerimiento)}</p>
+                                        <p class="task-text-preview text-xs text-gray-500 dark:text-gray-400" ${item.description ? `tabindex="0"
+                                           onmouseenter="UI.showTextTooltip(this)" onmouseleave="UI.hideTextTooltip()"
+                                           onfocus="UI.showTextTooltip(this)" onblur="UI.hideTextTooltip(true)"` : 'aria-hidden="true"'}>${Utils.escapeHTML(item.description)}</p>
+                                    </div>
+                                    <div class="task-row-badges flex flex-wrap items-center gap-2">
                                     ${isOverdue ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300">VENCIDA</span>' : ''}
                                     ${isLateStart ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100/80 text-red-500 dark:bg-red-900/40 dark:text-red-300" title="Fecha de inicio vencida">INICIO ATRASADO</span>' : ''}
                                     ${item.confidential ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800" title="Tarea confidencial"><i class="fas fa-lock mr-1"></i>Confidencial</span>' : ''}
@@ -1016,6 +1025,8 @@ const ProjectComponent = {
                             ${item.prioridad === 'Media' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800" title="Prioridad Media">Med</span>' : ''}
                             ${item.prioridad === 'Baja' ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800" title="Prioridad Baja">Baja</span>' : ''}
                             ${recurrenceIcon}
+                                    </div>
+                                </div>
                         </div>
                          ${subtasksTotal > 0 ? `
                             <div class="mt-2 text-sm">
@@ -1045,8 +1056,8 @@ const ProjectComponent = {
                             </div>
                         ` : ''}
 
-                        <div class="flex flex-wrap gap-2 mt-2 text-xs text-gray-500 overflow-x-auto">
-                            <span class="flex items-center gap-1"><i class="far fa-user"></i> ${item.responsable}</span>
+                        <div class="flex flex-wrap gap-2 mt-2 text-xs text-gray-500 min-w-0">
+                            <span class="flex items-center gap-1 min-w-0"><i class="far fa-user shrink-0"></i> <span class="truncate">${Utils.escapeHTML(item.responsable)}</span></span>
                             ${item.deadline ? `<span class="flex items-center gap-1"><i class="far fa-calendar"></i> ${Utils.formatDate(item.deadline)} ${item.time ? `<span class="opacity-75 text-[10px] ml-1">(${item.time})</span>` : ''}</span>` : ''}
                             ${item.costo > 0 ? `<span class="font-mono text-brand-600 dark:text-brand-400">${Utils.formatMoney(item.costo)}</span>` : ''}
                             ${(item.hh_estimated || item.hh_executed) ?
@@ -1060,7 +1071,7 @@ const ProjectComponent = {
                         </div>
                     </div>
                     
-                    <div class="flex items-center gap-3 w-full md:w-auto mt-2 md:mt-0">
+                    <div class="flex shrink-0 items-center gap-3 w-full md:w-auto mt-2 md:mt-0">
                         ${ProjectComponent.isEditable ? `
                         <select onchange="ProjectComponent.updateStatus('${item.id}', this.value)" 
                                 class="text-xs font-bold rounded-full px-3 py-1 border-0 cursor-pointer outline-none ring-0 ${statusClass}">

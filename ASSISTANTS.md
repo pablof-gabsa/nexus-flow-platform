@@ -217,6 +217,11 @@ mediante un enlace antiguo con `mode=edit` y datos sintéticos. Sus opciones de
 importación y administración quedan ocultas y los manejadores de edición
 rechazan acciones en la vista de consulta. Todos los datos temporales se retiraron.
 
+La revisión en Chrome detectó que una actualización podía conservar archivos
+anteriores en la caché HTTP. La instalación ahora solicita todos los archivos
+a la red y activa la versión completa después de retirar las cachés anteriores.
+Cada consulta de archivos usa exclusivamente la caché de la versión activa.
+
 Una reproducción con el SDK real detectó que una edición podía interpretar la
 caché inicial vacía como una tarea inexistente. El repositorio ahora espera el
 primer valor y conserva la suscripción durante la transacción; libera esa

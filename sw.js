@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v46'; // Read-only shared menus and protected projects
+const CACHE_NAME = 'nexus-flow-v47'; // Refresh all assets before activating a new version
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -33,7 +33,7 @@ self.addEventListener('install', (event) => {
         caches.open(CACHE_NAME)
             .then((cache) => {
                 console.log('[Service Worker] Caching all: app shell and content');
-                return cache.addAll(ASSETS_TO_CACHE);
+                return cache.addAll(ASSETS_TO_CACHE.map(url => new Request(url, { cache: 'reload' })));
             })
     );
 });
@@ -50,15 +50,14 @@ self.addEventListener('activate', (event) => {
                     }
                 })
             );
-        })
+        }).then(() => self.clients.claim())
     );
-    return self.clients.claim(); // Immediately control all pages
 });
 
 // Fetch Event: Serve from cache, fall back to network
 self.addEventListener('fetch', (event) => {
     event.respondWith(
-        caches.match(event.request)
+        caches.open(CACHE_NAME).then(cache => cache.match(event.request))
             .then((response) => {
                 // Cache hit - return response
                 if (response) {

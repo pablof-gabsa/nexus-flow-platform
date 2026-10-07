@@ -474,6 +474,8 @@ const AssetsComponent = {
             return;
         }
 
+        document.getElementById('asset-category-detail-modal')?.remove();
+
         AssetsComponent.editingAssetId = assetId;
         AssetsComponent.currentAssetAttachments = [];
         AssetsComponent.pendingDeletedFiles = [];

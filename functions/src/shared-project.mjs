@@ -10,7 +10,7 @@ export const sharedProjectSchema = z.object({
 const pick = (value, fields) => Object.fromEntries(fields.filter(key => value?.[key] !== undefined).map(key => [key, value[key]]));
 const unavailable = () => new NexusError(404, 'shared_link_unavailable', 'El enlace expiró o no es válido.');
 const attachment = value => pick(value, ['name', 'type', 'data', 'url', 'size']);
-const taskFields = ['requerimiento', 'description', 'rubro', 'responsable', 'prioridad', 'deadline', 'estado', 'start_date', 'real_start_date', 'end_date', 'resources', 'hh_estimated', 'hh_executed', 'assetId'];
+const taskFields = ['requerimiento', 'description', 'rubro', 'responsable', 'prioridad', 'deadline', 'estado', 'start_date', 'start_time', 'time', 'real_start_date', 'end_date', 'resources', 'costo', 'hh_estimated', 'hh_executed', 'assetId'];
 
 export async function sharedProject(repo, { projectId, token }) {
   const owner = await repo.get(`project_owners/${projectId}`);
@@ -22,7 +22,7 @@ export async function sharedProject(repo, { projectId, token }) {
   const { readOnly } = await linkPermissions(repo, projectId, token, source, owner.ownerUid);
   const tasks = Object.fromEntries(Object.entries(source.tasks || {}).filter(([, task]) => task && !task.confidential && task.rubro !== 'Eliminado').map(([id, task]) => [id, {
     ...pick(task, taskFields),
-    ...(!readOnly ? { ...pick(task, ['start_time', 'time', 'costo']), _version: version(task) } : {}),
+    ...(!readOnly ? { _version: version(task) } : {}),
     ...(task.recurrence ? { recurrence: pick(task.recurrence, ['type', 'days', 'monthlyType', 'day', 'week', 'dayOfWeek', 'interval']) } : {}),
     ...(Array.isArray(task.subtasks) ? { subtasks: task.subtasks.map(value => pick(value, ['text', 'done'])) } : {}),
     ...(Array.isArray(task.attachments) ? { attachments: task.attachments.map(attachment) } : {}),

@@ -5,10 +5,11 @@ window.AssistantAPI = {
         if (!base) throw new Error('La conexión directa todavía no está activada.');
         const response = await fetch(`${base}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers }, cache: 'no-store' });
         if (response.status === 204) return null;
-        const result = await response.json();
+        const result = await response.json().catch(() => ({ message: 'El servicio no pudo completar la acción. Volvé a intentarlo.' }));
         if (!response.ok) {
             const error = new Error(result.message || 'No se pudo completar la acción.');
             error.status = response.status;
+            error.code = result.error;
             throw error;
         }
         return result;

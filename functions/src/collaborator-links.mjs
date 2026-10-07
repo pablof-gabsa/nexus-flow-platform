@@ -9,7 +9,7 @@ const unavailable = () => new NexusError(404, 'shared_link_unavailable', 'El enl
 const text = z.string().max(10000).refine(value => !/[<>]/.test(value), 'Usar texto plano');
 const labels = z.array(text.pipe(z.string().trim().min(1).max(150))).max(500);
 const assetFields = { name: text.pipe(z.string().trim().min(1).max(300)), description: text, category: text, subcategory: text, serviceStatus: z.enum(['En servicio', 'Fuera de servicio']), image: z.union([z.literal(''), attachmentData]), documents: attachments(z.union([newAttachment, attachmentReference])) };
-const settingsSchema = z.object({ rubros: labels.optional(), responsables: labels.optional(), assetCategories: labels.optional(), assetSubcategories: z.record(z.string().max(150).refine(key => !/[<>]/.test(key)), labels).optional() }).strict().refine(value => Object.keys(value).length > 0);
+const settingsSchema = z.object({ rubros: labels.optional(), responsables: labels.optional(), assetCategories: labels.optional(), assetSubcategories: z.record(z.string().max(150).refine(key => !/[<>]/.test(key)), labels).optional() }).strict().refine(value => Object.keys(value).length === 1, 'Guardá una lista del proyecto por vez');
 export const sharedMutationSchema = z.object({
   projectId: idSchema, token: z.string().regex(/^[A-Za-z0-9_-]{8,128}$/), requestId: z.string().regex(/^[A-Za-z0-9_-]{16,128}$/),
   operation: z.enum(['task_create', 'task_update', 'asset_create', 'asset_update', 'asset_delete', 'settings', 'rename']),
@@ -46,12 +46,14 @@ export async function linkPermissions(repo, projectId, token, source, ownerUid) 
 const visible = value => value && !value.confidential && value.rubro !== 'Eliminado';
 const conflict = () => new NexusError(409, 'version_conflict', 'Los datos cambiaron. Actualizá la vista antes de guardar.');
 export const settingsVersion = source => version(Object.fromEntries(['rubros', 'responsables', 'assetCategories', 'assetSubcategories'].map(key => [key, source[key] ?? null])));
+const projectSettings = async (repo, projectId) => Object.fromEntries(await Promise.all(['rubros', 'responsables', 'assetCategories', 'assetSubcategories'].map(async key => [key, await repo.get(`project_data/${projectId}/${key}`)])));
 
 export async function mutateSharedProject(repo, input, now = new Date()) {
   const { projectId, token, requestId, operation, id, expectedVersion } = input;
   const { ownerUid, project } = await projectForLink(repo, projectId);
-  const source = await repo.get(`project_data/${projectId}`);
-  if (!source) throw unavailable();
+  // Authorization and edits must not load or rewrite unrelated inline files.
+  const source = { sharingToken: await repo.get(`project_data/${projectId}/sharingToken`) };
+  if (!source.sharingToken) throw unavailable();
   const access = await linkPermissions(repo, projectId, token, source, ownerUid);
   if (access.readOnly) throw new NexusError(403, 'read_only_link', 'Este enlace es de solo lectura.');
   if (project.status === 'inactive') throw new NexusError(409, 'archived_project', 'El proyecto está archivado.');
@@ -80,47 +82,48 @@ export async function mutateSharedProject(repo, input, now = new Date()) {
     return result;
   }
   const itemId = operation.endsWith('_create') ? `shared_${opId}` : id;
-  let result;
-  await repo.transaction(`project_data/${projectId}`, current => {
-    // Rotation also invalidates in-flight writes retried by the database.
-    if (!current || access.link.readTokenHash !== hash(current.sharingToken || '')) throw unavailable();
-    if (operation === 'settings') {
-      if (current._sharedSettingsOperation?.id === opId && current._sharedSettingsOperation.fingerprint === fingerprint) { result = { saved: true, version: settingsVersion(current) }; return current; }
-      if (settingsVersion(current) !== expectedVersion) throw conflict();
-      result = { saved: true, version: settingsVersion({ ...current, ...changes }) };
-      return { ...current, ...changes, _sharedSettingsOperation: { id: opId, fingerprint } };
-    }
-    const tasks = operation.startsWith('task_');
-    const field = tasks ? 'tasks' : 'assets';
-    const items = { ...(current[field] || {}) }, existing = items[itemId];
-    if (existing?._sharedOperation?.id === opId && existing._sharedOperation.fingerprint === fingerprint) { result = { saved: true, id: itemId, version: version(existing) }; return current; }
+  const settings = operation === 'settings' || operation.startsWith('task_') ? await projectSettings(repo, projectId) : null;
+  if (operation === 'settings') {
+    if (settingsVersion(settings) !== expectedVersion) throw conflict();
+    const key = Object.keys(changes)[0];
+    await repo.transaction(`project_data/${projectId}/${key}`, current => {
+      if (version(current) !== version(settings[key])) throw conflict();
+      return changes[key];
+    });
+    const result = { saved: true, version: settingsVersion(await projectSettings(repo, projectId)) };
+    await repo.privatePut('shared_audit', opId, { projectId, ownerUid, operation, fingerprint, createdAt: now.getTime(), result });
+    return result;
+  }
+  const tasks = operation.startsWith('task_');
+  if (tasks) {
+    if (changes.rubro && !(settings.rubros || []).includes(changes.rubro) && !['Realizados', 'Eliminado'].includes(changes.rubro)) throw new NexusError(400, 'unknown_rubro', 'Elegí un área del proyecto.');
+    if (operation === 'task_create' && changes.rubro === 'Eliminado') throw new NexusError(400, 'unknown_rubro', 'Elegí un área activa.');
+    if (changes.assetId && !visible(await repo.get(`project_data/${projectId}/assets/${changes.assetId}`))) throw new NexusError(400, 'unknown_asset', 'Elegí un activo compartido de este proyecto.');
+  }
+  const field = tasks ? 'tasks' : 'assets';
+  const saved = await repo.transaction(`project_data/${projectId}/${field}/${itemId}`, existing => {
+    if (existing?._sharedOperation?.id === opId && existing._sharedOperation.fingerprint === fingerprint) return existing;
     if (operation.endsWith('_create')) { if (existing) throw conflict(); }
     else if (!visible(existing)) throw new NexusError(404, 'item_not_found', 'No se encontró el elemento compartido.');
     else if (version(existing) !== expectedVersion) throw conflict();
-    if (operation === 'asset_delete') {
-      delete items[itemId];
-      result = { saved: true, id: itemId };
-      return { ...current, [field]: items };
-    }
-    if (tasks) {
-      if (changes.rubro && !(current.rubros || []).includes(changes.rubro) && !['Realizados', 'Eliminado'].includes(changes.rubro)) throw new NexusError(400, 'unknown_rubro', 'Elegí un área del proyecto.');
-      if (operation === 'task_create' && changes.rubro === 'Eliminado') throw new NexusError(400, 'unknown_rubro', 'Elegí un área activa.');
-      if (changes.assetId && !visible(current.assets?.[changes.assetId])) throw new NexusError(400, 'unknown_asset', 'Elegí un activo compartido de este proyecto.');
-    }
+    if (operation === 'asset_delete') return null;
     const defaults = tasks ? { estado: 'Pendiente', recurrence: { type: 'none' }, subtasks: [], attachments: [], resources: 1, costo: 0, assetId: '' } : { documents: [], image: '', description: '', category: 'Sin categoria', subcategory: '', serviceStatus: 'En servicio' };
     const base = existing || { ...defaults, createdAt: now.toISOString(), createdBy: 'Colaborador', source: 'shared' };
     const applied = tasks ? taskChanges(base, changes, now) : { ...changes, ...(changes.documents ? { documents: taskChanges({ attachments: base.documents }, { attachments: changes.documents }, now).attachments } : {}) };
     const value = { ...base, ...applied, updatedAt: now.toISOString(), _sharedOperation: { id: opId, fingerprint } };
     if (tasks && changes.estado === 'Realizado' && base.estado !== 'Realizado' && value.recurrence?.type && value.recurrence.type !== 'none') {
-      const nextId = `shared_next_${opId}`;
-      const next = nextOccurrence(value, now);
-      delete next._sharedOperation;
-      items[nextId] = { ...next, createdAt: now.toISOString() };
+      nextOccurrence(value, now); // Validate before committing the completion.
+      value._sharedOperation.nextTaskId = `shared_next_${opId}`;
     }
-    items[itemId] = value;
-    result = { saved: true, id: itemId, version: version(value) };
-    return { ...current, [field]: items };
+    return value;
   });
+  if (tasks && saved?._sharedOperation?.nextTaskId) {
+    const next = nextOccurrence(saved, new Date(saved.updatedAt));
+    delete next._sharedOperation;
+    await repo.transaction(`project_data/${projectId}/tasks/${saved._sharedOperation.nextTaskId}`, current => current || { ...next, createdAt: saved.updatedAt });
+  }
+  // Hash the stored snapshot: RTDB removes empty arrays and objects on write.
+  const result = { saved: true, id: itemId, ...(saved ? { version: version(saved) } : {}) };
   await repo.privatePut('shared_audit', opId, { projectId, ownerUid, operation, fingerprint, createdAt: now.getTime(), result });
   return result;
 }

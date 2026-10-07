@@ -106,7 +106,7 @@ const ProjectComponent = {
                         <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                             ${!ProjectComponent.isShared ?
                 `<span onclick="App.navigateTo('#/dashboard')" class="cursor-pointer hover:text-brand-600"><i class="fas fa-arrow-left"></i></span>` :
-                `<span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider">Compartido</span>`
+                `<span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider">${ProjectComponent.isEditable ? 'Colaborador · Edición' : 'Visita · Solo lectura'}</span>`
             }
                             <div class="group flex items-center gap-2">
                                 <span id="project-name-display" class="${ProjectComponent.isEditable ? 'cursor-text hover:bg-gray-50 dark:hover:bg-slate-800 px-2 rounded border border-transparent hover:border-gray-200 dark:hover:border-slate-700 transition-all' : ''}" 
@@ -513,7 +513,7 @@ const ProjectComponent = {
                     <div>
                         <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                             <span onclick="App.navigateTo('${backRoute}')" class="cursor-pointer hover:text-brand-600"><i class="fas fa-arrow-left"></i></span>
-                            ${ProjectComponent.isShared ? '<span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider">Compartido</span>' : ''}
+                            ${ProjectComponent.isShared ? `<span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider">${ProjectComponent.isEditable ? 'Colaborador · Edición' : 'Visita · Solo lectura'}</span>` : ''}
                             <i class="fas fa-chart-line text-brand-500"></i>
                             Metricas
                             <span class="text-base font-normal text-gray-400">— ${projectInfo.name}</span>
@@ -1469,7 +1469,7 @@ const ProjectComponent = {
             ProjectComponent.refreshUI();
         } catch (err) {
             console.error(err);
-            UI.showToast('Error al guardar', 'error');
+            UI.showToast(err.message || 'Error al guardar', 'error');
         }
     },
 
@@ -1634,7 +1634,8 @@ const ProjectComponent = {
                             <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-full text-blue-600 dark:text-blue-300"><i class="fas fa-edit text-xl"></i></div>
                             <div>
                                 <h4 class="font-bold text-gray-800 dark:text-white">Colaborador</h4>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">Permite editar tareas, estados, checklist, adjuntos y activos.</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Puede crear y editar tareas, notas, estados, checklist, adjuntos y activos, y administrar las listas del proyecto.</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">No accede a datos confidenciales, no cambia su confidencialidad ni elimina tareas definitivamente.</p>
                             </div>
                             <i class="fas fa-chevron-right ml-auto text-gray-300 group-hover:text-brand-500"></i>
                         </div>
@@ -1646,8 +1647,9 @@ const ProjectComponent = {
                                 <i class="fas fa-eye text-xl"></i>
                             </div>
                             <div>
-                                <h4 class="font-bold text-gray-800 dark:text-white">Invitado (Solo Lectura)</h4>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">Solo puede ver el progreso, sin modificar nada.</p>
+                                <h4 class="font-bold text-gray-800 dark:text-white">Visita (Solo lectura)</h4>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Puede consultar tareas, adjuntos, activos y métricas compartidos. No puede crear, editar ni eliminar datos.</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Las tareas confidenciales y eliminadas no se muestran en ninguno de los dos accesos.</p>
                             </div>
                             <i class="fas fa-chevron-right ml-auto text-gray-300 group-hover:text-brand-500"></i>
                         </div>

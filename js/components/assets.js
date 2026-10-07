@@ -59,7 +59,7 @@ const AssetsComponent = {
                     <div>
                         <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                             <span onclick="App.navigateTo('${backRoute}')" class="cursor-pointer hover:text-brand-600"><i class="fas fa-arrow-left"></i></span>
-                            ${AssetsComponent.isShared ? '<span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider">Compartido</span>' : ''}
+                            ${AssetsComponent.isShared ? `<span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider">${AssetsComponent.isEditable ? 'Colaborador · Edición' : 'Visita · Solo lectura'}</span>` : ''}
                             <i class="fas fa-boxes-stacked text-brand-500"></i>
                             Activos
                             <span class="text-base font-normal text-gray-400">— ${projectName}</span>
@@ -739,7 +739,7 @@ const AssetsComponent = {
             AssetsComponent.refreshUI();
         } catch (err) {
             console.error(err);
-            UI.showToast('Error al guardar activo', 'error');
+            UI.showToast(err.message || 'Error al guardar activo', 'error');
         }
     },
 

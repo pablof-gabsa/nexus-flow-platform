@@ -74,7 +74,11 @@ test('create retries do not duplicate tasks and recurrent completion schedules o
 test('collaborators retain areas, responsible names, asset groups, asset documents and project names', async () => {
   const { repo, token, invoke } = await setup();
   const view = await sharedProject(repo, { projectId: 'maintenance', token });
-  const settings = await invoke({ operation: 'settings', id: undefined, expectedVersion: view.data._settingsVersion, changes: { rubros: ['General', 'New area', 'Realizados', 'Eliminado'], responsables: ['New person'], assetCategories: ['Equipment'], assetSubcategories: { Equipment: ['Pump'] } } });
+  let settings;
+  for (const [index, changes] of [{ rubros: ['General', 'New area', 'Realizados', 'Eliminado'] }, { responsables: ['New person'] }, { assetCategories: ['Equipment'] }, { assetSubcategories: { Equipment: ['Pump'] } }].entries()) {
+    const current = await sharedProject(repo, { projectId: 'maintenance', token });
+    settings = await invoke({ operation: 'settings', requestId: `settings-request-${index}`, id: undefined, expectedVersion: current.data._settingsVersion, changes });
+  }
   assert.equal(settings.saved, true); assert.equal(repo.data.project_data.maintenance.responsables[0], 'New person');
   const created = await invoke({ requestId: 'create-asset-request', operation: 'asset_create', id: undefined, expectedVersion: undefined, changes: { name: 'New pump', documents: [{ name: 'Manual', type: 'application/pdf', data: 'https://files.example/new.pdf' }] } });
   const updated = await invoke({ requestId: 'update-asset-request', operation: 'asset_update', id: created.id, expectedVersion: created.version, changes: { serviceStatus: 'Fuera de servicio', documents: [{ existingIndex: 0 }] } });
@@ -84,6 +88,69 @@ test('collaborators retain areas, responsible names, asset groups, asset documen
   await invoke({ requestId: 'rename-project-request', operation: 'rename', id: undefined, expectedVersion: undefined, changes: { name: 'Renamed' } });
   assert.equal(repo.data.users.owner.projects.maintenance.name, 'Renamed');
   assert.equal(repo.data.project_data.maintenance.name, 'Renamed');
+});
+
+test('large projects edit only the selected item or list, preserving unrelated inline files', async () => {
+  const { repo, token, invoke } = await setup();
+  const large = { confidential: true, attachments: [{ data: 'A'.repeat(23 * 1024 * 1024) }] };
+  repo.data.project_data.maintenance.tasks.large = large;
+  const read = repo.get.bind(repo), transaction = repo.transaction.bind(repo), paths = [];
+  repo.get = async path => {
+    assert.notEqual(path, 'project_data/maintenance', 'An edit must not load the whole project');
+    return read(path);
+  };
+  repo.transaction = async (path, change) => {
+    paths.push(path);
+    return transaction(path, current => {
+      const value = change(current);
+      assert(Buffer.byteLength(JSON.stringify(value)) < 15 * 1024 * 1024);
+      return value;
+    });
+  };
+  assert.equal((await invoke()).saved, true);
+  const settings = await import('../src/collaborator-links.mjs').then(({ settingsVersion }) => settingsVersion(repo.data.project_data.maintenance));
+  assert.equal((await invoke({ operation: 'settings', requestId: 'large-settings-request', id: undefined, expectedVersion: settings, changes: { responsables: ['New person'] } })).saved, true);
+  assert.equal((await invoke({ operation: 'asset_update', requestId: 'large-asset-request', id: 'visible', expectedVersion: version(repo.data.project_data.maintenance.assets.visible), changes: { name: 'Edited pump' } })).saved, true);
+  assert.deepEqual(paths, ['project_data/maintenance/tasks/existing', 'project_data/maintenance/responsables', 'project_data/maintenance/assets/visible']);
+  assert.deepEqual(repo.data.project_data.maintenance.tasks.large, large);
+  await assert.rejects(invoke({ requestId: 'guest-large-request', token: 'guest-token-123' }), { code: 'read_only_link' });
+});
+
+test('recurrent completion recovers a failed successor write without duplication', async () => {
+  const { repo, invoke } = await setup();
+  const task = repo.data.project_data.maintenance.tasks.existing;
+  task.recurrence = { type: 'daily' }; task.deadline = '2026-10-07';
+  const input = { expectedVersion: version(task), changes: { estado: 'Realizado' } };
+  const transaction = repo.transaction.bind(repo);
+  let fail = true;
+  repo.transaction = async (path, change) => {
+    if (path.includes('/shared_next_') && fail) { fail = false; throw new Error('Connection interrupted'); }
+    return transaction(path, change);
+  };
+  await assert.rejects(invoke(input), /Connection interrupted/);
+  const saved = await invoke(input);
+  assert.equal(saved.saved, true);
+  assert.deepEqual(await invoke(input), saved);
+  const next = Object.keys(repo.data.project_data.maintenance.tasks).filter(id => id.startsWith('shared_next_'));
+  assert.equal(next.length, 1);
+  assert.equal(repo.data.project_data.maintenance.tasks[next[0]].deadline, '2026-10-08');
+});
+
+test('returned versions match Firebase snapshots after empty collections disappear', async () => {
+  const { repo, invoke } = await setup();
+  const transaction = repo.transaction.bind(repo);
+  const normalized = value => {
+    if (!value || typeof value !== 'object') return value;
+    const entries = Object.entries(value).map(([key, item]) => [key, normalized(item)]).filter(([, item]) => item !== null);
+    if (!entries.length) return null;
+    return Array.isArray(value) ? entries.map(([, item]) => item) : Object.fromEntries(entries);
+  };
+  repo.transaction = (path, change) => transaction(path, current => normalized(change(current)));
+  const first = await invoke({ changes: { description: 'First edit', attachments: [], subtasks: [] } });
+  assert.equal(repo.data.project_data.maintenance.tasks.existing.attachments, undefined);
+  assert.equal(first.version, version(repo.data.project_data.maintenance.tasks.existing));
+  const second = await invoke({ requestId: 'second-normalized-edit', expectedVersion: first.version, changes: { description: 'Second edit' } });
+  assert.equal(second.saved, true);
 });
 
 test('rotating the guest link invalidates both links and archived projects reject edits', async () => {

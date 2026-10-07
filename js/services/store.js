@@ -300,6 +300,7 @@ const Store = {
         const payload = changes ? { ...changes } : undefined;
         if (payload) {
             if (task) delete payload.confidential;
+            if (!task && existing && payload.image === existing.image) delete payload.image;
             const filesField = task ? 'attachments' : 'documents';
             if (payload[filesField] && existing) {
                 const used = new Set();

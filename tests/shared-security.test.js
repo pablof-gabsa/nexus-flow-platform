@@ -104,7 +104,7 @@ test('share offers both roles and copies a separate collaborator token in the pr
   context.ProjectComponent.copyLink = url => links.push(url);
   await context.ProjectComponent.shareProject();
   assert(modal.innerHTML.includes('Colaborador'));
-  assert(modal.innerHTML.includes('Invitado (Solo Lectura)'));
+  assert(modal.innerHTML.includes('Visita (Solo lectura)'));
   assert(modal.innerHTML.includes('?mode=readonly&t=guest-token-123'));
   await context.ProjectComponent.copyCollaboratorLink();
   assert.deepEqual(links, ['https://nexus.example/app/#/share/project?mode=edit&t=collaborator-token-123']);

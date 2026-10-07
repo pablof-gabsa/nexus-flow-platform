@@ -102,11 +102,10 @@ const ProjectComponent = {
                 
                 <!-- Toolbar -->
                 <div class="glass-panel p-4 rounded-xl mb-6 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 md:top-20 z-30 transition-all duration-300 shadow-sm backdrop-blur-md bg-white/70 dark:bg-slate-900/70 border-b border-white/20">
-                    <div>
+                    <div class="min-w-0">
                         <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                             ${!ProjectComponent.isShared ?
-                `<span onclick="App.navigateTo('#/dashboard')" class="cursor-pointer hover:text-brand-600"><i class="fas fa-arrow-left"></i></span>` :
-                `<span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider">${ProjectComponent.isEditable ? 'Colaborador · Edición' : 'Visita · Solo lectura'}</span>`
+                `<span onclick="App.navigateTo('#/dashboard')" class="cursor-pointer hover:text-brand-600"><i class="fas fa-arrow-left"></i></span>` : ''
             }
                             <div class="group flex items-center gap-2">
                                 <span id="project-name-display" class="${ProjectComponent.isEditable ? 'cursor-text hover:bg-gray-50 dark:hover:bg-slate-800 px-2 rounded border border-transparent hover:border-gray-200 dark:hover:border-slate-700 transition-all' : ''}" 
@@ -116,6 +115,7 @@ const ProjectComponent = {
                                 ${ProjectComponent.isEditable ? '<i class="fas fa-pen text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"></i>' : ''}
                             </div>
                         </h2>
+                        ${ProjectComponent.isShared ? `<span class="inline-flex mt-1 ${ProjectComponent.isEditable ? 'ml-2' : ''} bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider whitespace-nowrap">${ProjectComponent.isEditable ? 'Colaborador · Edición' : 'Visita · Solo lectura'}</span>` : ''}
                     </div>
                     
                     <div class="flex flex-wrap gap-2">
@@ -513,11 +513,11 @@ const ProjectComponent = {
                     <div>
                         <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                             <span onclick="App.navigateTo('${backRoute}')" class="cursor-pointer hover:text-brand-600"><i class="fas fa-arrow-left"></i></span>
-                            ${ProjectComponent.isShared ? `<span class="bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider">${ProjectComponent.isEditable ? 'Colaborador · Edición' : 'Visita · Solo lectura'}</span>` : ''}
                             <i class="fas fa-chart-line text-brand-500"></i>
                             Metricas
                             <span class="text-base font-normal text-gray-400">— ${projectInfo.name}</span>
                         </h2>
+                        ${ProjectComponent.isShared ? `<span class="inline-flex mt-1 bg-brand-100 dark:bg-brand-900 text-brand-600 dark:text-brand-300 text-xs px-2 py-1 rounded uppercase tracking-wider whitespace-nowrap">${ProjectComponent.isEditable ? 'Colaborador · Edición' : 'Visita · Solo lectura'}</span>` : ''}
                     </div>
                 </div>
 
@@ -1634,8 +1634,6 @@ const ProjectComponent = {
                             <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-full text-blue-600 dark:text-blue-300"><i class="fas fa-edit text-xl"></i></div>
                             <div>
                                 <h4 class="font-bold text-gray-800 dark:text-white">Colaborador</h4>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">Puede crear y editar tareas, notas, estados, checklist, adjuntos y activos, y administrar las listas del proyecto.</p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">No accede a datos confidenciales, no cambia su confidencialidad ni elimina tareas definitivamente.</p>
                             </div>
                             <i class="fas fa-chevron-right ml-auto text-gray-300 group-hover:text-brand-500"></i>
                         </div>
@@ -1648,8 +1646,6 @@ const ProjectComponent = {
                             </div>
                             <div>
                                 <h4 class="font-bold text-gray-800 dark:text-white">Visita (Solo lectura)</h4>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">Puede consultar tareas, adjuntos, activos y métricas compartidos. No puede crear, editar ni eliminar datos.</p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Las tareas confidenciales y eliminadas no se muestran en ninguno de los dos accesos.</p>
                             </div>
                             <i class="fas fa-chevron-right ml-auto text-gray-300 group-hover:text-brand-500"></i>
                         </div>

@@ -103,7 +103,9 @@ if(command==='prepare') {
  const [taskId,task]=Object.entries(editor.data.tasks||{}).find(([,task])=>(task.description||'').length<9500)||[];
  if(!taskId)throw new Error('No suitable task for isolated edit test');
  const mutate=async(token,expectedVersion,description)=>{
-  const response=await fetch(`${apiBase}/v1/shared-project/mutate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:state.id,token,operation:'task_update',id:taskId,expectedVersion,requestId:randomBytes(16).toString('hex'),changes:{description}}),signal:AbortSignal.timeout(60000)});
+  const requestId=randomBytes(16).toString('hex');
+  state.auditIds=[...(state.auditIds||[]),digest(`${state.id}:${token}:${requestId}`)];saveState(state);
+  const response=await fetch(`${apiBase}/v1/shared-project/mutate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:state.id,token,operation:'task_update',id:taskId,expectedVersion,requestId,changes:{description}}),signal:AbortSignal.timeout(60000)});
   return {status:response.status,...await response.json()};
  };
  const edited=await mutate(state.collaborator,task._version,'Edición de prueba aislada');
@@ -157,6 +159,15 @@ if(command==='prepare') {
  for(const object of state.uploads||[]){if(!object.key.startsWith(state.prefix))throw new Error('Object outside trial prefix');await remote(`${storageUrl(object.key)}?ifGenerationMatch=${object.generation}`,'DELETE');}
  await db('', 'PATCH', {[`project_data/${state.id}`]:null,[`project_owners/${state.id}`]:null,[`users/${state.owner}`]:null});
  await remote(`${firestore}/nexus_assistant_collaborator_links/${state.id}`,'DELETE');
+ for(const auditId of state.auditIds||[]){
+  if(!/^[a-f0-9]{64}$/.test(auditId))throw new Error('Invalid trial audit identity');
+  const response=await fetch(`${firestore}/nexus_assistant_shared_audit/${auditId}`,{headers:{Authorization:`Bearer ${authorization}`},signal:AbortSignal.timeout(60000)});
+  if(response.status===404)continue;
+  if(!response.ok)throw new Error(`Trial audit read failed (${response.status})`);
+  const record=await response.json();
+  if(record.fields?.projectId?.stringValue!==state.id)throw new Error('Audit record outside trial project');
+  await remote(`${firestore}/nexus_assistant_shared_audit/${auditId}`,'DELETE');
+ }
  const remaining=await db(`project_data/${state.id}`);if(remaining!==null)throw new Error('Disposable copy remains');
  state.cleanedAt=new Date().toISOString();saveState(state);console.log(JSON.stringify({disposableCloudDataRemoved:true,originalProjectNeverWritten:true}));
 } else throw new Error('Use prepare, measure, migrate, verify, serve or cleanup');

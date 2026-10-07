@@ -100,11 +100,24 @@ if(command==='prepare') {
  const editor=await shared(state,state.collaborator), visitor=await shared(state,state.guest);
  if(editor.status!==200||editor.readOnly!==false||visitor.status!==200||visitor.readOnly!==true)throw new Error('Shared role check failed');
  for(const result of [editor,visitor])for(const task of Object.values(result.data.tasks||{}))if(task.confidential||task.rubro==='Eliminado')throw new Error('Hidden task exposed');
+ const [taskId,task]=Object.entries(editor.data.tasks||{}).find(([,task])=>(task.description||'').length<9500)||[];
+ if(!taskId)throw new Error('No suitable task for isolated edit test');
+ const mutate=async(token,expectedVersion,description)=>{
+  const response=await fetch(`${apiBase}/v1/shared-project/mutate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:state.id,token,operation:'task_update',id:taskId,expectedVersion,requestId:randomBytes(16).toString('hex'),changes:{description}}),signal:AbortSignal.timeout(60000)});
+  return {status:response.status,...await response.json()};
+ };
+ const edited=await mutate(state.collaborator,task._version,'Edición de prueba aislada');
+ const readback=await db(`project_data/${state.id}/tasks/${taskId}`);
+ if(edited.status!==200||!edited.saved||readback.description!=='Edición de prueba aislada')throw new Error('Collaborator trial edit did not save');
+ const blocked=await mutate(state.guest,edited.version,'Visita no debe guardar');
+ if(blocked.status!==403)throw new Error('Visitor trial write was not denied');
+ const restored=await mutate(state.collaborator,edited.version,task.description||'');
+ if(restored.status!==200||!restored.saved)throw new Error('Could not restore isolated edit');
  const source=await db(`project_data/${state.sourceId}`);
  const sourceUnchanged=digest(JSON.stringify(source))===state.sourceDigest;
  const tokenPreserved=digest(source.sharingToken||'')===state.sourceTokenDigest;
  if(!tokenPreserved)throw new Error('Source link changed externally during trial');
- const report={testedAt:new Date().toISOString(),sourceUnchanged,originalLinkPreserved:tokenPreserved,originalTaskCount:Object.keys(source.tasks||{}).length,trialTaskCount:Object.keys((await db(`project_data/${state.id}`)).tasks||{}).length,filesVerified:state.files.length,sourceBytes:state.sourceBytes,optimizedBytes:state.optimizedBytes,collaboratorCanEdit:true,visitorReadOnly:true,hiddenTasksExcluded:true,samples:state.samples};
+ const report={testedAt:new Date().toISOString(),sourceUnchanged,originalLinkPreserved:tokenPreserved,originalTaskCount:Object.keys(source.tasks||{}).length,trialTaskCount:Object.keys((await db(`project_data/${state.id}`)).tasks||{}).length,filesVerified:state.files.length,sourceBytes:state.sourceBytes,optimizedBytes:state.optimizedBytes,collaboratorEditSaved:true,visitorWriteDenied:true,hiddenTasksExcluded:true,samples:state.samples};
  state.report=report;saveState(state);writeFileSync(join(dirname(statePath),'result.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 } else if(command==='serve') {
  const state=checkpoint();if(!state.migrated)throw new Error('Migrate the isolated copy first');

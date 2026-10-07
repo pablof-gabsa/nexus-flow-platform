@@ -181,6 +181,42 @@ test('opening project or metrics fetches the data once and subsequent refreshes 
   }
 });
 
+test('filtering, sorting and export selection reuse loaded shared tasks and preserve link permissions', async () => {
+  let reads = 0;
+  const storage = new Map();
+  const context = load([['js/utils.js', 'Utils'], ['js/components/project.js', 'ProjectComponent']], {
+    document: { getElementById: () => null },
+    localStorage: { setItem: (key, value) => storage.set(key, value) },
+    Store: { getSharedProjectData: async () => { reads++; throw new Error('Unexpected read'); } }
+  });
+  const component = context.ProjectComponent;
+  component.projectId = 'project';
+  component.isShared = true;
+  component.isEditable = false;
+  component.shareToken = 'existing-guest-token';
+  component.shareParams = '?mode=readonly&t=existing-guest-token';
+  component.data = [{ id: 'task', requerimiento: 'Task', rubro: 'General' }];
+  let paints = 0;
+  component.renderChecklist = () => { paints++; };
+  component.renderModalOptions = () => {};
+  component.renderExportBar = () => {};
+  component.updateSortUI = () => {};
+  component.render = () => { throw new Error('Filtering must not restart shared navigation'); };
+  component.setFilter('status', 'Pendiente');
+  component.setSort('name');
+  component.setSortOrder();
+  component.toggleSelectionMode();
+  component.toggleTaskSelection('task', true);
+  assert.equal(reads, 0);
+  assert.equal(paints, 5);
+  assert.equal(component.filters.status, 'Pendiente');
+  assert(storage.has('project_filters_project'));
+  assert(component.selectedTasks.has('task'));
+  assert.equal(component.isEditable, false);
+  assert.equal(component.shareToken, 'existing-guest-token');
+  assert.equal(component.shareParams, '?mode=readonly&t=existing-guest-token');
+});
+
 test('loading fallback does not reopen a guest project while its first load is still running', async () => {
   const timers = [];
   const loading = { style: { display: 'block' }, classList: { add() {} } }, app = { classList: { remove() {} } };

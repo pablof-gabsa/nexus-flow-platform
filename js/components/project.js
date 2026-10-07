@@ -739,10 +739,7 @@ const ProjectComponent = {
             localStorage.setItem(`project_filters_${ProjectComponent.projectId}`, JSON.stringify(ProjectComponent.filters));
         }
 
-        ProjectComponent.render(document.getElementById('main-content'), ProjectComponent.projectId, {
-            isShared: ProjectComponent.isShared,
-            isEditable: ProjectComponent.isEditable
-        });
+        ProjectComponent.refreshUI(false);
 
         // If modal is open, re-render it to update selection state
         const modal = document.getElementById('filter-modal');
@@ -754,12 +751,12 @@ const ProjectComponent = {
     setSort: (type) => {
         ProjectComponent.sortBy = type;
         ProjectComponent.updateSortUI();
-        ProjectComponent.refreshUI();
+        ProjectComponent.refreshUI(false);
     },
 
     setSortOrder: () => {
         ProjectComponent.sortOrder = ProjectComponent.sortOrder === 'asc' ? 'desc' : 'asc';
-        ProjectComponent.refreshUI();
+        ProjectComponent.refreshUI(false);
     },
 
     updateSortUI: () => {
@@ -2032,13 +2029,13 @@ const ProjectComponent = {
     toggleSelectionMode: () => {
         ProjectComponent.isSelectionMode = !ProjectComponent.isSelectionMode;
         ProjectComponent.selectedTasks.clear();
-        ProjectComponent.refreshUI();
+        ProjectComponent.refreshUI(false);
     },
 
     toggleTaskSelection: (id, checked) => {
         if (checked) ProjectComponent.selectedTasks.add(id);
         else ProjectComponent.selectedTasks.delete(id);
-        ProjectComponent.refreshUI(); // Full refresh to update checkboxes state
+        ProjectComponent.refreshUI(false);
     },
 
     executeOctavoExport: async () => {

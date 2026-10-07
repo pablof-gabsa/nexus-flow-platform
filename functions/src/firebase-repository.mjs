@@ -7,6 +7,15 @@ export class FirebaseRepository {
   async verifyFirebase(token) { return this.auth.verifyIdToken(token, true); }
   async privateGet(collection, id) { return (await this.firestore.collection(`nexus_assistant_${collection}`).doc(id).get()).data() || null; }
   async privatePut(collection, id, data) { await this.firestore.collection(`nexus_assistant_${collection}`).doc(id).set(data); }
+  async privateTransaction(collection, id, change) {
+    const ref = this.firestore.collection(`nexus_assistant_${collection}`).doc(id);
+    return this.firestore.runTransaction(async transaction => {
+      const value = change((await transaction.get(ref)).data() || null);
+      transaction.set(ref, value);
+      return value;
+    });
+  }
+  async updateRoot(changes) { await this.database.ref().update(changes); }
   async privateConsume(collection, id, predicate) {
     const ref = this.firestore.collection(`nexus_assistant_${collection}`).doc(id);
     return this.firestore.runTransaction(async transaction => {

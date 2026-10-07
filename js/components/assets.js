@@ -25,7 +25,7 @@ const AssetsComponent = {
         // Preserve sharing query params for navigation
         if (AssetsComponent.isShared && options.params) {
             const parts = [];
-            parts.push('mode=readonly');
+            parts.push(options.params.get('mode') === 'edit' ? 'mode=edit' : 'mode=readonly');
             if (options.params.get('t')) parts.push('t=' + options.params.get('t'));
             AssetsComponent.shareParams = parts.length > 0 ? '?' + parts.join('&') : '';
         } else {
@@ -40,6 +40,7 @@ const AssetsComponent = {
             let data;
             try { data = await Store.getSharedProjectData(projectId, AssetsComponent.shareToken); }
             catch (error) { SharedComponent.unavailable(container, error); return; }
+            AssetsComponent.isEditable = data._sharedEditable === true;
             AssetsComponent.applyProjectData(data);
             projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido' };
         }
@@ -93,6 +94,7 @@ const AssetsComponent = {
         const fullData = AssetsComponent.isShared
             ? await Store.getSharedProjectData(AssetsComponent.projectId, AssetsComponent.shareToken)
             : await Store.getProjectData(AssetsComponent.projectId);
+        if (AssetsComponent.isShared) AssetsComponent.isEditable = fullData._sharedEditable === true;
         AssetsComponent.applyProjectData(fullData);
     },
 
@@ -695,6 +697,7 @@ const AssetsComponent = {
 
     handleAssetSubmit: async (e) => {
         e.preventDefault();
+        if (!AssetsComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
         const name = document.getElementById('asset-name').value.trim();
         const description = document.getElementById('asset-description').value.trim();
         const category = document.getElementById('asset-category').value || 'Sin categoria';

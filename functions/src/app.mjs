@@ -6,6 +6,7 @@ import { handleMcp } from './mcp.mjs';
 import { NexusError, parse, idSchema } from './validation.mjs';
 import { openapi } from './openapi.mjs';
 import { sharedProject, sharedProjectSchema } from './shared-project.mjs';
+import { collaboratorLink, mutateSharedProject, sharedMutationSchema } from './collaborator-links.mjs';
 
 export function createApp(repo, config) {
   const app = express();
@@ -25,7 +26,7 @@ export function createApp(repo, config) {
   });
   const smallJson = express.json({ limit: '128kb' });
   const taskJson = express.json({ limit: '30mb' });
-  app.use((req, res, next) => (req.path === '/mcp' || /^\/v1\/workspaces\/[^/]+\/projects\/[^/]+\/tasks(?:\/[^/]+)?$/.test(req.path) ? taskJson : smallJson)(req, res, next));
+  app.use((req, res, next) => (req.path === '/mcp' || req.path === '/v1/shared-project/mutate' || /^\/v1\/workspaces\/[^/]+\/projects\/[^/]+\/tasks(?:\/[^/]+)?$/.test(req.path) ? taskJson : smallJson)(req, res, next));
   app.use(express.urlencoded({ extended: false, limit: '16kb' }));
   const bearer = req => {
     const match = /^Bearer ([A-Za-z0-9_.-]{20,4096})$/.exec(req.get('authorization') || '');
@@ -51,6 +52,8 @@ export function createApp(repo, config) {
   app.get('/.well-known/oauth-authorization-server', (req, res) => res.json(oauth.metadata()));
   app.get('/openapi.json', (req, res) => res.json(openapi(config.baseUrl)));
   app.post('/v1/shared-project', throttled('shared-project', 60), async (req, res) => res.json(await sharedProject(repo, parse(sharedProjectSchema, req.body))));
+  app.post('/v1/shared-project/mutate', throttled('shared-write', 60), async (req, res) => res.json(await mutateSharedProject(repo, parse(sharedMutationSchema, req.body))));
+  app.post('/v1/projects/:projectId/collaborator-link', firebaseAuth, throttled('collaborator-link', 30), async (req, res) => res.json(await collaboratorLink(repo, req.params.projectId, req.actor.uid)));
   app.get(['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp'], (req, res) => res.json(oauth.resourceMetadata()));
   app.post('/oauth/register', throttled('registration', 20), async (req, res) => res.status(201).json(await oauth.register(req.body)));
   app.get('/oauth/authorize', throttled('authorize', 30), async (req, res) => res.redirect(await oauth.begin(req.query)));

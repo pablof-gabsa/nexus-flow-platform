@@ -213,6 +213,22 @@ no depende de la limpieza porque comprueba la fecha en cada uso.
 
 ## Validación reproducible
 
+La opción **Colaborador** vuelve a compartir edición mediante un token propio,
+independiente del enlace de invitado. El propietario y los administradores con
+acceso vigente pueden copiarlo desde Compartir. El servicio valida el token en
+cada lectura y escritura; el parámetro `mode=edit` nunca concede permisos.
+Los enlaces anteriores conservan la consulta. Cambiar el enlace activo invalida
+tanto el invitado como el colaborador.
+
+El colaborador puede crear y editar tareas, estados, checklist, adjuntos,
+áreas, responsables, nombres de proyectos, activos, documentos y agrupadores.
+Puede mover tareas a Eliminados; la eliminación definitiva de tareas y la
+configuración del espacio conservan sus permisos anteriores. Las tareas y
+activos confidenciales se excluyen y no pueden modificarse por ID. Los cambios
+pasan por el servicio; las reglas de acceso directo a la base permanecen
+cerradas. La edición usa versiones para detectar cambios concurrentes y los
+reintentos de creación y finalización recurrente no duplican tareas.
+
 ```powershell
 npm ci --prefix functions
 npm test --prefix functions

@@ -75,6 +75,7 @@ export const createTaskSchema = z.object({
   attachments: attachments(newAttachment).optional().describe('Adjuntos nuevos: name, type y data como URL HTTPS o data URL base64. Inline: máximo 7 MB por archivo y 10 MB en total; para archivos mayores usar su enlace HTTPS.')
 }).strict();
 export const updateTaskSchema = z.object(taskFields).partial().strict().refine(value => Object.keys(value).length > 0, 'No hay cambios');
+export { attachmentData, newAttachment, attachmentReference, attachments };
 export function parse(schema, value) {
   const result = schema.safeParse(value);
   if (!result.success) throw new NexusError(400, 'invalid_input', result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '));

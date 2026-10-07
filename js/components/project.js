@@ -93,7 +93,7 @@ const ProjectComponent = {
 
         // Setup Realtime Listeners (Simulated with fetch for now, can be upgraded to on() later)
         // For MVP structure we will just fetch once, logic supports reload.
-        await ProjectComponent.refreshData();
+        await ProjectComponent.refreshData(ProjectComponent.isShared ? projectInfo : undefined);
         await IntegrationsComponent.load();
 
         container.innerHTML = `
@@ -465,7 +465,7 @@ const ProjectComponent = {
             </div>
         `;
 
-        await ProjectComponent.refreshUI();
+        await ProjectComponent.refreshUI(false);
         ProjectComponent.focusTaskFromSession();
     },
 
@@ -500,7 +500,7 @@ const ProjectComponent = {
             return;
         }
 
-        await ProjectComponent.refreshData();
+        await ProjectComponent.refreshData(ProjectComponent.isShared ? projectInfo : undefined);
 
         const backRoute = ProjectComponent.isShared
             ? `#/share/${projectId}${ProjectComponent.shareParams}`
@@ -561,10 +561,10 @@ const ProjectComponent = {
         }, 100);
     },
 
-    refreshData: async () => {
-        const fullData = ProjectComponent.isShared
+    refreshData: async (loadedData) => {
+        const fullData = loadedData || (ProjectComponent.isShared
             ? await Store.getSharedProjectData(ProjectComponent.projectId, ProjectComponent.shareToken)
-            : await Store.getProjectData(ProjectComponent.projectId);
+            : await Store.getProjectData(ProjectComponent.projectId));
         if (ProjectComponent.isShared) ProjectComponent.isEditable = fullData._sharedEditable === true;
 
         ProjectComponent.rubros = fullData.rubros || [];
@@ -578,8 +578,8 @@ const ProjectComponent = {
         ProjectComponent.assets = fullData.assets ? Object.keys(fullData.assets).map(k => ({ id: k, ...fullData.assets[k] })) : [];
     },
 
-    refreshUI: async () => {
-        await ProjectComponent.refreshData(); // Ensure fresh data
+    refreshUI: async (reloadData = true) => {
+        if (reloadData) await ProjectComponent.refreshData();
         ProjectComponent.renderChecklist();
         if (document.getElementById('activityChart') && document.getElementById('deadlineChart')) {
             ProjectComponent.renderCharts();

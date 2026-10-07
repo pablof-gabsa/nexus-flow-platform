@@ -4,6 +4,7 @@ const App = {
         currentUser: null,
         currentProject: null,
         currentRoute: null,
+        authResolved: false,
         installPrompt: null
     },
 
@@ -19,7 +20,7 @@ const App = {
                 console.warn("Auth timeout - Forcing app display");
                 loading.style.display = 'none';
                 app?.classList.remove('hidden', 'opacity-0');
-                if (!App.state.currentUser) App.handleRoute();
+                if (!App.state.authResolved) App.handleRoute();
             }
         }, 1500);
 
@@ -68,6 +69,7 @@ const App = {
 
     // Auth State Handler
     onAuthStateChanged: async (user) => {
+        App.state.authResolved = true;
         App.state.currentUser = user;
         console.log("Auth State Changed:", user ? user.uid : 'Guest');
 

@@ -154,3 +154,49 @@ test('shared task editors use server permissions and never trust mode=edit alone
   assert(container.innerHTML.includes('onclick="ProjectComponent.manageRubros()"'));
   assert(!container.innerHTML.includes('id="task-confidential"'));
 });
+
+test('opening project or metrics fetches the data once and subsequent refreshes fetch current permissions', async () => {
+  for (const isShared of [true, false]) for (const screen of ['render', 'renderMetrics']) {
+    let reads = 0;
+    let source = { name: 'Project', rubros: ['General'], responsables: [], tasks: { task: { requerimiento: 'Initial task', rubro: 'General' } }, assets: {}, _sharedEditable: true };
+    const read = async () => { reads++; return source; };
+    const context = load([['js/utils.js', 'Utils'], ['js/components/project.js', 'ProjectComponent']], {
+      document: { getElementById: () => null }, localStorage: { getItem: () => null }, setTimeout() {},
+      NavbarComponent: { render: () => '' }, IntegrationsComponent: { load: async () => {}, isEnabled: () => false },
+      Store: { getProject: async () => ({ name: 'Project' }), getSharedProjectData: read, getProjectData: read }
+    });
+    const component = context.ProjectComponent;
+    component.renderChecklist = () => {};
+    component.renderModalOptions = () => {};
+    component.renderExportBar = () => {};
+    component.focusTaskFromSession = () => {};
+    await component[screen]({ innerHTML: '' }, 'project', { isShared, params: { get: key => key === 'mode' ? 'edit' : 'collaborator-token' } });
+    assert.equal(reads, 1, `${screen}, shared=${isShared}: opening fetched the same payload again`);
+    assert.equal(component.data[0].requerimiento, 'Initial task');
+    source = { ...source, _sharedEditable: false, tasks: { task: { requerimiento: 'Changed by another user', rubro: 'General' } } };
+    await component.refreshUI();
+    assert.equal(reads, 2, 'refresh after an edit must request fresh data');
+    assert.equal(component.data[0].requerimiento, 'Changed by another user');
+    if (isShared) assert.equal(component.isEditable, false, 'revoked edit permission must be refreshed');
+  }
+});
+
+test('loading fallback does not reopen a guest project while its first load is still running', async () => {
+  const timers = [];
+  const loading = { style: { display: 'block' }, classList: { add() {} } }, app = { classList: { remove() {} } };
+  const context = load([['js/app.js', 'App']], {
+    console: { log() {}, warn() {} }, window: { addEventListener() {} }, auth: {}, Auth: { init() {} },
+    setTimeout(callback) { timers.push(callback); },
+    document: { addEventListener() {}, getElementById: id => id === 'loading-screen' ? loading : app }
+  });
+  let routes = 0, finish;
+  const pending = new Promise(resolve => { finish = resolve; });
+  context.App.handleRoute = async () => { routes++; await pending; };
+  await context.App.init();
+  const authCallback = context.App.onAuthStateChanged(null);
+  assert.equal(routes, 1);
+  timers[0](); // The first public response takes longer than the 1.5s fallback.
+  assert.equal(routes, 1, 'the guest load must not be started a second time');
+  finish();
+  await authCallback;
+});

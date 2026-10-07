@@ -11,6 +11,9 @@ export class MemoryRepository {
   async verifyFirebase(token) { if (token === 'firebase-alice-token-for-tests') return { uid: 'alice' }; if (token === 'firebase-bob-token-for-tests') return { uid: 'bob' }; throw new NexusError(401, 'invalid_token', 'Sesión inválida.'); }
   async privateGet(collection, id) { return structuredClone(this.documents.get(`${collection}/${id}`) ?? null); }
   async privatePut(collection, id, data) { this.documents.set(`${collection}/${id}`, structuredClone(data)); }
+  async privateTransaction(collection, id, change) { const value = change(await this.privateGet(collection, id)); await this.privatePut(collection, id, value); return value; }
+  async updateRoot(changes) { for (const [path, value] of Object.entries(changes)) { const parts = path.split('/'), key = parts.pop(); const parent = parts.reduce((object, part) => object[part] ||= {}, this.data); parent[key] = structuredClone(value); } }
+  async transaction(path, change) { const parts = path.split('/'), key = parts.pop(); const parent = parts.reduce((object, part) => object[part] ||= {}, this.data); const value = change(structuredClone(parent[key] || null)); parent[key] = structuredClone(value); return structuredClone(value); }
   async privateConsume(collection, id, predicate) { const key = `${collection}/${id}`, data = this.documents.get(key); if (!data || !predicate(data)) return null; this.documents.delete(key); return structuredClone(data); }
   async privateList(collection, uid) { return [...this.documents].filter(([key, value]) => key.startsWith(`${collection}/`) && value.uid === uid).map(([key, value]) => ({ id: key.split('/')[1], ...structuredClone(value) })); }
   async taskTransaction(projectId, taskId, change) { const tasks = this.data.project_data[projectId].tasks ||= {}; const value = change(structuredClone(tasks[taskId] || null)); tasks[taskId] = structuredClone(value); return structuredClone(value); }

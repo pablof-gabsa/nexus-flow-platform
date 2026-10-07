@@ -1,4 +1,5 @@
 const Store = {
+    sharedAccess: null,
     // Projects CRUD
     // State
     // State
@@ -232,6 +233,7 @@ const Store = {
     },
 
     updateProject: async (projectId, updates) => {
+        if (Store.sharedAccess) return Store.mutateShared(projectId, 'rename', updates);
         const user = Auth.getCurrentUser();
         if (!user) return;
 
@@ -279,19 +281,57 @@ const Store = {
         const result = await AssistantAPI.publicRequest('/v1/shared-project', {
             method: 'POST', body: JSON.stringify({ projectId, token })
         });
-        return result.data;
+        const data = { ...result.data, _sharedEditable: result.readOnly === false };
+        Store.sharedAccess = { projectId, token, isEditable: data._sharedEditable, data };
+        return data;
+    },
+
+    getCollaboratorToken: async projectId => {
+        const result = await AssistantAPI.request(`/v1/projects/${encodeURIComponent(projectId)}/collaborator-link`, { method: 'POST', body: '{}' });
+        return result.token;
+    },
+
+    mutateShared: async (projectId, operation, changes, id) => {
+        const access = Store.sharedAccess;
+        if (!access || access.projectId !== projectId || !access.isEditable) throw new Error('Este enlace es de solo lectura');
+        const task = operation.startsWith('task_');
+        const field = task ? 'tasks' : 'assets';
+        const existing = id ? access.data[field]?.[id] : null;
+        const payload = changes ? { ...changes } : undefined;
+        if (payload) {
+            if (task) delete payload.confidential;
+            const filesField = task ? 'attachments' : 'documents';
+            if (payload[filesField] && existing) {
+                const used = new Set();
+                payload[filesField] = payload[filesField].map(file => {
+                    const index = (existing[filesField] || []).findIndex((value, index) => !used.has(index) && value.name === file.name && value.type === file.type && value.data === file.data && value.url === file.url);
+                    if (index < 0) return file;
+                    used.add(index);
+                    return { existingIndex: index };
+                });
+            }
+        }
+        const body = { projectId, token: access.token, operation, requestId: crypto.randomUUID(), ...(id ? { id, expectedVersion: existing?._version } : {}), ...(operation === 'settings' ? { expectedVersion: access.data._settingsVersion } : {}), ...(payload ? { changes: payload } : {}) };
+        const result = await AssistantAPI.publicRequest('/v1/shared-project/mutate', { method: 'POST', body: JSON.stringify(body) });
+        if (!result.saved) throw new Error('No se pudo guardar el cambio.');
+        if (operation === 'settings') Object.assign(access.data, changes, { _settingsVersion: result.version });
+        else if (operation === 'asset_delete') delete access.data.assets?.[id];
+        else if (id && existing) Object.assign(existing, changes, { _version: result.version });
+        return result;
     },
 
     isPermissionDenied: error => ['PERMISSION_DENIED', 'permission-denied', 'database/permission-denied'].includes(error?.code),
 
     // Tasks
     addTask: async (projectId, taskData) => {
+        if (Store.sharedAccess) return Store.mutateShared(projectId, 'task_create', taskData);
         const ref = db.ref(`project_data/${projectId}/tasks`).push();
         await ref.set(taskData);
         return { id: ref.key, ...taskData };
     },
 
     updateTask: async (projectId, taskId, updates) => {
+        if (Store.sharedAccess) return Store.mutateShared(projectId, 'task_update', updates, taskId);
         // Recurrence Logic
         if (updates.estado === 'Realizado') {
             const taskRef = db.ref(`project_data/${projectId}/tasks/${taskId}`);
@@ -463,10 +503,12 @@ const Store = {
 
     // Config
     updateRubros: async (projectId, rubros) => {
+        if (Store.sharedAccess) return Store.mutateShared(projectId, 'settings', { rubros });
         await db.ref(`project_data/${projectId}/rubros`).set(rubros);
     },
 
     updateResponsables: async (projectId, responsables) => {
+        if (Store.sharedAccess) return Store.mutateShared(projectId, 'settings', { responsables });
         await db.ref(`project_data/${projectId}/responsables`).set(responsables);
     },
 
@@ -595,6 +637,7 @@ const Store = {
     },
 
     deleteUploadedFile: async (url) => {
+        if (Store.sharedAccess) return; // Remove only the shared reference; storage belongs to its uploader.
         if (!url || typeof storage === 'undefined' || url.startsWith('data:')) return;
 
         try {
@@ -638,6 +681,7 @@ const Store = {
     },
 
     addAsset: async (projectId, assetData) => {
+        if (Store.sharedAccess) return Store.mutateShared(projectId, 'asset_create', assetData);
         const user = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
 
         const ref = db.ref(`project_data/${projectId}/assets`).push();
@@ -651,18 +695,22 @@ const Store = {
     },
 
     updateAsset: async (projectId, assetId, updates) => {
+        if (Store.sharedAccess) return Store.mutateShared(projectId, 'asset_update', updates, assetId);
         await db.ref(`project_data/${projectId}/assets/${assetId}`).update(updates);
     },
 
     updateAssetCategories: async (projectId, categories) => {
+        if (Store.sharedAccess) return Store.mutateShared(projectId, 'settings', { assetCategories: categories });
         await db.ref(`project_data/${projectId}/assetCategories`).set(categories);
     },
 
     updateAssetSubcategories: async (projectId, subcategories) => {
+        if (Store.sharedAccess) return Store.mutateShared(projectId, 'settings', { assetSubcategories: subcategories });
         await db.ref(`project_data/${projectId}/assetSubcategories`).set(subcategories);
     },
 
     deleteAsset: async (projectId, assetId) => {
+        if (Store.sharedAccess) return Store.mutateShared(projectId, 'asset_delete', undefined, assetId);
         await db.ref(`project_data/${projectId}/assets/${assetId}`).remove();
     }
 };

@@ -48,7 +48,7 @@ const ProjectComponent = {
         // Preserve sharing query params for navigation
         if (ProjectComponent.isShared && options.params) {
             const parts = [];
-            parts.push('mode=readonly');
+            parts.push(options.params.get('mode') === 'edit' ? 'mode=edit' : 'mode=readonly');
             if (options.params.get('t')) parts.push('t=' + options.params.get('t'));
             ProjectComponent.shareParams = parts.length > 0 ? '?' + parts.join('&') : '';
         } else {
@@ -80,6 +80,7 @@ const ProjectComponent = {
             let data;
             try { data = await Store.getSharedProjectData(projectId, ProjectComponent.shareToken); }
             catch (error) { SharedComponent.unavailable(container, error); return; }
+            ProjectComponent.isEditable = data._sharedEditable === true;
             projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido', ...data };
         } else {
             projectInfo = await Store.getProject(projectId);
@@ -476,7 +477,7 @@ const ProjectComponent = {
 
         if (ProjectComponent.isShared && options.params) {
             const parts = [];
-            parts.push('mode=readonly');
+            parts.push(options.params.get('mode') === 'edit' ? 'mode=edit' : 'mode=readonly');
             if (options.params.get('t')) parts.push('t=' + options.params.get('t'));
             ProjectComponent.shareParams = parts.length > 0 ? '?' + parts.join('&') : '';
         } else {
@@ -488,6 +489,7 @@ const ProjectComponent = {
             let data;
             try { data = await Store.getSharedProjectData(projectId, ProjectComponent.shareToken); }
             catch (error) { SharedComponent.unavailable(container, error); return; }
+            ProjectComponent.isEditable = data._sharedEditable === true;
             projectInfo = { id: projectId, name: data.name || 'Proyecto Compartido', ...data };
         } else {
             projectInfo = await Store.getProject(projectId);
@@ -563,6 +565,7 @@ const ProjectComponent = {
         const fullData = ProjectComponent.isShared
             ? await Store.getSharedProjectData(ProjectComponent.projectId, ProjectComponent.shareToken)
             : await Store.getProjectData(ProjectComponent.projectId);
+        if (ProjectComponent.isShared) ProjectComponent.isEditable = fullData._sharedEditable === true;
 
         ProjectComponent.rubros = fullData.rubros || [];
         ProjectComponent.responsables = fullData.responsables || [];
@@ -1614,10 +1617,7 @@ const ProjectComponent = {
         const token = data.sharingToken || '';
         if (!token) { UI.showToast('El propietario debe activar el enlace desde su cuenta.', 'info'); return; }
 
-        // Base URL logic: remove query params and ensure we point to #/share/ID
-        const baseUrl = window.location.href.split('?')[0].replace('#/dashboard', '').replace('#/project/', '#/share/');
-        const cleanHash = window.location.hash.split('?')[0].replace('#/project/', '#/share/');
-        const projectUrl = window.location.origin + window.location.pathname + cleanHash;
+        const projectUrl = window.location.origin + window.location.pathname + '#/share/' + encodeURIComponent(ProjectComponent.projectId);
 
         const isOwner = Store.currentContext.role === 'owner';
 
@@ -1629,6 +1629,16 @@ const ProjectComponent = {
                 </div>
 
                 <div class="space-y-4">
+                    <button type="button" onclick="ProjectComponent.copyCollaboratorLink()" class="glass-card w-full text-left p-4 rounded-xl border border-blue-100 dark:border-blue-900 hover:border-blue-300 transition-colors group">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded-full text-blue-600 dark:text-blue-300"><i class="fas fa-edit text-xl"></i></div>
+                            <div>
+                                <h4 class="font-bold text-gray-800 dark:text-white">Colaborador</h4>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Permite editar tareas, estados, checklist, adjuntos y activos.</p>
+                            </div>
+                            <i class="fas fa-chevron-right ml-auto text-gray-300 group-hover:text-brand-500"></i>
+                        </div>
+                    </button>
                     <!-- Read Only Option -->
                     <div class="glass-card p-4 rounded-xl border border-green-100 dark:border-green-900 hover:border-green-300 transition-colors cursor-pointer group" onclick="ProjectComponent.copyLink('${projectUrl}?mode=readonly&t=${token}')">
                         <div class="flex items-center gap-4">
@@ -1674,6 +1684,16 @@ const ProjectComponent = {
         } catch (err) {
             console.error(err);
             UI.showToast("Error al rotar enlace", "error");
+        }
+    },
+
+    copyCollaboratorLink: async () => {
+        try {
+            const token = await Store.getCollaboratorToken(ProjectComponent.projectId);
+            const url = window.location.origin + window.location.pathname + '#/share/' + encodeURIComponent(ProjectComponent.projectId) + '?mode=edit&t=' + encodeURIComponent(token);
+            ProjectComponent.copyLink(url);
+        } catch (error) {
+            UI.showToast(error.message || 'No se pudo activar el enlace de colaborador.', 'error');
         }
     },
 

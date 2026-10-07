@@ -92,3 +92,65 @@ test('read-only views reject management, import and task edits before touching d
   assert.equal(warnings,15); assert.equal(prevented,true);
   assert.equal(component.data[0].estado,'Pendiente'); assert.equal(component.data[0].subtasks[0].done,false);
 });
+
+test('share offers both roles and copies a separate collaborator token in the project route', async () => {
+  const modal = { innerHTML: '', classList: { remove() {} } }, links = [];
+  const context = load([['js/components/project.js', 'ProjectComponent']], {
+    document: { getElementById: () => modal },
+    window: { location: { origin: 'https://nexus.example', pathname: '/app/', hash: '#/project/project?workspace=owner' } },
+    Store: { currentContext: { role: 'admin' }, getProjectData: async () => ({ sharingToken: 'guest-token-123' }), getCollaboratorToken: async () => 'collaborator-token-123' }
+  });
+  context.ProjectComponent.projectId = 'project';
+  context.ProjectComponent.copyLink = url => links.push(url);
+  await context.ProjectComponent.shareProject();
+  assert(modal.innerHTML.includes('Colaborador'));
+  assert(modal.innerHTML.includes('Invitado (Solo Lectura)'));
+  assert(modal.innerHTML.includes('?mode=readonly&t=guest-token-123'));
+  await context.ProjectComponent.copyCollaboratorLink();
+  assert.deepEqual(links, ['https://nexus.example/app/#/share/project?mode=edit&t=collaborator-token-123']);
+});
+
+test('shared writes use the service, retain stored attachment references and reject other projects and guests', async () => {
+  const calls = [], version = 'a'.repeat(64);
+  const context = load([['js/services/store.js', 'Store']], {
+    db: new Proxy({}, { get() { throw new Error('Shared writes must never reach the database'); } }),
+    AssistantAPI: { async publicRequest(route, options) { const body = JSON.parse(options.body); calls.push({ route, body }); return { saved: true, id: body.id, version: 'b'.repeat(64) }; } }
+  });
+  const attachment = { name: 'Manual', type: 'application/pdf', data: 'https://files.example/manual.pdf' };
+  context.Store.sharedAccess = { projectId: 'project', token: 'collaborator-token-123', isEditable: true, data: { tasks: { task: { _version: version, attachments: [attachment] } }, assets: { asset: { _version: version } }, _settingsVersion: version } };
+  await context.Store.updateTask('project', 'task', { description: 'Note', confidential: false, attachments: [attachment] });
+  assert.equal(calls[0].route, '/v1/shared-project/mutate');
+  assert.equal(calls[0].body.expectedVersion, version);
+  assert.equal(calls[0].body.changes.confidential, undefined);
+  assert.deepEqual(calls[0].body.changes.attachments, [{ existingIndex: 0 }]);
+  assert.equal(context.Store.sharedAccess.data.tasks.task._version, 'b'.repeat(64));
+  await context.Store.updateRubros('project', ['General']);
+  await context.Store.updateAsset('project', 'asset', { name: 'Pump' });
+  assert.equal(calls[1].body.operation, 'settings'); assert.equal(calls[2].body.operation, 'asset_update');
+  await assert.rejects(context.Store.updateTask('other', 'task', { description: 'Denied' }), /solo lectura/);
+  context.Store.sharedAccess.isEditable = false;
+  await assert.rejects(context.Store.addTask('project', {}), /solo lectura/);
+  await assert.rejects(context.Store.deleteAsset('project', 'asset'), /solo lectura/);
+  assert.equal(calls.length, 3);
+});
+
+test('shared task editors use server permissions and never trust mode=edit alone', async () => {
+  const container = { innerHTML: '' }, data = { name: 'Shared project', rubros: ['General'], responsables: [], tasks: {}, assets: {}, _sharedEditable: false };
+  const context = load([['js/utils.js', 'Utils'], ['js/components/project.js', 'ProjectComponent']], {
+    localStorage: { getItem: () => null },
+    Store: { getSharedProjectData: async () => data },
+    IntegrationsComponent: { load: async () => {}, isEnabled: () => false }
+  });
+  context.ProjectComponent.refreshUI = async () => {};
+  context.ProjectComponent.focusTaskFromSession = () => {};
+  const params = { get: name => name === 'mode' ? 'edit' : 'guest-token-123' };
+  await context.ProjectComponent.render(container, 'project', { isShared: true, isEditable: true, params });
+  assert.equal(context.ProjectComponent.isEditable, false);
+  assert(!container.innerHTML.includes('onclick="ProjectComponent.openTaskModal()"'));
+  data._sharedEditable = true;
+  await context.ProjectComponent.render(container, 'project', { isShared: true, isEditable: false, params });
+  assert.equal(context.ProjectComponent.isEditable, true);
+  assert(container.innerHTML.includes('onclick="ProjectComponent.openTaskModal()"'));
+  assert(container.innerHTML.includes('onclick="ProjectComponent.manageRubros()"'));
+  assert(!container.innerHTML.includes('id="task-confidential"'));
+});

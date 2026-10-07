@@ -88,6 +88,7 @@ const App = {
 
     // Router Logic
     handleRoute: async () => {
+        Store.sharedAccess = null;
         const hash = window.location.hash || '#/';
         console.log("Routing to:", hash);
 

@@ -2,9 +2,13 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
+import { setDefaultAutoSelectFamily } from 'node:net';
 import { createRequire } from 'node:module';
 import { separateInlineFiles, digest, jsonBytes } from '../tests/loading-trial-files.mjs';
 import { canonical } from '../functions/src/validation.mjs';
+
+// Keep Windows dual-stack connection probes from timing out against Hosting.
+setDefaultAutoSelectFamily(false);
 
 const options = Object.fromEntries(process.argv.slice(2).map(value => { const i = value.indexOf('='); return i < 0 ? [value.slice(2), true] : [value.slice(2, i), value.slice(i + 1)]; }));
 if (!options.apply || !options['firebase-tools']) throw new Error('Use --apply --firebase-tools=<installed firebase-tools/lib/api.js>');

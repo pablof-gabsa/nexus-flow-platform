@@ -2756,7 +2756,7 @@ const ProjectComponent = {
                 ${task.attachments.map(att => {
             const fileName = Utils.escapeHTML(att.name || 'adjunto');
             const mimeType = att.type || '';
-            const fileUrl = Utils.escapeHTML(ProjectComponent.getAttachmentOpenUrl(att));
+            const fileUrl = ProjectComponent.getAttachmentOpenUrl(att);
             const isImage = mimeType.startsWith('image/');
             const isPdf = mimeType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
             const icon = ProjectComponent.getFileIcon(mimeType, fileName);
@@ -2771,7 +2771,7 @@ const ProjectComponent = {
                         </div>`;
             } else if (isPdf) {
                 return `
-                        <a href="${fileUrl}" target="_blank" rel="noopener" class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col items-center gap-4 w-64 h-64 justify-center border border-gray-200 dark:border-slate-700 hover:scale-105 transition-transform group cursor-pointer">
+                        <a href="${Utils.escapeHTML(fileUrl)}" target="_blank" rel="noopener" class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col items-center gap-4 w-64 h-64 justify-center border border-gray-200 dark:border-slate-700 hover:scale-105 transition-transform group cursor-pointer">
                             <i class="${icon} text-6xl group-hover:text-red-600 transition-colors"></i>
                             <div class="text-center">
                                 <p class="font-bold text-gray-800 dark:text-white truncate max-w-full px-2 group-hover:text-brand-600 underline decoration-transparent group-hover:decoration-brand-600 transition-all" title="${fileName}">${fileName}</p>
@@ -2788,7 +2788,7 @@ const ProjectComponent = {
                                 <p class="text-xs text-gray-500 uppercase mt-1">${fileName.split('.').pop()}</p>
                             </div>
                             <div class="w-full mt-2">
-                                <a href="${fileUrl}" download="${fileName}" class="block w-full bg-brand-100 text-brand-700 hover:bg-brand-200 py-2 rounded-lg text-sm font-bold text-center transition-colors">
+                                <a href="${Utils.escapeHTML(fileUrl)}" download="${fileName}" class="block w-full bg-brand-100 text-brand-700 hover:bg-brand-200 py-2 rounded-lg text-sm font-bold text-center transition-colors">
                                     <i class="fas fa-download mr-1"></i> Descargar
                                 </a>
                             </div>

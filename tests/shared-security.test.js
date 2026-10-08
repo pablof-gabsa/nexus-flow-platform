@@ -4,8 +4,12 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 function load(files, options = {}) {
-  const context = { crypto: globalThis.crypto, Uint8Array, console, ...options };
+  const context = { crypto: globalThis.crypto, Uint8Array, console, AssistantAPI: { base: () => 'https://nexus.example' }, ...options };
+  context.window = context;
+  context.document ||= {};
+  context.document.addEventListener ||= () => {};
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js/services/project-files.js'), 'utf8'), context);
   for (const [file, symbol] of files) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8') + `\nglobalThis.${symbol} = ${symbol};`, context);
   return context;
 }

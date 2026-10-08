@@ -71,6 +71,11 @@ for (const id of ids) {
   const source = snapshot.value;
   if (!source) continue;
   if (!snapshot.etag) throw new Error('Database did not return an ETag; migration stopped');
+  const pending = state.projects[id];
+  if (pending?.expectedHash && digest(canonical(source)) === pending.expectedHash) {
+    Object.assign(pending, { completed: true, recoveredWriteReceipt: true, completedAt: new Date().toISOString() });
+    save(); console.log(JSON.stringify({ projectId: id, recoveredCompletedWrite: true })); continue;
+  }
   const backupName = `${id}-${digest(snapshot.etag).slice(0, 12)}.json`;
   if (!existsSync(join(directory, backupName))) writeFileSync(join(directory, backupName), JSON.stringify(source));
   state.projects[id] = { backup: backupName, sourceHash: digest(canonical(source)), tokenHash: digest(source.sharingToken || ''), tasks: Object.keys(source.tasks || {}).length, assets: Object.keys(source.assets || {}).length, sourceBytes: jsonBytes(source), etag: snapshot.etag, completed: false };
@@ -106,6 +111,8 @@ for (const id of ids) {
     await checked(`${firestore}/nexus_assistant_files/${id}_${hash}`, 'PATCH', { fields: { projectId: { stringValue: id }, objectKey: { stringValue: `project-files/${id}/${hash}` }, sha256: { stringValue: hash }, size: { integerValue: String(bytes.length) }, type: { stringValue: file.type }, name: { stringValue: 'adjunto' }, createdAt: { integerValue: String(Date.now()) } } });
   }
   if (digest(data.sharingToken || '') !== state.projects[id].tokenHash || Object.keys(data.tasks || {}).length !== state.projects[id].tasks || Object.keys(data.assets || {}).length !== state.projects[id].assets) throw new Error('Identity preservation check failed');
+  Object.assign(state.projects[id], { fileCount: files.length, uniqueFiles: verified.size, optimizedBytes: jsonBytes(data), expectedHash: digest(canonical(data)) });
+  save(); // An interrupted write can be recognized without uploading again.
   const result = await db(`project_data/${id}`, 'PUT', data, { 'If-Match': snapshot.etag });
   if (result.status === 412) { state.projects[id].conflict = true; save(); console.log(JSON.stringify({ projectId: id, concurrentChange: true, originalRetained: true })); continue; }
   if (digest(canonical(result.value)) !== digest(canonical(data))) throw new Error('Database write receipt mismatch');

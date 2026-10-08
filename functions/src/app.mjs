@@ -7,11 +7,13 @@ import { NexusError, parse, idSchema } from './validation.mjs';
 import { openapi } from './openapi.mjs';
 import { sharedProject, sharedProjectSchema } from './shared-project.mjs';
 import { collaboratorLink, mutateSharedProject, sharedMutationSchema } from './collaborator-links.mjs';
+import { ProjectFiles, uploadSchema, downloadSchema } from './project-files.mjs';
 
 export function createApp(repo, config) {
   const app = express();
   const service = new NexusService(repo, config.webUrl);
   const oauth = new NexusOAuth(repo, service, config);
+  const files = new ProjectFiles(repo, config);
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
   const allowedOrigins = new Set([new URL(config.webUrl).origin, new URL(config.baseUrl).origin, 'https://chatgpt.com', 'https://claude.ai', 'https://gemini.google.com']);
@@ -26,7 +28,7 @@ export function createApp(repo, config) {
   });
   const smallJson = express.json({ limit: '128kb' });
   const taskJson = express.json({ limit: '30mb' });
-  app.use((req, res, next) => (req.path === '/mcp' || req.path === '/v1/shared-project/mutate' || /^\/v1\/workspaces\/[^/]+\/projects\/[^/]+\/tasks(?:\/[^/]+)?$/.test(req.path) ? taskJson : smallJson)(req, res, next));
+  app.use((req, res, next) => (req.path === '/v1/project-files/upload' || req.path === '/mcp' || req.path === '/v1/shared-project/mutate' || /^\/v1\/workspaces\/[^/]+\/projects\/[^/]+\/tasks(?:\/[^/]+)?$/.test(req.path) ? taskJson : smallJson)(req, res, next));
   app.use(express.urlencoded({ extended: false, limit: '16kb' }));
   const bearer = req => {
     const match = /^Bearer ([A-Za-z0-9_.-]{20,4096})$/.exec(req.get('authorization') || '');
@@ -44,6 +46,14 @@ export function createApp(repo, config) {
   const throttled = (bucket, limit) => async (req, res, next) => {
     try { if (repo.throttle) await repo.throttle(`${bucket}:${req.ip}`, limit, 60_000); next(); } catch (error) { next(error); }
   };
+  const fileAuth = async (req, res, next) => req.body?.token ? next() : firebaseAuth(req, res, next);
+  app.post('/v1/project-files/upload', fileAuth, throttled('file-upload', 30), async (req, res) => res.status(201).json(await files.upload(parse(uploadSchema, req.body), req.actor)));
+  app.post('/v1/project-files/download', fileAuth, throttled('file-download', 120), async (req, res) => {
+    const file = await files.download(parse(downloadSchema, req.body), req.actor);
+    res.attachment(file.name).type(file.type).send(file.bytes);
+  });
+  // Stored references contain no public token; authenticated POST resolves them.
+  app.get('/v1/project-files/:projectId/:fileId', (req, res) => res.status(403).json({ error: 'file_authorization_required', message: 'Abrí este archivo desde el proyecto en Nexus.' }));
   app.get('/health', async (req, res) => {
     await repo.privateGet('health', 'readiness');
     await repo.get('nexus_assistant_health');

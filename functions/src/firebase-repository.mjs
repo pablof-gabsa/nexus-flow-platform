@@ -1,7 +1,11 @@
 import { hash, NexusError } from './validation.mjs';
 
 export class FirebaseRepository {
-  constructor(database, firestore, auth) { this.database = database; this.firestore = firestore; this.auth = auth; }
+  constructor(database, firestore, auth, bucket) { this.database = database; this.firestore = firestore; this.auth = auth; this.bucket = bucket; }
+  async saveFile(key, bytes, type) {
+    await this.bucket.file(key).save(bytes, { resumable: false, validation: 'crc32c', preconditionOpts: { ifGenerationMatch: 0 }, metadata: { contentType: type, cacheControl: 'private, no-store' } });
+  }
+  async readFile(key) { const [bytes] = await this.bucket.file(key).download(); return bytes; }
   async get(path) { return (await this.database.ref(path).get()).val(); }
   async getUser(uid) { try { return await this.auth.getUser(uid); } catch (e) { if (e.code === 'auth/user-not-found') return null; throw e; } }
   async verifyFirebase(token) { return this.auth.verifyIdToken(token, true); }

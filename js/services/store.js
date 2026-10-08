@@ -580,65 +580,22 @@ const Store = {
 
     // Storage
     uploadFile: async (file, context = {}) => {
-        const fallbackToBase64 = () => new Promise((resolve, reject) => {
+        const projectId = context.projectId || /^uploads\/(?:tasks|assets)\/([A-Za-z0-9_-]+)$/.exec(context.folder || '')?.[1];
+        if (!projectId) throw new Error('Seleccioná un proyecto para adjuntar el archivo.');
+        if (!file.size || file.size > 10 * 1024 * 1024) throw new Error('El archivo debe tener contenido y pesar como máximo 10 MB.');
+        const credentials = await ProjectFiles.credentials(projectId);
+        const data = await new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
+            reader.onload = () => resolve(String(reader.result).split(',')[1]);
+            reader.onerror = () => reject(new Error('No se pudo leer el archivo.'));
             reader.readAsDataURL(file);
         });
-
-        if (context.forceBase64) return fallbackToBase64();
-
-        let user = Auth.getCurrentUser();
-
-        if (!user && context.allowAnonymous && typeof auth !== 'undefined' && auth.signInAnonymously) {
-            try {
-                const credential = await auth.signInAnonymously();
-                user = credential.user || Auth.getCurrentUser();
-            } catch (error) {
-                console.warn("Anonymous upload session failed", error);
-            }
-        }
-
-        if (!user) {
-            if (context.fallbackToBase64) return fallbackToBase64();
-            throw new Error("Usuario no autenticado");
-        }
-
-        // Create a unique path: uploads/{uploaderUid}/{timestamp}_{filename}
-        // Using user.uid ensures admins can write to their own folder per Storage Rules
-        const uploaderId = user.uid;
-        const timestamp = Date.now();
-        const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-        const folder = context.folder || `uploads/${uploaderId}`;
-        const path = `${folder}/${uploaderId}_${timestamp}_${safeName}`;
-
-        try {
-            const ref = storage.ref(path);
-            const metadata = {
-                contentType: file.type || 'application/octet-stream',
-                customMetadata: {
-                    originalName: file.name
-                }
-            };
-
-            // Upload
-            const snapshot = await ref.put(file, metadata);
-
-            // Get URL
-            const url = await snapshot.ref.getDownloadURL();
-            return url;
-        } catch (error) {
-            if (context.fallbackToBase64) {
-                console.warn("Storage upload failed, using Base64 fallback", error);
-                return fallbackToBase64();
-            }
-            throw error;
-        }
+        const result = await AssistantAPI.publicRequest('/v1/project-files/upload', { method: 'POST', headers: credentials.headers, body: JSON.stringify({ projectId, ...credentials.body, name: file.name, type: file.type || 'application/octet-stream', data }) });
+        return result.url;
     },
 
     deleteUploadedFile: async (url) => {
-        if (Store.sharedAccess) return; // Remove only the shared reference; storage belongs to its uploader.
+        if (Store.sharedAccess || ProjectFiles.parse(url)) return; // References may also be used by recurring tasks; retain their private object.
         if (!url || typeof storage === 'undefined' || url.startsWith('data:')) return;
 
         try {

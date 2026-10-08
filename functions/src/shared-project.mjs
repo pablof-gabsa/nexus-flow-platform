@@ -17,9 +17,10 @@ export async function sharedProject(repo, { projectId, token }) {
   if (!owner?.ownerUid || !idSchema.safeParse(owner.ownerUid).success) throw unavailable();
   const project = await repo.get(`users/${owner.ownerUid}/projects/${projectId}`);
   if (!project || project.owner !== owner.ownerUid) throw unavailable();
+  const sharingToken = await repo.get(`project_data/${projectId}/sharingToken`);
+  const { readOnly } = await linkPermissions(repo, projectId, token, { sharingToken }, owner.ownerUid);
   const source = await repo.get(`project_data/${projectId}`);
   if (!source) throw unavailable();
-  const { readOnly } = await linkPermissions(repo, projectId, token, source, owner.ownerUid);
   const tasks = Object.fromEntries(Object.entries(source.tasks || {}).filter(([, task]) => task && !task.confidential && task.rubro !== 'Eliminado').map(([id, task]) => [id, {
     ...pick(task, taskFields),
     ...(!readOnly ? { _version: version(task) } : {}),

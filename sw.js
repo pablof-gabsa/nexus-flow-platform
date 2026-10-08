@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v57'; // Refresh all assets before activating a new version
+const CACHE_NAME = 'nexus-flow-v58'; // Refresh all assets before activating a new version
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -10,6 +10,7 @@ const ASSETS_TO_CACHE = [
     './js/services/auth.js',
     './js/services/assistant-config.js',
     './js/services/assistant-api.js',
+    './js/services/project-files.js',
     './js/components/ui.js',
     './js/components/integrations.js',
     './js/components/assistants.js',

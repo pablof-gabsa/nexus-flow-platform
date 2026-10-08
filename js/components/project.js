@@ -739,10 +739,7 @@ const ProjectComponent = {
             localStorage.setItem(`project_filters_${ProjectComponent.projectId}`, JSON.stringify(ProjectComponent.filters));
         }
 
-        ProjectComponent.render(document.getElementById('main-content'), ProjectComponent.projectId, {
-            isShared: ProjectComponent.isShared,
-            isEditable: ProjectComponent.isEditable
-        });
+        ProjectComponent.refreshUI(false);
 
         // If modal is open, re-render it to update selection state
         const modal = document.getElementById('filter-modal');
@@ -754,12 +751,12 @@ const ProjectComponent = {
     setSort: (type) => {
         ProjectComponent.sortBy = type;
         ProjectComponent.updateSortUI();
-        ProjectComponent.refreshUI();
+        ProjectComponent.refreshUI(false);
     },
 
     setSortOrder: () => {
         ProjectComponent.sortOrder = ProjectComponent.sortOrder === 'asc' ? 'desc' : 'asc';
-        ProjectComponent.refreshUI();
+        ProjectComponent.refreshUI(false);
     },
 
     updateSortUI: () => {
@@ -1206,9 +1203,6 @@ const ProjectComponent = {
 
                 // Call Store to upload
                 const url = await Store.uploadFile(file, {
-                    allowAnonymous: ProjectComponent.isShared,
-                    fallbackToBase64: true,
-                    forceBase64: ProjectComponent.isShared,
                     folder: `uploads/tasks/${ProjectComponent.projectId}`
                 });
 
@@ -1247,7 +1241,7 @@ const ProjectComponent = {
             return `
             <div class="relative group w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-slate-600 flex items-center justify-center bg-gray-50 dark:bg-slate-700" title="${Utils.escapeHTML(att.name)}">
                 ${isImage
-                    ? `<img src="${Utils.escapeHTML(att.data)}" class="w-full h-full object-cover">`
+                    ? `<img ${ProjectFiles.imageAttributes(att.data)} class="w-full h-full object-cover">`
                     : `<i class="${icon} text-2xl text-gray-500 dark:text-gray-400"></i>`
                 }
                 <button type="button" onclick="ProjectComponent.removeAttachment(${i})" class="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2032,13 +2026,13 @@ const ProjectComponent = {
     toggleSelectionMode: () => {
         ProjectComponent.isSelectionMode = !ProjectComponent.isSelectionMode;
         ProjectComponent.selectedTasks.clear();
-        ProjectComponent.refreshUI();
+        ProjectComponent.refreshUI(false);
     },
 
     toggleTaskSelection: (id, checked) => {
         if (checked) ProjectComponent.selectedTasks.add(id);
         else ProjectComponent.selectedTasks.delete(id);
-        ProjectComponent.refreshUI(); // Full refresh to update checkboxes state
+        ProjectComponent.refreshUI(false);
     },
 
     executeOctavoExport: async () => {
@@ -2762,7 +2756,7 @@ const ProjectComponent = {
                 ${task.attachments.map(att => {
             const fileName = Utils.escapeHTML(att.name || 'adjunto');
             const mimeType = att.type || '';
-            const fileUrl = Utils.escapeHTML(ProjectComponent.getAttachmentOpenUrl(att));
+            const fileUrl = ProjectComponent.getAttachmentOpenUrl(att);
             const isImage = mimeType.startsWith('image/');
             const isPdf = mimeType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
             const icon = ProjectComponent.getFileIcon(mimeType, fileName);
@@ -2770,14 +2764,14 @@ const ProjectComponent = {
             if (isImage) {
                 return `
                         <div class="relative group">
-                            <img src="${fileUrl}" class="max-h-[80vh] max-w-full object-contain rounded shadow-xl border border-gray-800">
+                            <img ${ProjectFiles.imageAttributes(fileUrl)} class="max-h-[80vh] max-w-full object-contain rounded shadow-xl border border-gray-800">
                             <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 ${fileName}
                             </div>
                         </div>`;
             } else if (isPdf) {
                 return `
-                        <a href="${fileUrl}" target="_blank" rel="noopener" class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col items-center gap-4 w-64 h-64 justify-center border border-gray-200 dark:border-slate-700 hover:scale-105 transition-transform group cursor-pointer">
+                        <a href="${Utils.escapeHTML(fileUrl)}" target="_blank" rel="noopener" class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-2xl flex flex-col items-center gap-4 w-64 h-64 justify-center border border-gray-200 dark:border-slate-700 hover:scale-105 transition-transform group cursor-pointer">
                             <i class="${icon} text-6xl group-hover:text-red-600 transition-colors"></i>
                             <div class="text-center">
                                 <p class="font-bold text-gray-800 dark:text-white truncate max-w-full px-2 group-hover:text-brand-600 underline decoration-transparent group-hover:decoration-brand-600 transition-all" title="${fileName}">${fileName}</p>
@@ -2794,7 +2788,7 @@ const ProjectComponent = {
                                 <p class="text-xs text-gray-500 uppercase mt-1">${fileName.split('.').pop()}</p>
                             </div>
                             <div class="w-full mt-2">
-                                <a href="${fileUrl}" download="${fileName}" class="block w-full bg-brand-100 text-brand-700 hover:bg-brand-200 py-2 rounded-lg text-sm font-bold text-center transition-colors">
+                                <a href="${Utils.escapeHTML(fileUrl)}" download="${fileName}" class="block w-full bg-brand-100 text-brand-700 hover:bg-brand-200 py-2 rounded-lg text-sm font-bold text-center transition-colors">
                                     <i class="fas fa-download mr-1"></i> Descargar
                                 </a>
                             </div>

@@ -20,6 +20,7 @@ jobs:
       - run: node --check js/components/assistants.js
       - run: node --test tests/shared-security.test.js
       - run: node --test tests/loading-trial-files.test.mjs
+      - run: node --test tests/project-files.test.js
       - run: node tests/project-pdf-order.test.js
       - run: node tests/project-confidential.test.js
       - run: npm audit --prefix functions --omit=dev

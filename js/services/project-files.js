@@ -1,6 +1,7 @@
 // Private references are resolved only for displayed images or clicked links.
 window.ProjectFiles = {
     cache: new Map(),
+    urls: new Set(),
     context: '',
     parse: (value) => {
         if (typeof value !== 'string') return null;
@@ -14,6 +15,8 @@ window.ProjectFiles = {
         : `src="${Utils.escapeHTML(url || '')}" loading="lazy"`,
     clear: () => {
         for (const entry of ProjectFiles.cache.values()) entry.then(value => URL.revokeObjectURL(value.url)).catch(() => {});
+        for (const url of ProjectFiles.urls) URL.revokeObjectURL(url);
+        ProjectFiles.urls.clear();
         ProjectFiles.cache.clear();
         ProjectFiles.context = '';
     },
@@ -40,14 +43,16 @@ window.ProjectFiles = {
                     throw new Error(error.message || 'No se pudo abrir el archivo.');
                 }
                 const blob = await response.blob();
-                return { url: URL.createObjectURL(blob), type: blob.type };
+                const url = URL.createObjectURL(blob);
+                ProjectFiles.urls.add(url);
+                return { url, type: blob.type };
             })();
             ProjectFiles.cache.set(reference, request);
             request.catch(() => ProjectFiles.cache.delete(reference));
-            // Bound memory use; each project navigation also clears these URLs.
+            // Keep a small lookup cache, retaining URLs used by displayed images
+            // until navigation so an eviction cannot break an image being loaded.
             if (ProjectFiles.cache.size > 20) {
                 const first = ProjectFiles.cache.keys().next().value;
-                ProjectFiles.cache.get(first).then(value => URL.revokeObjectURL(value.url)).catch(() => {});
                 ProjectFiles.cache.delete(first);
             }
         }

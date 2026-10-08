@@ -181,7 +181,7 @@ const AssetsComponent = {
             <button onclick="AssetsComponent.openCategory('${category}')" class="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all group border border-transparent hover:border-brand-200 dark:hover:border-brand-900 text-left">
                 <div class="h-40 bg-gray-100 dark:bg-slate-700 relative overflow-hidden">
                     ${cover
-                        ? `<img src="${cover}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="${category}">`
+                        ? `<img ${ProjectFiles.imageAttributes(cover)} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="${category}">`
                         : `<div class="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600"><i class="fas fa-layer-group text-5xl"></i></div>`
                     }
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
@@ -258,7 +258,7 @@ const AssetsComponent = {
             <div class="glass-card rounded-xl overflow-hidden hover:shadow-lg transition-all group border border-transparent hover:border-brand-200 dark:hover:border-brand-900 cursor-pointer" onclick="AssetsComponent.openDetail('${asset.id}'); document.getElementById('asset-category-detail-modal')?.remove();">
                 <div class="h-40 bg-gray-100 dark:bg-slate-700 relative overflow-hidden">
                     ${asset.image
-                        ? `<img src="${asset.image}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="${asset.name}">`
+                        ? `<img ${ProjectFiles.imageAttributes(asset.image)} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="${asset.name}">`
                         : `<div class="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600"><i class="fas fa-image text-5xl"></i></div>`
                     }
                     ${AssetsComponent.isEditable ? `<div class="absolute top-2 right-2 flex gap-1" onclick="event.stopPropagation()">
@@ -646,15 +646,12 @@ const AssetsComponent = {
     },
 
     getUploadContext: () => ({
-        allowAnonymous: AssetsComponent.isShared,
-        fallbackToBase64: true,
-        forceBase64: AssetsComponent.isShared,
         folder: `uploads/assets/${AssetsComponent.projectId}`
     }),
 
     renderImagePreview: (url) => `
         <div class="relative group">
-            <img src="${url}" class="w-full h-32 object-cover rounded-lg">
+            <img ${ProjectFiles.imageAttributes(url)} class="w-full h-32 object-cover rounded-lg">
             <button type="button" onclick="AssetsComponent.removeAssetImage()" class="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow flex items-center justify-center opacity-90 hover:opacity-100" title="Quitar imagen">
                 <i class="fas fa-trash-alt text-xs"></i>
             </button>
@@ -688,7 +685,7 @@ const AssetsComponent = {
             const icon = isImage ? 'fas fa-image' : (att.name.endsWith('.pdf') ? 'fas fa-file-pdf text-red-500' : 'fas fa-file text-gray-400');
             return `
                 <div class="relative group w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-slate-600 flex items-center justify-center bg-gray-50 dark:bg-slate-700" title="${att.name}">
-                    ${isImage ? `<img src="${att.data}" class="w-full h-full object-cover">` : `<i class="${icon} text-2xl"></i>`}
+                    ${isImage ? `<img ${ProjectFiles.imageAttributes(att.data)} class="w-full h-full object-cover">` : `<i class="${icon} text-2xl"></i>`}
                     <button type="button" onclick="AssetsComponent.removeAssetDoc(${i})" class="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity">
                         <i class="fas fa-times text-xs"></i>
                     </button>
@@ -774,7 +771,7 @@ const AssetsComponent = {
             <!-- Image -->
             ${asset.image ? `
                 <div class="rounded-xl overflow-hidden mb-6 max-h-64 relative group">
-                    <img src="${asset.image}" class="w-full h-full object-cover" alt="${asset.name}">
+                    <img ${ProjectFiles.imageAttributes(asset.image)} class="w-full h-full object-cover" alt="${asset.name}">
                     ${AssetsComponent.isEditable ? `
                     <button onclick="AssetsComponent.deleteAssetImage('${assetId}')" class="absolute top-3 right-3 bg-red-500 text-white w-9 h-9 rounded-full shadow flex items-center justify-center opacity-90 hover:opacity-100" title="Eliminar imagen">
                         <i class="fas fa-trash-alt text-xs"></i>

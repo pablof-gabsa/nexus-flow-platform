@@ -1203,9 +1203,6 @@ const ProjectComponent = {
 
                 // Call Store to upload
                 const url = await Store.uploadFile(file, {
-                    allowAnonymous: ProjectComponent.isShared,
-                    fallbackToBase64: true,
-                    forceBase64: ProjectComponent.isShared,
                     folder: `uploads/tasks/${ProjectComponent.projectId}`
                 });
 
@@ -1244,7 +1241,7 @@ const ProjectComponent = {
             return `
             <div class="relative group w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-slate-600 flex items-center justify-center bg-gray-50 dark:bg-slate-700" title="${Utils.escapeHTML(att.name)}">
                 ${isImage
-                    ? `<img src="${Utils.escapeHTML(att.data)}" class="w-full h-full object-cover">`
+                    ? `<img ${ProjectFiles.imageAttributes(att.data)} class="w-full h-full object-cover">`
                     : `<i class="${icon} text-2xl text-gray-500 dark:text-gray-400"></i>`
                 }
                 <button type="button" onclick="ProjectComponent.removeAttachment(${i})" class="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2767,7 +2764,7 @@ const ProjectComponent = {
             if (isImage) {
                 return `
                         <div class="relative group">
-                            <img src="${fileUrl}" class="max-h-[80vh] max-w-full object-contain rounded shadow-xl border border-gray-800">
+                            <img ${ProjectFiles.imageAttributes(fileUrl)} class="max-h-[80vh] max-w-full object-contain rounded shadow-xl border border-gray-800">
                             <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 text-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 ${fileName}
                             </div>

@@ -50,7 +50,7 @@ export function createApp(repo, config) {
   app.post('/v1/project-files/upload', fileAuth, throttled('file-upload', 30), async (req, res) => res.status(201).json(await files.upload(parse(uploadSchema, req.body), req.actor)));
   app.post('/v1/project-files/download', fileAuth, throttled('file-download', 120), async (req, res) => {
     const file = await files.download(parse(downloadSchema, req.body), req.actor);
-    res.type(file.type).attachment(file.name).send(file.bytes);
+    res.attachment(file.name).type(file.type).send(file.bytes);
   });
   // Stored references contain no public token; authenticated POST resolves them.
   app.get('/v1/project-files/:projectId/:fileId', (req, res) => res.status(403).json({ error: 'file_authorization_required', message: 'Abrí este archivo desde el proyecto en Nexus.' }));

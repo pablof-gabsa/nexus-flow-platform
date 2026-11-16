@@ -86,10 +86,30 @@ const original = JSON.stringify(project.data);
     assert.deepEqual(printed, ['Reparación', 'Inspección']);
     project.openRubros.clear();
     project.renderChecklist();
-    const closedParent = checklist.innerHTML.slice(checklist.innerHTML.indexOf('data-rubro="Obras"'));
-    assert.match(closedParent, /class="hidden[^\"]*">\s*<\/div>\s*<div data-subareas="Obras"/,
-        'subareas remain outside the collapsed parent task container');
+    function visibleContent() {
+        const hidden = [];
+        let visible = '';
+        for (const token of checklist.innerHTML.match(/<[^>]+>|[^<]+/g)) {
+            if (token.startsWith('<div ')) hidden.push((token.match(/class="([^"]*)"/)?.[1] || '').split(/\s+/).includes('hidden'));
+            if (!hidden.includes(true)) visible += token;
+            if (token === '</div>') hidden.pop();
+        }
+        return visible;
+    }
     const escapedSubarea = vm.runInContext('Utils.escapeHTML', context)(subarea);
-    assert.ok(closedParent.includes(`data-rubro="${escapedSubarea}"`));
+    const escapedNested = vm.runInContext('Utils.escapeHTML', context)(nestedArea);
+    assert.ok(!visibleContent().includes(`data-rubro="${escapedSubarea}"`));
+    project.toggleRubro('Obras');
+    assert.ok(visibleContent().includes(`data-rubro="${escapedSubarea}"`));
+    assert.ok(!visibleContent().includes(`data-rubro="${escapedNested}"`));
+    project.toggleRubro(subarea);
+    assert.ok(visibleContent().includes(`data-rubro="${escapedNested}"`));
+    assert.ok(!visibleContent().includes(`[${project.data[0].requerimiento}]`));
+    assert.ok(visibleContent().includes(`[${project.data[1].requerimiento}]`));
+    project.toggleRubro(nestedArea);
+    assert.ok(visibleContent().includes(`[${project.data[0].requerimiento}]`));
+    project.toggleRubro('Obras');
+    assert.ok(!visibleContent().includes(`data-rubro="${escapedSubarea}"`));
+    assert.ok(!visibleContent().includes(`[${project.data[0].requerimiento}]`));
     console.log('PDF and checklist order verified for all sort modes and directions.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -503,9 +503,18 @@ const Store = {
     },
 
     // Config
-    updateRubros: async (projectId, rubros) => {
+    updateRubros: async (projectId, rubros, expectedRubros) => {
+        const matchesDraft = current => JSON.stringify(current || []) === JSON.stringify(expectedRubros);
+        const conflict = () => new Error('Las áreas cambiaron. Volvé a abrir el proyecto antes de guardar.');
+        if (Store.sharedAccess && expectedRubros && !matchesDraft(Store.sharedAccess.data.rubros)) throw conflict();
         if (Store.sharedAccess) return Store.mutateShared(projectId, 'settings', { rubros });
-        await db.ref(`project_data/${projectId}/rubros`).set(rubros);
+        const ref = db.ref(`project_data/${projectId}/rubros`);
+        if (!expectedRubros) return ref.set(rubros);
+
+        // Seed the local cache before comparing the draft with a transaction.
+        await ref.once('value');
+        const result = await ref.transaction(current => matchesDraft(current) ? rubros : undefined);
+        if (!result.committed) throw conflict();
     },
 
     updateResponsables: async (projectId, responsables) => {

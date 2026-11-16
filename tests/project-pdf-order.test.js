@@ -22,6 +22,8 @@ const context = {
     } } }
 };
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/utils.js'), 'utf8') +
+    '\nObject.assign(Utils, globalThis.Utils);', context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/components/project.js'), 'utf8') +
     '\nglobalThis.project = ProjectComponent;', context);
 const project = context.project;
@@ -68,5 +70,19 @@ const original = JSON.stringify(project.data);
     await project.generatePDF(['Obras']);
     assert.deepEqual(printed, ['Delta', 'Beta'], 'PDF keeps filters and selected rubros');
     assert.equal(JSON.stringify(project.data), original, 'sorting must not mutate stored tasks');
+
+    const subarea = "Obras › Agua & 'Riego'";
+    const nestedArea = subarea + ' › Pozos';
+    project.rubros = [nestedArea, 'Servicios', 'Obras', subarea, 'Eliminado'];
+    project.filters.priority = 'Todos';
+    project.openRubros = new Set(['Obras', subarea, nestedArea]);
+    project.data = [task('Inspección', null, 'Alta', nestedArea), task('Reparación', null, 'Alta', subarea)];
+    project.renderChecklist();
+    assert.deepEqual(Array.from(project.orderedRubros()), ['Servicios', 'Obras', subarea, nestedArea, 'Eliminado']);
+    assert.match(checklist.innerHTML, /data-rubro="Obras"[\s\S]*data-rubro="Obras › Agua &amp; &#39;Riego&#39;"[\s\S]*\[Reparación\][\s\S]*\[Inspección\]/);
+    assert.match(project.rubroOptions(project.rubros, subarea), /value="Obras › Agua &amp; &#39;Riego&#39;" selected/);
+    printed = [];
+    await project.generatePDF([subarea, nestedArea]);
+    assert.deepEqual(printed, ['Reparación', 'Inspección']);
     console.log('PDF and checklist order verified for all sort modes and directions.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

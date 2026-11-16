@@ -2,6 +2,7 @@ const ProjectComponent = {
     projectId: null,
     data: [], // Tasks
     rubros: [],
+    rubroSeparator: ' › ',
     responsables: [],
     assets: [], // Assets for this project
 
@@ -205,7 +206,7 @@ const ProjectComponent = {
                                     <!-- Management -->
                                     ${ProjectComponent.isEditable ? `
                                     <button onclick="ProjectComponent.manageRubros()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">
-                                        <i class="fas fa-folder mr-2 text-blue-500 w-5 text-center"></i> Areas
+                                        <i class="fas fa-folder mr-2 text-blue-500 w-5 text-center"></i> Áreas
                                     </button>
                                     <button onclick="ProjectComponent.manageResponsables()" class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">
                                         <i class="fas fa-users mr-2 text-green-500 w-5 text-center"></i> Responsables
@@ -270,10 +271,10 @@ const ProjectComponent = {
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium dark:text-gray-300">Area</label>
+                                <label for="task-rubro" class="block text-sm font-medium dark:text-gray-300">Área o subárea</label>
                                 <div class="flex gap-2">
                                     <select name="rubro" id="task-rubro" class="input-primary mt-1 flex-1"></select>
-                                    <button type="button" onclick="ProjectComponent.manageRubros()" class="mt-1 px-3 py-2 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors" title="Editar Areas">
+                                    <button type="button" onclick="ProjectComponent.manageRubros()" class="mt-1 px-3 py-2 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors" title="Gestionar áreas y subáreas">
                                         <i class="fas fa-cog"></i>
                                     </button>
                                 </div>
@@ -600,6 +601,10 @@ const ProjectComponent = {
         if (!task) return;
 
         ProjectComponent.openRubros.add(task.rubro);
+        const areas = ProjectComponent.rubroTree();
+        for (let parent = areas.get(task.rubro)?.parent; parent; parent = areas.get(parent)?.parent) {
+            ProjectComponent.openRubros.add(parent);
+        }
 
         const isVisible = ProjectComponent.getFilteredData().some(t => t.id === taskId);
         if (!isVisible) {
@@ -716,18 +721,6 @@ const ProjectComponent = {
             const pText = document.getElementById('project-progress-text');
             if (bar) bar.style.width = `${percent}%`;
             if (pText) pText.textContent = `${percent}%`;
-        }
-    },
-
-    renderModalOptions: () => {
-        const rubroSelect = document.getElementById('task-rubro');
-        const respSelect = document.getElementById('task-resp');
-        const assetSelect = document.getElementById('task-asset');
-        if (rubroSelect) rubroSelect.innerHTML = ProjectComponent.rubros.map(r => `<option>${r}</option>`).join('');
-        if (respSelect) respSelect.innerHTML = ProjectComponent.responsables.map(r => `<option>${r}</option>`).join('');
-        if (assetSelect) {
-            assetSelect.innerHTML = '<option value="">— Sin activo —</option>' +
-                ProjectComponent.assets.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
         }
     },
 
@@ -924,6 +917,41 @@ const ProjectComponent = {
         });
     },
 
+    isSystemRubro: rubro => rubro === 'Realizados' || rubro === 'Eliminado',
+
+    rubroTree: (rubros = ProjectComponent.rubros) => {
+        const separator = ProjectComponent.rubroSeparator;
+        const areas = new Map([...new Set(rubros)].map(rubro => [rubro, { name: rubro, parent: '', children: [] }]));
+        for (const [rubro, area] of areas) {
+            const boundary = rubro.lastIndexOf(separator);
+            if (boundary === -1) continue;
+            const parent = rubro.slice(0, boundary);
+            if (!areas.has(parent) || ProjectComponent.isSystemRubro(parent)) continue;
+            area.parent = parent;
+            area.name = rubro.slice(boundary + separator.length);
+            areas.get(parent).children.push(rubro);
+        }
+        return areas;
+    },
+
+    orderedRubros: (rubros = ProjectComponent.rubros) => {
+        const areas = ProjectComponent.rubroTree(rubros);
+        const ordered = [];
+        const visit = rubro => {
+            ordered.push(rubro);
+            areas.get(rubro).children.forEach(visit);
+        };
+        for (const [rubro, area] of areas) {
+            if (!area.parent) visit(rubro);
+        }
+        return ordered;
+    },
+
+    rubroOptions: (rubros, selected) => ProjectComponent.orderedRubros(rubros).map(rubro => {
+        const value = Utils.escapeHTML(rubro);
+        return `<option value="${value}" ${rubro === selected ? 'selected' : ''}>${value}</option>`;
+    }).join(''),
+
     renderChecklist: () => {
         const container = document.getElementById('checklist-container');
         if (!container) return;
@@ -933,41 +961,42 @@ const ProjectComponent = {
         const groups = filtered.reduce((acc, item) => {
             (acc[item.rubro] = acc[item.rubro] || []).push(item);
             return acc;
-        }, {});
+        }, Object.create(null));
 
-        container.innerHTML = ProjectComponent.rubros.map(rubro => {
+        const areas = ProjectComponent.rubroTree();
+        const renderArea = rubro => {
+            const area = areas.get(rubro);
             const items = ProjectComponent.sortTasks(groups[rubro] || []);
-
-            // if (rubro === 'Eliminado' && items.length === 0) return ''; // Always show all rubros
-            // if (rubro === 'Eliminado' && items.length === 0) return ''; // Always show all rubros
-
             const isOpen = ProjectComponent.openRubros.has(rubro);
             const doneCount = items.filter(i => i.estado === 'Realizado').length;
 
             return `
                 <div class="glass-card rounded-xl overflow-hidden mb-4">
-                    <div class="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
-                         onclick="ProjectComponent.toggleRubro('${rubro}')">
+                    <button type="button" class="w-full text-left p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                         aria-expanded="${isOpen}" data-rubro="${Utils.escapeHTML(rubro)}"
+                         onclick="ProjectComponent.toggleRubro(this.dataset.rubro)">
                         <div class="flex items-center gap-3">
-                            <i class="fas fa-folder text-brand-400"></i>
-                            <h3 class="font-bold text-gray-800 dark:text-white">${rubro}</h3>
+                            <i class="fas fa-folder${area.parent ? '-open' : ''} text-brand-400"></i>
+                            <span class="font-bold text-gray-800 dark:text-white">${Utils.escapeHTML(area.name)}</span>
                         </div>
                         <div class="flex items-center gap-4">
                             <span class="text-sm font-medium text-gray-500">${doneCount} / ${items.length}</span>
                             <i class="fas fa-chevron-${isOpen ? 'up' : 'down'} text-gray-400"></i>
                         </div>
-                    </div>
+                    </button>
                     
                     <div class="${isOpen ? 'block' : 'hidden'} border-t border-gray-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/30">
-                        ${items.length === 0 ? '<p class="p-4 text-center text-gray-400 text-sm">No hay tareas</p>' :
+                        ${items.length === 0 ? (area.children.length ? '' : '<p class="p-4 text-center text-gray-400 text-sm">No hay tareas</p>') :
                     `<ul class="divide-y divide-gray-100 dark:divide-slate-700">
                                 ${items.map(item => ProjectComponent.renderTaskItem(item)).join('')}
                            </ul>`
                 }
+                        ${area.children.length ? `<div class="pl-3 pr-2 pt-3 sm:pl-5">${area.children.map(renderArea).join('')}</div>` : ''}
                     </div>
                 </div>
             `;
-        }).join('');
+        };
+        container.innerHTML = [...areas].filter(([, area]) => !area.parent).map(([rubro]) => renderArea(rubro)).join('');
     },
 
     renderTaskItem: (item) => {
@@ -1724,10 +1753,10 @@ const ProjectComponent = {
         modal.innerHTML = `
             <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-scale-up">
                 <h3 class="text-xl font-bold dark:text-white mb-4">Mover Tarea</h3>
-                <p class="text-sm text-gray-500 mb-4">Selecciona el nuevo rubro para la tarea:</p>
+                <label for="move-rubro-select" class="block text-sm text-gray-500 mb-4">Área o subárea de destino</label>
                 
                 <select id="move-rubro-select" class="input-primary mb-6">
-                    ${ProjectComponent.rubros.map(r => `<option value="${r}" ${r === currentRubro ? 'selected' : ''}>${r}</option>`).join('')}
+                    ${ProjectComponent.rubroOptions(ProjectComponent.rubros, currentRubro)}
                 </select>
 
                 <div class="flex justify-end gap-3">
@@ -1764,10 +1793,10 @@ const ProjectComponent = {
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-fade-in';
 
-        const options = ProjectComponent.rubros.map(r => `
+        const options = ProjectComponent.orderedRubros().map(r => `
             <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors">
-                <input type="checkbox" value="${r}" class="w-5 h-5 text-brand-600 rounded focus:ring-brand-500 border-gray-300 dark:border-slate-600 dark:bg-slate-700" checked>
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${r}</span>
+                <input type="checkbox" value="${Utils.escapeHTML(r)}" class="w-5 h-5 text-brand-600 rounded focus:ring-brand-500 border-gray-300 dark:border-slate-600 dark:bg-slate-700" checked>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">${Utils.escapeHTML(r)}</span>
             </label>
         `).join('');
 
@@ -1884,7 +1913,7 @@ const ProjectComponent = {
 
         // Filter rubros based on selection (if array is passed)
         // If string 'all' was passed (legacy), check it, but we moved to array.
-        let rubrosToExport = ProjectComponent.rubros;
+        let rubrosToExport = ProjectComponent.orderedRubros();
         if (Array.isArray(selectedRubros)) {
             rubrosToExport = selectedRubros;
         } else if (selectedRubros !== 'all' && selectedRubros) {
@@ -2227,17 +2256,26 @@ const ProjectComponent = {
     // Management Actions
     manageRubros: () => {
         if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
-        ProjectComponent.openManageModal('Gestionar Areas', ProjectComponent.rubros, async (newList) => {
+        const projectId = ProjectComponent.projectId;
+        ProjectComponent.openManageModal('Gestionar áreas', ProjectComponent.rubros, async (newList, oldList) => {
             // Protect 'Realizados' and 'Eliminado'
             if (!newList.includes('Realizados')) newList.push('Realizados');
             if (!newList.includes('Eliminado')) newList.push('Eliminado');
 
-            await Store.updateRubros(ProjectComponent.projectId, newList);
+            await Store.updateRubros(projectId, newList, oldList);
+            if (ProjectComponent.projectId !== projectId) return;
             ProjectComponent.rubros = newList;
+            const areas = ProjectComponent.rubroTree();
+            for (const rubro of newList) {
+                if (oldList.includes(rubro)) continue;
+                for (let parent = areas.get(rubro).parent; parent; parent = areas.get(parent).parent) {
+                    ProjectComponent.openRubros.add(parent);
+                }
+            }
             ProjectComponent.renderModalOptions();
             ProjectComponent.renderChecklist();
-            UI.showToast('Areas actualizadas', 'success');
-        });
+            UI.showToast('Áreas actualizadas', 'success');
+        }, { areas: true });
     },
 
     manageResponsables: () => {
@@ -2270,146 +2308,168 @@ const ProjectComponent = {
         });
     },
 
-    openManageModal: (title, currentList, onSave) => {
+    openManageModal: (title, currentList, onSave, { areas = false } = {}) => {
         if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
-        const modalId = 'manage-modal';
-        let modal = document.getElementById(modalId);
-
-        // Create modal if not exists
+        let modal = document.getElementById('manage-modal');
         if (!modal) {
             modal = document.createElement('div');
-            modal.id = modalId;
+            modal.id = 'manage-modal';
             modal.className = 'fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4';
             document.body.appendChild(modal);
         }
 
-        // Temporary state for the modal
-        let tempList = [...currentList];
-
-        const renderList = () => {
-            const listContainer = document.getElementById('manage-list-items');
-            if (listContainer) {
-                listContainer.innerHTML = tempList.map((item, i) => {
-                    const isEditable = item !== 'Eliminado' && item !== 'Realizados';
-                    return `
-                    <div class="flex justify-between items-center p-2 bg-gray-50 dark:bg-slate-700/50 rounded mb-2 group" data-value="${item}">
-                        <div class="flex items-center gap-3 flex-1">
-                            <i class="fas fa-grip-vertical text-gray-400 ${isEditable ? 'cursor-move hover:text-gray-600' : 'opacity-30 cursor-not-allowed'}"></i>
-                            ${isEditable ?
-                            `<input type="text" class="bg-transparent border-none focus:ring-0 text-gray-800 dark:text-gray-200 w-full p-0 font-medium cursor-text hover:bg-white/50 dark:hover:bg-slate-600/50 rounded px-1 transition-colors" 
-                                    value="${item}" 
-                                    onchange="document.dispatchEvent(new CustomEvent('rename-manage-item', {detail: {idx: ${i}, val: this.value}}))">`
-                            : `<span class="text-gray-500 italic cursor-not-allowed select-none px-1">${item}</span>`
-                        }
-                        </div>
-                        ${isEditable ? `
-                        <button onclick="document.dispatchEvent(new CustomEvent('remove-manage-item', {detail: ${i}}))" class="text-red-500 hover:text-red-700 p-1 opacity-50 group-hover:opacity-100 transition-opacity" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </button>` : `<span class="p-1"><i class="fas fa-lock text-gray-300 dark:text-gray-600 text-xs"></i></span>`}
-                    </div>
-                `}).join('');
-
-                // Init Sortable (Disable for 'Eliminado' if needed, but easier to just filter)
-                if (listContainer._sortable) listContainer._sortable.destroy();
-                listContainer._sortable = new Sortable(listContainer, {
-                    animation: 150,
-                    handle: '.fa-grip-vertical',
-                    filter: '.fa-lock', // Cannot drag locked items
-                    onEnd: () => {
-                        // Re-read *current* values from DOM inputs if renaming happened before drag end? 
-                        // Safer to read data attributes as base, assuming rename updates array.
-                        // Actually, updating array via onEnding might overwrite pending rename inputs? 
-                        // Let's rely on map of DOM elements.
-                        const newOrder = Array.from(listContainer.children).map(el => {
-                            const input = el.querySelector('input');
-                            return input ? input.value : el.getAttribute('data-value');
-                        });
-                        tempList = newOrder;
-                    }
-                });
-            }
-        };
+        const escape = Utils.escapeHTML;
+        const separator = ProjectComponent.rubroSeparator;
+        const tree = areas ? ProjectComponent.rubroTree(currentList) : new Map();
+        const initialOrder = areas ? ProjectComponent.orderedRubros(currentList) : currentList;
+        const rows = initialOrder.map(value => ({ original: value, name: tree.get(value)?.name ?? value, parent: null }));
+        const byOriginal = new Map(rows.map(row => [row.original, row]));
+        for (const row of rows) row.parent = byOriginal.get(tree.get(row.original)?.parent) ?? null;
+        const path = row => row.parent ? path(row.parent) + separator + row.name : row.name;
+        const warn = message => UI.showToast(message, 'warning');
+        const isLocked = row => ProjectComponent.isSystemRubro(row.original);
+        const isValidName = name => name && !name.includes(separator.trim()) && !/[<>]/.test(name);
 
         modal.innerHTML = `
             <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-scale-up">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl font-bold dark:text-white">${title}</h3>
-                    <button id="close-manage-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white text-2xl">&times;</button>
+                    <button type="button" data-close class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white text-2xl" aria-label="Cerrar">&times;</button>
                 </div>
-                
+                ${areas ? `
+                    <label for="manage-parent" class="block text-sm font-medium dark:text-gray-300 mb-1">Área superior</label>
+                    <select id="manage-parent" class="input-primary mb-3"></select>
+                ` : ''}
                 <div class="flex gap-2 mb-4">
-                    <input type="text" id="new-manage-item" class="input-primary" placeholder="Nuevo elemento...">
-                    <button id="add-manage-item" class="btn-primary px-4"><i class="fas fa-plus"></i></button>
+                    <input type="text" id="new-manage-item" class="input-primary" placeholder="${areas ? 'Nombre del área o subárea' : 'Nuevo elemento...'}" aria-label="${areas ? 'Nombre del área o subárea' : 'Nuevo elemento'}">
+                    <button type="button" id="add-manage-item" class="btn-primary px-4" aria-label="Agregar"><i class="fas fa-plus"></i></button>
                 </div>
-
                 <div id="manage-list-items" class="max-h-60 overflow-y-auto mb-6"></div>
-
                 <div class="flex justify-end gap-3">
-                    <button id="cancel-manage" class="btn-secondary">Cancelar</button>
-                    <button id="save-manage" class="btn-primary">Guardar Cambios</button>
+                    <button type="button" data-close class="btn-secondary">Cancelar</button>
+                    <button type="button" id="save-manage" class="btn-primary">Guardar Cambios</button>
                 </div>
             </div>
         `;
 
-        modal.classList.remove('hidden');
+        const list = modal.querySelector('#manage-list-items');
+        const parentSelect = modal.querySelector('#manage-parent');
+        const newItem = modal.querySelector('#new-manage-item');
+        const refreshParents = selected => {
+            if (!parentSelect) return;
+            parentSelect.innerHTML = '<option value="">Ninguna (área principal)</option>' + rows.map((row, index) =>
+                isLocked(row) ? '' : `<option value="${index}" ${row === selected ? 'selected' : ''}>${escape(path(row))}</option>`
+            ).join('');
+        };
+        const selectedParent = () => rows[parentSelect?.value] ?? null;
+        const renderList = (parent = selectedParent()) => {
+            list.innerHTML = rows.map((row, index) => `
+                <div data-index="${index}" class="flex items-center gap-3 p-2 mb-2 bg-gray-50 dark:bg-slate-700/50 rounded">
+                    ${isLocked(row) ? `
+                        <i class="fas fa-lock text-gray-400" aria-hidden="true"></i>
+                        <span class="text-gray-500 italic">${escape(row.name)}</span>
+                    ` : `
+                        <i class="fas fa-grip-vertical text-gray-400 cursor-move" aria-hidden="true"></i>
+                        ${row.parent ? '<i class="fas fa-level-up-alt fa-rotate-90 text-gray-400" aria-hidden="true"></i>' : ''}
+                        <input type="text" value="${escape(row.name)}" aria-label="${escape(path(row))}" class="min-w-0 flex-1 bg-transparent border-none text-gray-800 dark:text-gray-200 p-1">
+                        <button type="button" data-remove class="text-red-500 hover:text-red-700 p-1" aria-label="Eliminar ${escape(path(row))}"><i class="fas fa-trash"></i></button>
+                    `}
+                </div>
+            `).join('');
+            refreshParents(parent);
+        };
         renderList();
+        modal.classList.remove('hidden');
 
-        // Event Handlers
-        const close = () => modal.classList.add('hidden');
+        const sortable = new Sortable(list, {
+            animation: 150,
+            handle: '.fa-grip-vertical',
+            onEnd: () => {
+                const selected = selectedParent();
+                const ordered = Array.from(list.children, element => rows[element.dataset.index]);
+                rows.splice(0, rows.length, ...ordered);
+                renderList(selected);
+            }
+        });
+        const close = () => {
+            sortable.destroy();
+            modal.classList.add('hidden');
+        };
+        modal.querySelectorAll('[data-close]').forEach(button => { button.onclick = close; });
 
-        document.getElementById('close-manage-modal').onclick = close;
-        document.getElementById('cancel-manage').onclick = close;
-
-        document.getElementById('add-manage-item').onclick = () => {
-            const val = document.getElementById('new-manage-item').value.trim();
-            if (val && !tempList.includes(val)) {
-                tempList.push(val);
-                document.getElementById('new-manage-item').value = '';
-                renderList();
+        const addItem = () => {
+            const name = newItem.value.trim();
+            if (!name) return false;
+            const row = { original: null, name, parent: selectedParent() };
+            const value = path(row);
+            if (areas && (!isValidName(name) || value.length > 150)) {
+                warn('Usá un nombre sin los signos ›, < ni >. La ruta completa admite hasta 150 caracteres.');
+                return false;
+            }
+            if (rows.some(item => path(item) === value)) {
+                warn(areas ? 'Ya existe un área con ese nombre en esta ubicación.' : 'Ese responsable ya existe.');
+                return false;
+            }
+            const index = row.parent ? rows.indexOf(row.parent) + 1 : rows.length;
+            rows.splice(index, 0, row);
+            newItem.value = '';
+            renderList(row.parent);
+            return true;
+        };
+        modal.querySelector('#add-manage-item').onclick = addItem;
+        newItem.onkeydown = event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addItem();
             }
         };
 
-        // Custom event for dynamic removal (event delegation would be better but this works for isolated modal)
-        const removeHandler = (e) => {
-            tempList.splice(e.detail, 1);
-            renderList();
+        list.onclick = event => {
+            const button = event.target.closest('[data-remove]');
+            if (!button) return;
+            const index = Number(button.closest('[data-index]').dataset.index);
+            const row = rows[index];
+            if (rows.some(item => item.parent === row)) return warn('Eliminá primero las subáreas de esta área.');
+            const selected = selectedParent();
+            rows.splice(index, 1);
+            renderList(selected === row ? null : selected);
         };
-        document.addEventListener('remove-manage-item', removeHandler);
+        list.onchange = event => {
+            const input = event.target;
+            if (!input.matches('input')) return;
+            const row = rows[input.closest('[data-index]').dataset.index];
+            row.name = input.value.trim() || row.name;
+            input.value = row.name;
+            refreshParents(selectedParent());
+        };
 
-        // Rename Handler
-        const renameHandler = (e) => {
-            const { idx, val } = e.detail;
-            if (val && val.trim() !== '') {
-                tempList[idx] = val.trim();
-                // We don't re-render list here to avoid losing focus, input value is already there by user typing.
-                // But we update the data-value attribute for sorting logic
-                const listContainer = document.getElementById('manage-list-items');
-                if (listContainer && listContainer.children[idx]) {
-                    listContainer.children[idx].setAttribute('data-value', val.trim());
+        modal.querySelector('#save-manage').onclick = async () => {
+            if (!ProjectComponent.isEditable) return warn('Este enlace es de solo lectura.');
+            if (areas && newItem.value.trim() && !addItem()) return;
+            const values = rows.map(path);
+            if (areas) {
+                const invalid = rows.some((row, index) =>
+                    values[index] !== row.original && (!isValidName(row.name) || values[index].length > 150));
+                if (invalid) return warn('Revisá los nombres y las rutas de las áreas modificadas.');
+                if (new Set(values).size !== values.length) return warn('Hay áreas con el mismo nombre en una ubicación.');
+                const unchanged = new Set(rows.filter((row, index) => row.original === values[index]).map(row => row.original));
+                const changed = new Set(currentList.filter(value => !unchanged.has(value)));
+                if (ProjectComponent.data.some(task => changed.has(task.rubro))) {
+                    return warn('Mové las tareas a otra área antes de renombrar o eliminar un área en uso.');
                 }
             }
-        };
-        document.addEventListener('rename-manage-item', renameHandler);
-
-
-        document.getElementById('save-manage').onclick = () => {
-            if (!ProjectComponent.isEditable) return UI.showToast('Este enlace es de solo lectura', 'warning');
-            // Final read of order just in case
-            const listContainer = document.getElementById('manage-list-items');
-            if (listContainer) {
-                // Determine final list from DOM order
-                const finalOrder = Array.from(listContainer.children).map(el => {
-                    const input = el.querySelector('input');
-                    return input ? input.value : el.getAttribute('data-value'); // Fallback for readonly
-                }).filter(x => x && x.trim() !== ''); // Filter empties
-
-                onSave(finalOrder, [...currentList]); // Pass old list for comparison
-            } else {
-                onSave(tempList, [...currentList]);
+            const controls = [...modal.querySelectorAll('button, input, select')];
+            controls.forEach(control => { control.disabled = true; });
+            sortable.option('disabled', true);
+            try {
+                await onSave(areas ? ProjectComponent.orderedRubros(values) : values, [...currentList]);
+                close();
+            } catch (error) {
+                UI.showToast(error.message || 'No se pudieron guardar los cambios.', 'error');
+                sortable.option('disabled', false);
+            } finally {
+                controls.forEach(control => { control.disabled = false; });
             }
-            document.removeEventListener('remove-manage-item', removeHandler);
-            document.removeEventListener('rename-manage-item', renameHandler); // Cleanup
-            close();
         };
     },
 
@@ -2419,13 +2479,7 @@ const ProjectComponent = {
 
         if (rubroSelect) {
             const current = rubroSelect.value;
-            rubroSelect.innerHTML = ProjectComponent.rubros
-                .map(r => `<option value="${r}">${r}</option>`).join('');
-            if (current && ProjectComponent.rubros.includes(current)) {
-                rubroSelect.value = current;
-            } else if (ProjectComponent.rubros.length > 0) {
-                rubroSelect.value = ProjectComponent.rubros[0];
-            }
+            rubroSelect.innerHTML = ProjectComponent.rubroOptions(ProjectComponent.rubros, current);
         }
 
         if (respSelect) {

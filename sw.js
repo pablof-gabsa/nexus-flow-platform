@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-flow-v58'; // Refresh all assets before activating a new version
+const CACHE_NAME = 'nexus-flow-v59'; // Refresh all assets before activating a new version
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

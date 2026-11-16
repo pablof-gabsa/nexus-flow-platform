@@ -991,8 +991,8 @@ const ProjectComponent = {
                                 ${items.map(item => ProjectComponent.renderTaskItem(item)).join('')}
                            </ul>`
                 }
-                        ${area.children.length ? `<div class="pl-3 pr-2 pt-3 sm:pl-5">${area.children.map(renderArea).join('')}</div>` : ''}
                     </div>
+                    ${area.children.length ? `<div data-subareas="${Utils.escapeHTML(rubro)}" class="pl-3 pr-2 pt-3 sm:pl-5 border-t border-gray-100 dark:border-slate-700">${area.children.map(renderArea).join('')}</div>` : ''}
                 </div>
             `;
         };

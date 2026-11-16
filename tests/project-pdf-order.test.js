@@ -84,5 +84,12 @@ const original = JSON.stringify(project.data);
     printed = [];
     await project.generatePDF([subarea, nestedArea]);
     assert.deepEqual(printed, ['Reparación', 'Inspección']);
+    project.openRubros.clear();
+    project.renderChecklist();
+    const closedParent = checklist.innerHTML.slice(checklist.innerHTML.indexOf('data-rubro="Obras"'));
+    assert.match(closedParent, /class="hidden[^\"]*">\s*<\/div>\s*<div data-subareas="Obras"/,
+        'subareas remain outside the collapsed parent task container');
+    const escapedSubarea = vm.runInContext('Utils.escapeHTML', context)(subarea);
+    assert.ok(closedParent.includes(`data-rubro="${escapedSubarea}"`));
     console.log('PDF and checklist order verified for all sort modes and directions.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

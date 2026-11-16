@@ -511,10 +511,17 @@ const Store = {
         const ref = db.ref(`project_data/${projectId}/rubros`);
         if (!expectedRubros) return ref.set(rubros);
 
-        // Seed the local cache before comparing the draft with a transaction.
-        await ref.once('value');
-        const result = await ref.transaction(current => matchesDraft(current) ? rubros : undefined);
-        if (!result.committed) throw conflict();
+        // Keep the cache alive until the transaction finishes. A one-shot read
+        // can be evicted before the first transaction callback runs.
+        const keepCached = () => {};
+        ref.on('value', keepCached);
+        try {
+            await ref.once('value');
+            const result = await ref.transaction(current => matchesDraft(current) ? rubros : undefined);
+            if (!result.committed) throw conflict();
+        } finally {
+            ref.off('value', keepCached);
+        }
     },
 
     updateResponsables: async (projectId, responsables) => {

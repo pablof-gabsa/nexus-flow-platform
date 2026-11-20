@@ -1920,122 +1920,98 @@ const ProjectComponent = {
             rubrosToExport = [selectedRubros];
         }
 
+        const pageTop = 20;
+        const pageBottom = 280;
+        const headerHeight = 16;
+        const separatorGap = 3;
+        const nextPage = () => {
+            doc.addPage();
+            yPos = pageTop;
+        };
+
         rubrosToExport.forEach(rubro => {
             const items = ProjectComponent.sortTasks(tasks.filter(t => t.rubro === rubro));
-            if (items.length === 0) return;
 
-            // Page Break Check
-            if (yPos > 260) { doc.addPage(); yPos = 20; }
+            items.forEach((item, index) => {
+                const rows = [];
+                const addRows = (text, x, width, font, size, color, height) => {
+                    doc.setFont('helvetica', font);
+                    doc.setFontSize(size);
+                    for (const line of doc.splitTextToSize(text, width)) {
+                        rows.push({ line, x, font, size, color, height });
+                    }
+                };
 
-            // Rubro Header
-            doc.setFillColor(241, 245, 249); // Slate-100
-            doc.roundedRect(14, yPos, 182, 10, 2, 2, 'F');
-
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(11);
-            doc.setTextColor(51, 65, 85); // Slate-700
-            doc.text(rubro.toUpperCase(), 18, yPos + 7);
-
-            yPos += 16;
-
-            items.forEach(item => {
-                // Task Row
-                const isLate = item.deadline && Utils.isDateOverdue(item.deadline) && item.estado !== 'Realizado';
-                const statusColor = {
-                    'Realizado': [16, 185, 129], // Emerald
-                    'Pendiente': [245, 158, 11], // Amber
-                    'En Proceso': [59, 130, 246], // Blue
-                    'Suspendido': [100, 116, 139] // Slate
-                }[item.estado] || [200, 200, 200];
-
-                // Status Indicator (Pill)
-                doc.setFillColor(...statusColor);
-                doc.roundedRect(16, yPos, 3, 3, 1, 1, 'F');
-
-                // Title
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(10);
-                doc.setTextColor(30, 41, 59);
-
-                // Wrap Title
-                const titleLines = doc.splitTextToSize(item.requerimiento, 120);
-                let currentY = yPos + 2.5;
-
-                // Check page break for full item
-                // Estimated height: Title + Description + Meta ~ 20-30 units
-                if (yPos + 35 > 275) { doc.addPage(); yPos = 20; currentY = yPos + 2.5; }
-
-                doc.text(titleLines, 24, currentY);
-                currentY += (titleLines.length * 5); // Spacing after title
-
-                // Description (if exists)
+                addRows(item.requerimiento, 24, 120, 'bold', 10, [30, 41, 59], 5);
                 if (item.description) {
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(9);
-                    doc.setTextColor(71, 85, 105); // Slate-600
-                    const descLines = doc.splitTextToSize(item.description, 160);
-
-                    // Check break for description
-                    if (currentY + (descLines.length * 4) > 280) { doc.addPage(); yPos = 20; currentY = yPos + 5; }
-
-                    doc.text(descLines, 24, currentY);
-                    currentY += (descLines.length * 4.5);
+                    addRows(item.description, 24, 160, 'normal', 9, [71, 85, 105], 4.5);
                 }
-
-                // Details Line (Priority | Cost | Deadline | Resp)
                 const priority = item.priority || 'Normal';
                 const cost = item.costo ? `$${item.costo}` : '$0';
                 const deadline = item.deadline ? new Date(item.deadline).toLocaleDateString() : 'Sin fecha';
                 const resp = item.responsable || 'Sin asignar';
+                const metaInfo = `Prioridad: ${priority}  |  Presupuesto: ${cost}  |  Vence: ${deadline}  |  Resp: ${resp}`;
+                addRows(metaInfo, 24, 166, 'normal', 8, [100, 116, 139], 5);
+                for (const sub of item.subtasks || []) {
+                    addRows(`${sub.done ? '[X]' : '[  ]'} ${sub.text}`, 28, 162, 'normal', 9, [51, 65, 85], 5);
+                }
 
+                const taskHeight = rows.reduce((sum, row) => sum + row.height, separatorGap);
+                const headingHeight = index === 0 ? headerHeight : 0;
+                const pageCapacity = pageBottom - pageTop;
+                // Keep the area heading with the whole task when possible. For a task
+                // taller than a sheet, reserve its first line with the heading.
+                const groupHeight = headingHeight + taskHeight;
+                const requiredSpace = groupHeight <= pageCapacity ? groupHeight :
+                    headingHeight + (taskHeight > pageCapacity ? rows[0].height : 0);
+                if (yPos + requiredSpace > pageBottom) nextPage();
+                if (index === 0) {
+                    doc.setFillColor(241, 245, 249);
+                    doc.roundedRect(14, yPos, 182, 10, 2, 2, 'F');
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(11);
+                    doc.setTextColor(51, 65, 85);
+                    doc.text(rubro.toUpperCase(), 18, yPos + 7);
+                    yPos += headerHeight;
+                }
+
+                if (taskHeight <= pageBottom - pageTop && yPos + taskHeight > pageBottom) nextPage();
+                const isLate = item.deadline && Utils.isDateOverdue(item.deadline) && item.estado !== 'Realizado';
+                const statusColor = {
+                    'Realizado': [16, 185, 129],
+                    'Pendiente': [245, 158, 11],
+                    'En Proceso': [59, 130, 246],
+                    'Suspendido': [100, 116, 139]
+                }[item.estado] || [200, 200, 200];
+                doc.setFillColor(...statusColor);
+                doc.roundedRect(16, yPos, 3, 3, 1, 1, 'F');
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(8);
-                doc.setTextColor(100, 116, 139); // Slate-500
+                doc.setTextColor(...(isLate ? [239, 68, 68] : statusColor));
+                doc.text(isLate ? '! VENCIDA' : item.estado.toUpperCase(), 190, yPos + 4, { align: 'right' });
 
-                const metaInfo = `Prioridad: ${priority}  |  Presupuesto: ${cost}  |  Vence: ${deadline}  |  Resp: ${resp}`;
-                doc.text(metaInfo, 24, currentY + 2);
-
-                currentY += 6; // Spacing after meta
-
-                // Subtasks
-                if (item.subtasks && item.subtasks.length > 0) {
-                    currentY += 2;
-                    doc.setFontSize(9);
-                    doc.setTextColor(51, 65, 85); // Slate-700
-
-                    item.subtasks.forEach(sub => {
-                        const check = sub.done ? '[X]' : '[  ]';
-                        const subText = `${check} ${sub.text}`;
-
-                        // Check page break
-                        if (currentY + 5 > 280) { doc.addPage(); yPos = 20; currentY = yPos + 5; }
-
-                        doc.text(subText, 28, currentY);
-                        currentY += 5;
-                    });
-                    currentY += 2;
+                for (const [rowIndex, row] of rows.entries()) {
+                    const endGap = rowIndex === rows.length - 1 ? separatorGap : 0;
+                    if (yPos + row.height + endGap > pageBottom) {
+                        nextPage();
+                        doc.setFont('helvetica', 'italic');
+                        doc.setFontSize(8);
+                        doc.setTextColor(100, 116, 139);
+                        doc.text('Continuación de la tarea', 24, yPos + 4);
+                        yPos += 7;
+                    }
+                    doc.setFont('helvetica', row.font);
+                    doc.setFontSize(row.size);
+                    doc.setTextColor(...row.color);
+                    doc.text(row.line, row.x, yPos + 3.5);
+                    yPos += row.height;
                 }
 
-                currentY += 2;
-
-                // Draw Status Label
-                doc.setFontSize(8);
-                doc.setTextColor(...statusColor);
-                if (isLate) {
-                    doc.setTextColor(239, 68, 68); // Red
-                    doc.text("! VENCIDA", 170, yPos + 4, { align: 'right' });
-                } else {
-                    doc.text(item.estado.toUpperCase(), 190, yPos + 4, { align: 'right' });
-                }
-
-                // Update yPos for next item based on actual height used
-                yPos = currentY + 4;
-
-                // Separator Line
+                yPos += separatorGap;
                 doc.setDrawColor(241, 245, 249);
-                doc.line(14, yPos - 3, 196, yPos - 3);
+                doc.line(14, yPos, 196, yPos);
+                yPos += 4;
             });
-
             yPos += 10;
         });
 
